@@ -31,7 +31,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
 
-  const { season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
