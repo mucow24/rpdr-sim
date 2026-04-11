@@ -1,8 +1,8 @@
-import type { Season } from '../engine/types';
+import type { SeasonData } from '../engine/types';
 
 // Skill ratings are 1-10, based on actual Season 5 performance.
 // These are subjective but calibrated to produce realistic simulations.
-const season5: Season = {
+const season5: SeasonData = {
   id: 'season5',
   name: 'Season 5',
   queens: [
@@ -232,17 +232,154 @@ const season5: Season = {
     },
   ],
   episodes: [
-    { number: 1, challengeType: 'singing', challengeName: 'RuPaul Roast... I mean, Lip Sync Extravaganza' },
-    { number: 2, challengeType: 'design', challengeName: 'Unconventional Materials' },
-    { number: 3, challengeType: 'dance', challengeName: 'Draggle Rock' },
-    { number: 4, challengeType: 'acting', challengeName: 'Black Swan: Why It Gotta Be Black?' },
-    { number: 5, challengeType: 'improv', challengeName: 'Telenovela Acting Challenge' },
-    { number: 6, challengeType: 'comedy', challengeName: 'Can I Get an Amen?' },
-    { number: 7, challengeType: 'snatchGame', challengeName: 'Snatch Game' },
-    { number: 8, challengeType: 'comedy', challengeName: 'Scent of a Drag Queen' },
-    { number: 9, challengeType: 'acting', challengeName: 'Drama Queens' },
-    { number: 10, challengeType: 'design', challengeName: 'Super Troopers' },
-    { number: 11, challengeType: 'comedy', challengeName: 'Sugar Ball' },
+    // Ep 1: "RuPaullywood or Bust" (singing/performance)
+    {
+      number: 1,
+      challengeType: 'singing',
+      challengeName: 'RuPaul Roast... I mean, Lip Sync Extravaganza',
+      placements: {
+        roxxxy: 'WIN',
+        alaska: 'HIGH', ivy: 'HIGH', lineysha: 'HIGH',
+        jinkx: 'SAFE', detox: 'SAFE', coco: 'SAFE', alyssa: 'SAFE',
+        jade: 'SAFE', honey: 'SAFE', monica: 'SAFE', vivienne: 'SAFE',
+        penny: 'BTM2', serena: 'BTM2',
+      },
+      eliminated: ['penny'],
+    },
+    // Ep 2: "Lip Synch Extravaganza Eleganza" (design/unconventional)
+    {
+      number: 2,
+      challengeType: 'design',
+      challengeName: 'Unconventional Materials',
+      placements: {
+        lineysha: 'WIN',
+        roxxxy: 'HIGH', ivy: 'HIGH',
+        alaska: 'SAFE', jinkx: 'SAFE', detox: 'SAFE', coco: 'SAFE',
+        alyssa: 'SAFE', jade: 'SAFE', honey: 'SAFE', vivienne: 'SAFE',
+        monica: 'BTM2', serena: 'BTM2',
+      },
+      eliminated: ['serena'],
+    },
+    // Ep 3: "Draggle Rock" (dance/performance)
+    {
+      number: 3,
+      challengeType: 'dance',
+      challengeName: 'Draggle Rock',
+      placements: {
+        detox: 'WIN',
+        jinkx: 'HIGH', roxxxy: 'HIGH',
+        alaska: 'SAFE', ivy: 'SAFE', lineysha: 'SAFE',
+        alyssa: 'SAFE', jade: 'SAFE', vivienne: 'SAFE',
+        honey: 'LOW',
+        coco: 'BTM2', monica: 'BTM2',
+      },
+      eliminated: ['monica'],
+    },
+    // Ep 4: "Black Swan: Why It Gotta Be Black?" (acting) — DOUBLE ELIMINATION
+    {
+      number: 4,
+      challengeType: 'acting',
+      challengeName: 'Black Swan: Why It Gotta Be Black?',
+      placements: {
+        alyssa: 'WIN',
+        ivy: 'HIGH', jinkx: 'HIGH',
+        roxxxy: 'SAFE', alaska: 'SAFE', detox: 'SAFE',
+        coco: 'LOW', lineysha: 'LOW', jade: 'LOW',
+        honey: 'BTM2', vivienne: 'BTM2',
+      },
+      eliminated: ['honey', 'vivienne'],
+    },
+    // Ep 5: "Snatch Game" (snatchGame)
+    {
+      number: 5,
+      challengeType: 'improv',
+      challengeName: 'Telenovela Acting Challenge',
+      placements: {
+        jinkx: 'WIN',
+        alaska: 'HIGH', roxxxy: 'HIGH',
+        ivy: 'SAFE', coco: 'SAFE', alyssa: 'SAFE',
+        jade: 'LOW',
+        detox: 'BTM2', lineysha: 'BTM2',
+      },
+      eliminated: ['lineysha'],
+    },
+    // Ep 6: "Can I Get an Amen?" (singing/comedy)
+    {
+      number: 6,
+      challengeType: 'comedy',
+      challengeName: 'Can I Get an Amen?',
+      placements: {
+        ivy: 'WIN',
+        jinkx: 'HIGH', roxxxy: 'HIGH',
+        alaska: 'SAFE', alyssa: 'SAFE', detox: 'SAFE',
+        coco: 'BTM2', jade: 'BTM2',
+      },
+      eliminated: ['jade'],
+    },
+    // Ep 7: "RuPaul Roast" (comedy) — NON-ELIMINATION
+    {
+      number: 7,
+      challengeType: 'snatchGame',
+      challengeName: 'Snatch Game',
+      placements: {
+        coco: 'WIN',
+        alaska: 'HIGH', jinkx: 'HIGH',
+        ivy: 'SAFE', detox: 'SAFE',
+        alyssa: 'BTM2', roxxxy: 'BTM2',
+      },
+      eliminated: [],
+    },
+    // Ep 8: "Scent of a Drag Queen" (comedy/acting)
+    {
+      number: 8,
+      challengeType: 'comedy',
+      challengeName: 'Scent of a Drag Queen',
+      placements: {
+        alaska: 'WIN',
+        detox: 'HIGH', jinkx: 'HIGH',
+        roxxxy: 'SAFE', coco: 'SAFE',
+        alyssa: 'BTM2', ivy: 'BTM2',
+      },
+      eliminated: ['ivy'],
+    },
+    // Ep 9: "Drama Queens" (acting)
+    {
+      number: 9,
+      challengeType: 'acting',
+      challengeName: 'Drama Queens',
+      placements: {
+        jinkx: 'WIN',
+        alaska: 'HIGH', roxxxy: 'HIGH',
+        detox: 'SAFE',
+        alyssa: 'BTM2', coco: 'BTM2',
+      },
+      eliminated: ['alyssa'],
+    },
+    // Ep 10: "Super Troopers" (design)
+    {
+      number: 10,
+      challengeType: 'design',
+      challengeName: 'Super Troopers',
+      placements: {
+        roxxxy: 'WIN',
+        jinkx: 'HIGH',
+        alaska: 'SAFE',
+        coco: 'BTM2', detox: 'BTM2',
+      },
+      eliminated: ['coco'],
+    },
+    // Ep 11: "Sugar Ball" (design)
+    {
+      number: 11,
+      challengeType: 'comedy',
+      challengeName: 'Sugar Ball',
+      placements: {
+        alaska: 'WIN',
+        roxxxy: 'HIGH',
+        detox: 'BTM2', jinkx: 'BTM2',
+      },
+      eliminated: ['detox'],
+    },
   ],
 };
 

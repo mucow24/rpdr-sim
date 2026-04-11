@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function EpisodeDetail({ episodeIndex }: Props) {
-  const { season, baselineResults, filteredResults, conditions, addCondition, removeCondition } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition } =
     useStore();
   const results = filteredResults ?? baselineResults;
   const [dragOverRow, setDragOverRow] = useState<Placement | 'OUT' | null>(null);

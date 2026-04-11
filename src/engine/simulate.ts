@@ -1,13 +1,24 @@
 import type {
   Queen,
-  Episode,
+  EpisodeData,
   Placement,
   EpisodeResult,
   SimulationRun,
   SimulationResults,
   FilterCondition,
+  TrajectoryPath,
+  SeasonData,
+  RunFromStateOptions,
 } from './types';
 import { PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT } from './types';
+export type { RunFromStateOptions } from './types';
+
+/** Internal mid-season state for simulateOneSeason. */
+interface MidSeasonState {
+  remainingQueenIds: Set<string>;
+  priorResults: EpisodeResult[];
+  startEpisodeIndex: number;
+}
 
 // Box-Muller transform for gaussian random numbers
 function gaussianRandom(mean = 0, stdev = 1): number {
@@ -17,7 +28,7 @@ function gaussianRandom(mean = 0, stdev = 1): number {
   return z * stdev + mean;
 }
 
-function scoreQueen(queen: Queen, episode: Episode, noise: number): number {
+function scoreQueen(queen: Queen, episode: EpisodeData, noise: number): number {
   const skill = queen.skills[episode.challengeType];
   const runwayBonus = queen.skills.runway * 0.15;
   return skill + runwayBonus + gaussianRandom(0, noise);
@@ -54,17 +65,31 @@ function resolveLipSync(queenA: Queen, queenB: Queen): string {
   return Math.random() < pA ? queenA.id : queenB.id;
 }
 
-/** Pure simulation — no constraints, no filtering. */
+/** Pure simulation — optionally seeded from a mid-season state. */
 function simulateOneSeason(
   queens: Queen[],
-  episodes: Episode[],
+  episodes: EpisodeData[],
   noise: number,
+  midSeason?: MidSeasonState,
 ): SimulationRun {
-  const remaining = new Map(queens.map((q) => [q.id, q]));
-  const episodeResults: EpisodeResult[] = [];
+  const queenMap = new Map(queens.map((q) => [q.id, q]));
+  const remaining = midSeason
+    ? new Map([...queenMap].filter(([id]) => midSeason.remainingQueenIds.has(id)))
+    : new Map(queenMap);
+  const episodeResults: EpisodeResult[] = midSeason ? [...midSeason.priorResults] : [];
   const eliminationOrder: string[] = [];
 
-  for (const episode of episodes) {
+  // Derive elimination order from prior results
+  if (midSeason) {
+    for (const pr of midSeason.priorResults) {
+      if (pr.eliminated) eliminationOrder.push(pr.eliminated);
+    }
+  }
+
+  const startIdx = midSeason?.startEpisodeIndex ?? 0;
+
+  for (let epIdx = startIdx; epIdx < episodes.length; epIdx++) {
+    const episode = episodes[epIdx];
     if (remaining.size <= 3) break;
 
     const activeQueens = Array.from(remaining.values());
@@ -185,8 +210,7 @@ function writeRunToBuffer(
 }
 
 export interface RunBaselineOptions {
-  queens: Queen[];
-  episodes: Episode[];
+  season: SeasonData;
   numSimulations?: number;
   noise?: number;
 }
@@ -200,11 +224,11 @@ export interface BaselineResult {
 }
 
 export function runBaseline({
-  queens,
-  episodes,
+  season,
   numSimulations = 100_000,
   noise = 1.8,
 }: RunBaselineOptions, onProgress?: (pct: number) => void): BaselineResult {
+  const { queens, episodes } = season;
   const numQueens = queens.length;
   const numEpisodes = episodes.length;
   const queenIds = queens.map((q) => q.id);
@@ -226,20 +250,15 @@ export function runBaseline({
   return { results, buffer, numQueens, numEpisodes, queenIds };
 }
 
-/** Filter the compact buffer and re-aggregate. */
-export function filterAndAggregate(
+/** Get indices of runs matching all conditions. */
+export function getMatchingIndices(
   buffer: Uint8Array,
   totalRuns: number,
   conditions: FilterCondition[],
-  queens: Queen[],
-  episodes: Episode[],
-): { results: SimulationResults; matchCount: number } {
-  const numQueens = queens.length;
-  const numEpisodes = episodes.length;
-  const queenIds = queens.map((q) => q.id);
+  numQueens: number,
+  numEpisodes: number,
+): number[] {
   const stride = bytesPerRun(numQueens, numEpisodes);
-
-  // Collect matching run indices
   const matchingIndices: number[] = [];
   for (let r = 0; r < totalRuns; r++) {
     const base = r * stride;
@@ -247,7 +266,6 @@ export function filterAndAggregate(
     let matches = true;
     for (const cond of conditions) {
       if (cond.placement === ELIM_PLACEMENT) {
-        // ELIM condition: check eliminated section for this queen at this episode
         if (buffer[elimBase + cond.episodeIndex] !== cond.queenIndex) {
           matches = false;
           break;
@@ -262,6 +280,23 @@ export function filterAndAggregate(
     }
     if (matches) matchingIndices.push(r);
   }
+  return matchingIndices;
+}
+
+/** Filter the compact buffer and re-aggregate. */
+export function filterAndAggregate(
+  buffer: Uint8Array,
+  totalRuns: number,
+  conditions: FilterCondition[],
+  queens: Queen[],
+  episodes: EpisodeData[],
+): { results: SimulationResults; matchCount: number } {
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+
+  const matchingIndices = getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes);
 
   if (matchingIndices.length === 0) {
     // Return empty results
@@ -287,7 +322,7 @@ export function filterAndAggregate(
     const episodeResults: EpisodeResult[] = [];
     for (let ep = 0; ep < numEpisodes; ep++) {
       const placements = new Map<string, Placement>();
-      let btm2: string[] = [];
+      const btm2: string[] = [];
       for (let qi = 0; qi < numQueens; qi++) {
         const pIdx = buffer[base + ep * numQueens + qi];
         if (pIdx !== 255 && pIdx <= 4) {
@@ -325,7 +360,7 @@ export function filterAndAggregate(
 function aggregateResults(
   runs: SimulationRun[],
   queens: Queen[],
-  episodes: Episode[],
+  episodes: EpisodeData[],
 ): SimulationResults {
   const n = runs.length;
   const queenIds = queens.map((q) => q.id);
@@ -430,4 +465,127 @@ function aggregateResults(
     winProb,
     episodePlacements,
   };
+}
+
+/** Extract unique placement trajectories for a specific queen. */
+export function extractTrajectories(
+  buffer: Uint8Array,
+  totalRuns: number,
+  queenIndex: number,
+  numQueens: number,
+  numEpisodes: number,
+  conditions: FilterCondition[],
+): { paths: TrajectoryPath[]; scannedRuns: number } {
+  const stride = bytesPerRun(numQueens, numEpisodes);
+  const runIndices = conditions.length > 0
+    ? getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes)
+    : null; // null = scan all runs
+
+  const pathCounts = new Map<string, number>();
+  const scannedRuns = runIndices ? runIndices.length : totalRuns;
+
+  const scanRun = (r: number) => {
+    const base = r * stride;
+    const parts: number[] = [];
+    for (let ep = 0; ep < numEpisodes; ep++) {
+      const val = buffer[base + ep * numQueens + queenIndex];
+      if (val === 255) break;
+      parts.push(val);
+    }
+    if (parts.length === 0) return;
+    const key = parts.join(',');
+    pathCounts.set(key, (pathCounts.get(key) ?? 0) + 1);
+  };
+
+  if (runIndices) {
+    for (const r of runIndices) scanRun(r);
+  } else {
+    for (let r = 0; r < totalRuns; r++) scanRun(r);
+  }
+
+  const paths = Array.from(pathCounts.entries())
+    .map(([key, count]) => ({
+      placements: key.split(',').map(Number),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return { paths, scannedRuns };
+}
+
+// ── Domain model → simulation internal conversion ──────────
+
+/** Convert an EpisodeData (domain model) to an EpisodeResult (simulation internal). */
+export function outcomeToEpisodeResult(ep: EpisodeData): EpisodeResult {
+  const placementMap = new Map<string, Placement>();
+  for (const [id, p] of Object.entries(ep.placements)) {
+    placementMap.set(id, p);
+  }
+
+  const btm2 = Object.entries(ep.placements)
+    .filter(([, p]) => p === 'BTM2')
+    .map(([id]) => id);
+
+  return {
+    episodeNumber: ep.number,
+    placements: placementMap,
+    lipSyncMatchup: [btm2[0] ?? '', btm2[1] ?? ''],
+    lipSyncWinner: btm2.find((id) => !ep.eliminated.includes(id)) ?? '',
+    eliminated: ep.eliminated[0] ?? '',
+  };
+}
+
+// ── Forward simulation from season state ──────────────────
+
+export function runFromState(
+  {
+    season,
+    fromEpisode,
+    numSimulations = 100_000,
+    noise = 1.8,
+  }: RunFromStateOptions,
+  onProgress?: (pct: number) => void,
+): BaselineResult {
+  const { queens, episodes } = season;
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+  const buffer = new Uint8Array(numSimulations * stride);
+
+  // Build locked EpisodeResults and compute remaining queens from outcomes
+  const priorResults: EpisodeResult[] = [];
+  const allEliminated = new Set<string>();
+
+  for (let i = 0; i < fromEpisode && i < numEpisodes; i++) {
+    const epResult = outcomeToEpisodeResult(episodes[i]);
+    priorResults.push(epResult);
+    for (const id of episodes[i].eliminated) {
+      allEliminated.add(id);
+    }
+  }
+
+  const remainingQueenIds = new Set(
+    queenIds.filter((id) => !allEliminated.has(id)),
+  );
+
+  const midSeason: MidSeasonState = {
+    remainingQueenIds,
+    priorResults,
+    startEpisodeIndex: fromEpisode,
+  };
+
+  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
+  const runs: SimulationRun[] = [];
+  for (let i = 0; i < numSimulations; i++) {
+    const run = simulateOneSeason(queens, episodes, noise, midSeason);
+    runs.push(run);
+    writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
+    if (onProgress && i % progressInterval === 0) {
+      onProgress(Math.round((i / numSimulations) * 100));
+    }
+  }
+
+  const results = aggregateResults(runs, queens, episodes);
+  return { results, buffer, numQueens, numEpisodes, queenIds };
 }

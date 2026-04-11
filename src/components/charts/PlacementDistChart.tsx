@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import type { SimulationResults } from '../../engine/types';
+
 
 const MARGIN = { top: 24, right: 50, bottom: 40, left: 120 };
 
@@ -29,7 +29,7 @@ export default function PlacementDistChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(520);
-  const { season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
 
   useEffect(() => {

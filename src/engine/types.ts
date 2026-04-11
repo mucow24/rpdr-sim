@@ -31,19 +31,24 @@ export const INDEX_PLACEMENT: Record<number, Placement> = {
   0: 'WIN', 1: 'HIGH', 2: 'SAFE', 3: 'LOW', 4: 'BTM2',
 };
 
-export interface Episode {
+/** An episode with challenge metadata and outcomes */
+export interface EpisodeData {
   number: number;
   challengeType: ChallengeCategory;
   challengeName: string;
+  placements: Record<string, Placement>;  // queenId -> WIN/HIGH/SAFE/LOW/BTM2
+  eliminated: string[];                    // queenIds (empty = non-elim)
 }
 
-export interface Season {
+/** A complete season: queens, episodes (with outcomes), loadable for any season */
+export interface SeasonData {
   id: string;
   name: string;
   queens: Queen[];
-  episodes: Episode[];
+  episodes: EpisodeData[];
 }
 
+/** Simulation-internal episode result (Map-based, with lip sync details) */
 export interface EpisodeResult {
   episodeNumber: number;
   placements: Map<string, Placement>; // queenId -> placement
@@ -79,4 +84,17 @@ export interface SimulationResults {
   winProb: Record<string, number>;
   /** episodePlacements[epIdx][queenId] = { WIN: 0.3, HIGH: 0.4, ... } */
   episodePlacements: Record<string, Record<string, number>>[];
+}
+
+/** A unique placement path across episodes with its frequency */
+export interface TrajectoryPath {
+  placements: number[];  // placement indices per episode (0=WIN..4=BTM2), length = episodes survived
+  count: number;
+}
+
+export interface RunFromStateOptions {
+  season: SeasonData;
+  fromEpisode: number;     // 0-based, first ep to simulate
+  numSimulations?: number;
+  noise?: number;
 }

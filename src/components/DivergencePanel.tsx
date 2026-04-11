@@ -2,7 +2,7 @@ import { useStore } from '../store/useStore';
 import { INDEX_PLACEMENT, ELIM_PLACEMENT } from '../engine/types';
 
 export default function DivergencePanel() {
-  const { conditions, clearConditions, removeCondition, season } = useStore();
+  const { conditions, clearConditions, removeCondition, currentSeason: season } = useStore();
 
   if (conditions.length === 0) return null;
 

@@ -13,7 +13,7 @@ const CHALLENGE_ICONS: Record<string, string> = {
 };
 
 export default function Timeline() {
-  const { season, conditions, openEpisodeIndex, setOpenEpisodeIndex } =
+  const { currentSeason: season, conditions, openEpisodeIndex, setOpenEpisodeIndex } =
     useStore();
 
   const conditionEpisodes = new Set(conditions.map((c) => c.episodeIndex));

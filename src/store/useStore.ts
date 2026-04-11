@@ -1,9 +1,22 @@
 import { create } from 'zustand';
-import type { Season, SimulationResults, FilterCondition } from '../engine/types';
+import type { SeasonData, Placement, SimulationResults, FilterCondition, TrajectoryPath } from '../engine/types';
 import season5 from '../data/season5';
 
+function cloneSeason(s: SeasonData): SeasonData {
+  return {
+    ...s,
+    queens: s.queens, // queens are immutable, no need to deep clone
+    episodes: s.episodes.map((ep) => ({
+      ...ep,
+      placements: { ...ep.placements },
+      eliminated: [...ep.eliminated],
+    })),
+  };
+}
+
 interface AppState {
-  season: Season;
+  realSeason: SeasonData;
+  currentSeason: SeasonData;
   conditions: FilterCondition[];
   baselineResults: SimulationResults | null;
   filteredResults: SimulationResults | null;
@@ -13,8 +26,15 @@ interface AppState {
   simulationProgress: number | null;
   selectedQueenId: string | null;
   openEpisodeIndex: number | null;
+  trajectoryPaths: TrajectoryPath[] | null;
+  trajectoryTotalRuns: number | null;
 
-  setSeason: (season: Season) => void;
+  appMode: 'simulation' | 'divergence';
+
+  updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
+  resetEpisode: (epIdx: number) => void;
+  resetAllEpisodes: () => void;
+
   setBaselineResults: (results: SimulationResults) => void;
   setSimulationProgress: (pct: number | null) => void;
   setFilteredResults: (
@@ -25,14 +45,18 @@ interface AppState {
   setIsSimulating: (isSimulating: boolean) => void;
   setSelectedQueenId: (queenId: string | null) => void;
   setOpenEpisodeIndex: (idx: number | null) => void;
+  setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
+
+  setAppMode: (mode: 'simulation' | 'divergence') => void;
 
   addCondition: (c: FilterCondition) => void;
   removeCondition: (episodeIndex: number, queenIndex: number) => void;
   clearConditions: () => void;
 }
 
-export const useStore = create<AppState>((set, get) => ({
-  season: season5,
+export const useStore = create<AppState>()((set) => ({
+  realSeason: season5,
+  currentSeason: cloneSeason(season5),
   conditions: [],
   baselineResults: null,
   filteredResults: null,
@@ -42,9 +66,35 @@ export const useStore = create<AppState>((set, get) => ({
   simulationProgress: null,
   selectedQueenId: null,
   openEpisodeIndex: null,
+  trajectoryPaths: null,
+  trajectoryTotalRuns: null,
 
-  setSeason: (season) =>
-    set({ season, conditions: [], filteredResults: null }),
+  appMode: 'simulation',
+
+  updateEpisodeOutcome: (epIdx, outcome) =>
+    set((s) => {
+      const episodes = s.currentSeason.episodes.map((ep, i) =>
+        i === epIdx
+          ? { ...ep, placements: { ...outcome.placements }, eliminated: [...outcome.eliminated] }
+          : ep,
+      );
+      return { currentSeason: { ...s.currentSeason, episodes } };
+    }),
+
+  resetEpisode: (epIdx) =>
+    set((s) => {
+      const realEp = s.realSeason.episodes[epIdx];
+      const episodes = s.currentSeason.episodes.map((ep, i) =>
+        i === epIdx
+          ? { ...ep, placements: { ...realEp.placements }, eliminated: [...realEp.eliminated] }
+          : ep,
+      );
+      return { currentSeason: { ...s.currentSeason, episodes } };
+    }),
+
+  resetAllEpisodes: () =>
+    set((s) => ({ currentSeason: cloneSeason(s.realSeason), baselineResults: null })),
+
   setBaselineResults: (results) => set({ baselineResults: results }),
   setFilteredResults: (results, matchCount, totalRuns) =>
     set({
@@ -62,10 +112,13 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({
       openEpisodeIndex: s.openEpisodeIndex === idx ? null : idx,
     })),
+  setTrajectoryPaths: (paths, totalRuns) =>
+    set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),
+
+  setAppMode: (mode) => set({ appMode: mode }),
 
   addCondition: (c) =>
     set((s) => {
-      // Replace existing condition for same queen+episode, or add new
       const filtered = s.conditions.filter(
         (existing) =>
           !(

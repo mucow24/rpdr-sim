@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import type { SimulationResults } from '../../engine/types';
+
 
 const MARGIN = { top: 24, right: 16, bottom: 40, left: 120 };
 
@@ -22,7 +22,7 @@ export default function EliminationHeatmap({
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
-  const { season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
 
   const results = filteredResults ?? baselineResults;
