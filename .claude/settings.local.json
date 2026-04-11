@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npx --yes create-vite@latest tmp-scaffold --template react-ts)",
+      "Bash(cp -r tmp-scaffold/* .)",
+      "Bash(cp tmp-scaffold/.gitignore .)",
+      "Bash(rm -rf tmp-scaffold)",
+      "Bash(npm install:*)",
+      "Bash(rm -f App.css)",
+      "Bash(mkdir -p engine data components/charts components/timeline store)",
+      "Bash(npx tsc:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git checkout:*)",
+      "WebSearch",
+      "WebFetch(domain:rupaulsdragrace.fandom.com)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "Bash(npm i:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)"
+    ]
+  }
+}

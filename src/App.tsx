@@ -7,6 +7,7 @@ import EliminationHeatmap from './components/charts/EliminationHeatmap';
 import PlacementDistChart from './components/charts/PlacementDistChart';
 import QueenCard from './components/QueenCard';
 import DivergencePanel from './components/DivergencePanel';
+import SeasonFlowChart from './components/charts/SeasonFlowChart';
 
 const NUM_SIMULATIONS = 100_000;
 
@@ -100,6 +101,10 @@ export default function App() {
           </h2>
         </div>
         <Timeline />
+      </section>
+
+      <section className="mb-8">
+        <SeasonFlowChart height={650} />
       </section>
 
       <section className="mb-8">
