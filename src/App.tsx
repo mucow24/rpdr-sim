@@ -9,6 +9,7 @@ import QueenCard from './components/QueenCard';
 import DivergencePanel from './components/DivergencePanel';
 import TrajectoryChart from './components/charts/TrajectoryChart';
 import DivergencePage from './components/DivergencePage';
+import SeasonFlowChart from './components/charts/SeasonFlowChart';
 
 const NUM_SIMULATIONS = 100_000;
 
@@ -126,6 +127,7 @@ export default function App() {
 
           <DivergencePanel />
 
+<<<<<<< HEAD
           <section className="mb-8 bg-[#121218] rounded-lg border border-[#1a1a24]">
             <div className="px-4 pt-3 pb-1">
               <h2 className="text-xs font-medium text-[#555] uppercase tracking-wider">
@@ -134,6 +136,15 @@ export default function App() {
             </div>
             <Timeline />
           </section>
+=======
+      <section className="mb-8">
+        <SeasonFlowChart height={650} />
+      </section>
+
+      <section className="mb-8">
+        <WinProbChart height={400} />
+      </section>
+>>>>>>> claude/funny-perlman
 
           <section className="mb-8">
             <WinProbChart height={400} />
