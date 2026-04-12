@@ -29,7 +29,8 @@ interface AppState {
   trajectoryPaths: TrajectoryPath[] | null;
   trajectoryTotalRuns: number | null;
 
-  appMode: 'simulation' | 'divergence';
+  appMode: 'simulation' | 'divergence' | 'spread';
+  spreadSelectedEpisode: number;
 
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
   resetEpisode: (epIdx: number) => void;
@@ -47,7 +48,8 @@ interface AppState {
   setOpenEpisodeIndex: (idx: number | null) => void;
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
 
-  setAppMode: (mode: 'simulation' | 'divergence') => void;
+  setAppMode: (mode: 'simulation' | 'divergence' | 'spread') => void;
+  setSpreadSelectedEpisode: (idx: number) => void;
 
   addCondition: (c: FilterCondition) => void;
   removeCondition: (episodeIndex: number, queenIndex: number) => void;
@@ -69,7 +71,8 @@ export const useStore = create<AppState>()((set) => ({
   trajectoryPaths: null,
   trajectoryTotalRuns: null,
 
-  appMode: 'simulation',
+  appMode: 'spread',
+  spreadSelectedEpisode: 0,
 
   updateEpisodeOutcome: (epIdx, outcome) =>
     set((s) => {
@@ -116,6 +119,7 @@ export const useStore = create<AppState>()((set) => ({
     set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),
 
   setAppMode: (mode) => set({ appMode: mode }),
+  setSpreadSelectedEpisode: (idx) => set({ spreadSelectedEpisode: idx }),
 
   addCondition: (c) =>
     set((s) => {

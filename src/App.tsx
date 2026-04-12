@@ -9,6 +9,7 @@ import QueenCard from './components/QueenCard';
 import DivergencePanel from './components/DivergencePanel';
 import TrajectoryChart from './components/charts/TrajectoryChart';
 import DivergencePage from './components/DivergencePage';
+import SpreadPage from './components/SpreadPage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
 
 const NUM_SIMULATIONS = 100_000;
@@ -34,7 +35,7 @@ export default function App() {
   // Run baseline on mount and when season changes — but only in simulation mode.
   // In divergence mode, DivergencePage owns simulation via runFromState.
   useEffect(() => {
-    if (appMode !== 'simulation') return;
+    if (appMode === 'divergence') return;
     setIsSimulating(true);
     setSimulationProgress(0);
     runBaseline({
@@ -89,6 +90,16 @@ export default function App() {
             Simulation
           </button>
           <button
+            onClick={() => setAppMode('spread')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              appMode === 'spread'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-[#666] hover:text-[#999] border border-transparent'
+            }`}
+          >
+            Spread
+          </button>
+          <button
             onClick={() => setAppMode('divergence')}
             className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
               appMode === 'divergence'
@@ -101,7 +112,9 @@ export default function App() {
         </div>
       </header>
 
-      {appMode === 'simulation' ? (
+      {appMode === 'spread' ? (
+        <SpreadPage />
+      ) : appMode === 'simulation' ? (
         <>
           <p className="text-[#666] mb-6">
             {season.name} &middot;{' '}

@@ -1,6 +1,7 @@
 import { useState, type DragEvent } from 'react';
 import { useStore } from '../../store/useStore';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, type Placement } from '../../engine/types';
+import { getEliminatedQueenIds } from '../../engine/activeQueens';
 
 const PLACEMENT_LABELS: Record<Placement, { label: string; color: string }> = {
   WIN: { label: 'WIN', color: '#ffd700' },
@@ -36,24 +37,7 @@ export default function EpisodeDetail({ episodeIndex }: Props) {
     isElim: boolean; // marked for elimination via click
   };
 
-  // Determine who's been eliminated in prior episodes by finding the
-  // most-likely eliminated queen at each episode before this one.
-  const eliminatedQueenIds = new Set<string>();
-  for (let ep = 0; ep < episodeIndex; ep++) {
-    const elimProbs = results.elimProbByEpisode[ep];
-    if (!elimProbs) continue;
-    // Find the queen with the highest elimination probability at this episode,
-    // excluding queens already eliminated in earlier episodes.
-    let bestId = '';
-    let bestProb = 0;
-    for (const [qid, prob] of Object.entries(elimProbs)) {
-      if (prob > bestProb && !eliminatedQueenIds.has(qid)) {
-        bestProb = prob;
-        bestId = qid;
-      }
-    }
-    if (bestId && bestProb > 0) eliminatedQueenIds.add(bestId);
-  }
+  const eliminatedQueenIds = getEliminatedQueenIds(episodeIndex, results);
 
   const rows: Record<string, QueenEntry[]> = {};
   for (const p of PLACEMENTS) rows[p] = [];
