@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SeasonData, Placement, SimulationResults, FilterCondition, TrajectoryPath } from '../engine/types';
+import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath } from '../engine/types';
 import season5 from '../data/season5';
 
 function cloneSeason(s: SeasonData): SeasonData {
@@ -29,7 +29,10 @@ interface AppState {
   trajectoryPaths: TrajectoryPath[] | null;
   trajectoryTotalRuns: number | null;
 
-  appMode: 'simulation' | 'divergence' | 'spread';
+  editorEpisodes: EpisodeData[];
+  editorQueens: Queen[];
+
+  appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor';
   spreadSelectedEpisode: number;
 
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
@@ -48,7 +51,10 @@ interface AppState {
   setOpenEpisodeIndex: (idx: number | null) => void;
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
 
-  setAppMode: (mode: 'simulation' | 'divergence' | 'spread') => void;
+  setEditorEpisodes: (episodes: EpisodeData[]) => void;
+  setEditorQueens: (queens: Queen[]) => void;
+
+  setAppMode: (mode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor') => void;
   setSpreadSelectedEpisode: (idx: number) => void;
 
   addCondition: (c: FilterCondition) => void;
@@ -70,6 +76,9 @@ export const useStore = create<AppState>()((set) => ({
   openEpisodeIndex: null,
   trajectoryPaths: null,
   trajectoryTotalRuns: null,
+
+  editorEpisodes: [],
+  editorQueens: [],
 
   appMode: 'spread',
   spreadSelectedEpisode: 0,
@@ -117,6 +126,9 @@ export const useStore = create<AppState>()((set) => ({
     })),
   setTrajectoryPaths: (paths, totalRuns) =>
     set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),
+
+  setEditorEpisodes: (episodes) => set({ editorEpisodes: episodes }),
+  setEditorQueens: (queens) => set({ editorQueens: queens }),
 
   setAppMode: (mode) => set({ appMode: mode }),
   setSpreadSelectedEpisode: (idx) => set({ spreadSelectedEpisode: idx }),
