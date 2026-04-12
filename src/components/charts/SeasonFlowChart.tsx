@@ -46,21 +46,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     return () => obs.disconnect();
   }, []);
 
-  // Suppress browser auto-scroll circle on middle-click.
-  // Native capture-phase listener with preventDefault() blocks the browser's
-  // default auto-scroll behavior. The event still propagates to d3-zoom because
-  // we do NOT call stopPropagation().
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const handler = (e: MouseEvent) => {
-      if (e.button === 1) {
-        e.preventDefault();
-      }
-    };
-    el.addEventListener('mousedown', handler, { capture: true });
-    return () => el.removeEventListener('mousedown', handler, { capture: true });
-  }, []);
 
   useEffect(() => {
     if (!svgRef.current || !results) return;
@@ -74,7 +59,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const innerH = height - MARGIN.top - MARGIN.bottom;
     const placementAreaH = innerH - ELIM_GUTTER;
 
-    // d3.zoom for middle-click pan + scroll-wheel zoom
+    // d3.zoom for left-click drag pan + scroll-wheel zoom
     const zoomG = svg.append('g');
     const g = zoomG.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
@@ -83,7 +68,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       .filter((event) => {
         if (event.type === 'wheel') return true;
         if (event.type === 'mousedown' || event.type === 'mousemove' || event.type === 'mouseup') {
-          return event.button === 1;
+          return event.button === 0;
         }
         return false;
       })
@@ -480,12 +465,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     <div
       ref={containerRef}
       className="overflow-hidden"
-      onMouseDown={(e) => {
-        if (e.button === 1) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }}
     >
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Season Flow — hover to trace a queen&apos;s path
