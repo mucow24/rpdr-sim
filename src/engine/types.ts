@@ -38,6 +38,7 @@ export interface EpisodeData {
   challengeName: string;
   placements: Record<string, Placement>;  // queenId -> WIN/HIGH/SAFE/LOW/BTM2
   eliminated: string[];                    // queenIds (empty = non-elim)
+  splitPremiere?: boolean;                 // true if part of a split premiere format
 }
 
 /** A complete season: queens, episodes (with outcomes), loadable for any season */
