@@ -10,6 +10,8 @@ import DivergencePanel from './components/DivergencePanel';
 import TrajectoryChart from './components/charts/TrajectoryChart';
 import DivergencePage from './components/DivergencePage';
 import SpreadPage from './components/SpreadPage';
+import SeasonEditorPage from './components/SeasonEditorPage';
+import QueenEditorPage from './components/QueenEditorPage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
 
 const NUM_SIMULATIONS = 100_000;
@@ -35,7 +37,7 @@ export default function App() {
   // Run baseline on mount and when season changes — but only in simulation mode.
   // In divergence mode, DivergencePage owns simulation via runFromState.
   useEffect(() => {
-    if (appMode === 'divergence') return;
+    if (appMode !== 'simulation' && appMode !== 'spread') return;
     setIsSimulating(true);
     setSimulationProgress(0);
     runBaseline({
@@ -109,10 +111,35 @@ export default function App() {
           >
             What If?
           </button>
+          <span className="text-[#333]">|</span>
+          <button
+            onClick={() => setAppMode('seasonEditor')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              appMode === 'seasonEditor'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-[#666] hover:text-[#999] border border-transparent'
+            }`}
+          >
+            Seasons
+          </button>
+          <button
+            onClick={() => setAppMode('queenEditor')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              appMode === 'queenEditor'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-[#666] hover:text-[#999] border border-transparent'
+            }`}
+          >
+            Queens
+          </button>
         </div>
       </header>
 
-      {appMode === 'spread' ? (
+      {appMode === 'seasonEditor' ? (
+        <SeasonEditorPage />
+      ) : appMode === 'queenEditor' ? (
+        <QueenEditorPage />
+      ) : appMode === 'spread' ? (
         <SpreadPage />
       ) : appMode === 'simulation' ? (
         <>
