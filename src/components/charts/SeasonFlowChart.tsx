@@ -353,18 +353,26 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
-    // Queen bands within nodes
+    // Queen bands within nodes (opacity scales with flow)
+    const maxBandH = Math.max(
+      ...Array.from({ length: numEps }, (_, ep) =>
+        Math.max(...CHART_PLACEMENTS.map((_, pi) =>
+          Math.max(...Object.values(bands[ep][pi]).map((b) => b.h), 0)
+        ))
+      ), 1
+    );
     for (let ep = 0; ep < numEps; ep++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         for (const [qid, band] of Object.entries(bands[ep][pi])) {
           if (band.h < 0.3) continue;
           const queen = queenMap.get(qid);
           if (!queen) continue;
+          const t = band.h / maxBandH;
           const isFaded = activeQueenId !== null && activeQueenId !== qid;
           g.append('rect')
             .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
-            .attr('fill', queen.color).attr('opacity', isFaded ? 0.08 : 0.7);
+            .attr('fill', queen.color).attr('opacity', isFaded ? 0.02 * t : 0.065 + 0.4 * t);
         }
       }
     }
@@ -395,17 +403,23 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
 
+    const maxRibbonH = Math.max(...sortedRibbons.map((r) => r.h), 1);
+
     for (const r of sortedRibbons) {
+      const t = r.h / maxRibbonH; // 0–1, linear
       const isFaded = activeQueenId !== null && activeQueenId !== r.queenId;
       const isActive = activeQueenId === r.queenId;
+      const fillOp = isActive ? 0.15 + 0.45 * t : isFaded ? 0.02 * t : 0.03 + 0.3 * t;
+      const strokeOp = isActive ? 0.2 + 0.5 * t : isFaded ? 0.01 * t : 0.03 + 0.4 * t;
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.h, r.tgtX, r.tgtY, r.tgtY + r.h))
         .attr('fill', r.color)
-        .attr('fill-opacity', isActive ? 0.6 : isFaded ? 0.02 : 0.22)
+        .attr('fill-opacity', fillOp)
         .attr('stroke', r.color)
         .attr('stroke-width', 0.3)
-        .attr('stroke-opacity', isActive ? 0.7 : isFaded ? 0.01 : 0.35)
+        .attr('stroke-opacity', strokeOp)
         .attr('data-queen', r.queenId)
+        .attr('data-t', t)
         .style('cursor', 'pointer');
     }
 
@@ -417,22 +431,24 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       const qid = d3.select(this).attr('data-queen');
       if (!qid) return;
       allPaths.each(function () {
-        const pq = d3.select(this).attr('data-queen');
+        const el = d3.select(this);
+        const pq = el.attr('data-queen');
+        const t = parseFloat(el.attr('data-t') || '1');
         const isThis = pq === qid;
-        d3.select(this)
-          .attr('fill-opacity', isThis ? 0.6 : 0.015)
-          .attr('stroke-opacity', isThis ? 0.7 : 0.005);
+        el.attr('fill-opacity', isThis ? 0.15 + 0.45 * t : 0.02 * t)
+          .attr('stroke-opacity', isThis ? 0.2 + 0.5 * t : 0.01 * t);
       });
     });
 
     allPaths.on('mouseleave', function () {
       allPaths.each(function () {
-        const pq = d3.select(this).attr('data-queen');
+        const el = d3.select(this);
+        const pq = el.attr('data-queen');
+        const t = parseFloat(el.attr('data-t') || '1');
         const isSel = activeQueenId === pq;
         const isFad = activeQueenId !== null && !isSel;
-        d3.select(this)
-          .attr('fill-opacity', isSel ? 0.6 : isFad ? 0.02 : 0.22)
-          .attr('stroke-opacity', isSel ? 0.7 : isFad ? 0.01 : 0.35);
+        el.attr('fill-opacity', isSel ? 0.15 + 0.45 * t : isFad ? 0.02 * t : 0.03 + 0.3 * t)
+          .attr('stroke-opacity', isSel ? 0.2 + 0.5 * t : isFad ? 0.01 * t : 0.03 + 0.4 * t);
       });
     });
 
