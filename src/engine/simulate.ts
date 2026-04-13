@@ -90,7 +90,7 @@ function simulateOneSeason(
 
   for (let epIdx = startIdx; epIdx < episodes.length; epIdx++) {
     const episode = episodes[epIdx];
-    if (remaining.size <= 3) break;
+    if (remaining.size <= 2) break;
 
     const activeQueens = Array.from(remaining.values());
     const scores = activeQueens.map((q) => ({
@@ -99,6 +99,18 @@ function simulateOneSeason(
     }));
 
     const placements = assignPlacements(scores);
+
+    // Non-elimination episode: assign placements but skip lip sync
+    if (episode.eliminated.length === 0) {
+      episodeResults.push({
+        episodeNumber: episode.number,
+        placements,
+        lipSyncMatchup: ['', ''],
+        lipSyncWinner: '',
+        eliminated: '',
+      });
+      continue;
+    }
 
     const bottom2 = Array.from(placements.entries())
       .filter(([, p]) => p === 'BTM2')
@@ -283,6 +295,11 @@ export function getMatchingIndices(
       } else {
         const val = buffer[base + cond.episodeIndex * numQueens + cond.queenIndex];
         if (val !== cond.placement) {
+          matches = false;
+          break;
+        }
+        // BTM2 pin means "survived the lip sync" — exclude if this queen was eliminated
+        if (cond.placement === 4 && buffer[elimBase + cond.episodeIndex] === cond.queenIndex) {
           matches = false;
           break;
         }

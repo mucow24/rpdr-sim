@@ -6,7 +6,7 @@ import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, typ
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
   HIGH: '#a8d8ea',
-  SAFE: '#555555',
+  SAFE: '#888888',
   LOW: '#e8a87c',
   BTM2: '#e74c3c',
   ELIM: '#8b0000',
@@ -18,7 +18,7 @@ const MARGIN = { top: 44, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
-const MIN_FLOW = 0.003;
+const MIN_FLOW = 0.0001;
 
 function ribbonPath(
   x0: number, y0top: number, y0bot: number,
@@ -34,7 +34,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const [width, setWidth] = useState(1000);
   const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -55,6 +55,22 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
+
+    if (results.numSimulations === 0) {
+      svg.append('text')
+        .attr('x', width / 2).attr('y', height / 2 - 10)
+        .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+        .attr('fill', '#888').attr('font-size', '14px').attr('font-family', 'monospace')
+        .text('No sim results');
+      svg.append('text')
+        .attr('x', width / 2).attr('y', height / 2 + 14)
+        .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+        .attr('fill', '#ffd700').attr('font-size', '12px').attr('font-family', 'monospace')
+        .style('cursor', 'pointer')
+        .text('Clear pins')
+        .on('click', clearConditions);
+      return;
+    }
 
     const numQueens = season.queens.length;
     const numEps = season.episodes.length;
@@ -88,7 +104,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
         const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
         elimByEp[q.id][ep] = elim;
-        f['ELIM'] = cumElim;
+        f['BTM2'] = Math.max(0, f['BTM2'] - elim);
+        f['ELIM'] = cumElim + elim;
         flowData[q.id][ep] = f;
         surv = Math.max(0, surv - elim);
         cumElim += elim;
@@ -123,7 +140,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const q of queenOrder) totalF += flowData[q.id][col][CHART_PLACEMENTS[pi]] ?? 0;
         const h = totalF * SCALE;
         nodeCol.push({ y: cy, h });
-        cy += h + PLACEMENT_GAP;
+        // No gap between BTM2 and ELIM — they form one contiguous "bottom zone"
+        const gapAfter = CHART_PLACEMENTS[pi] === 'BTM2' ? 0 : PLACEMENT_GAP;
+        cy += h + gapAfter;
       }
       nodes[col] = nodeCol;
     }
@@ -143,7 +162,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const q of queenOrder) {
           const f = flowData[q.id][col][p] ?? 0;
           const h = f * SCALE;
-          if (h >= 0.3) bmap[q.id] = { y: cy, h };
+          bmap[q.id] = { y: cy, h };
           cy += h;
         }
         bands[col][pi] = bmap;
@@ -202,7 +221,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const srcCursor: Record<string, number> = {};
     for (const q of queenOrder) srcCursor[q.id] = srcBands[q.id].y;
 
-    const btm2Idx = CHART_PLACEMENTS.indexOf('BTM2');
     const elimIdx = CHART_PLACEMENTS.indexOf('ELIM');
 
     // Process per queen (consistent stacking order)
@@ -210,9 +228,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       const qid = queen.id;
 
       // Source → ep 0: queen's source band splits into placement bands at ep 0
-      // (only non-ELIM placements — no one starts eliminated)
-      for (let ti = 0; ti < PLACEMENTS.length; ti++) {
-        const weight = flowData[qid][0][PLACEMENTS[ti]];
+      for (let ti = 0; ti < CHART_PLACEMENTS.length; ti++) {
+        const weight = flowData[qid][0][CHART_PLACEMENTS[ti]];
         if (weight < MIN_FLOW) continue;
         const h = weight * SCALE;
 
@@ -241,8 +258,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         // Surviving flow ribbons (only if queen still alive)
         if (survNext >= 0.001) {
           for (let pi = 0; pi < PLACEMENTS.length; pi++) {
-            let continuing = flowData[qid][ep][PLACEMENTS[pi]];
-            if (PLACEMENTS[pi] === 'BTM2') continuing = Math.max(0, continuing - elimByEp[qid][ep]);
+            const continuing = flowData[qid][ep][PLACEMENTS[pi]];
             if (continuing < MIN_FLOW) continue;
 
             // Ribbons to non-ELIM placements at ep+1
@@ -267,26 +283,29 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               });
             }
 
-            // BTM2 → ELIM at ep+1
-            if (PLACEMENTS[pi] === 'BTM2') {
-              const elimAmt = elimByEp[qid][ep];
-              if (elimAmt >= MIN_FLOW) {
-                const h = elimAmt * SCALE;
+            // Surviving flow → ELIM at ep+1 (newly eliminated at target episode)
+            {
+              const elimAtTarget = elimByEp[qid][ep + 1];
+              if (elimAtTarget >= MIN_FLOW) {
+                const weight = continuing * elimAtTarget / survNext;
+                if (weight >= MIN_FLOW) {
+                  const h = weight * SCALE;
 
-                const sY = outCursor[ep][btm2Idx][qid];
-                if (sY !== undefined) {
-                  outCursor[ep][btm2Idx][qid] += h;
+                  const sY = outCursor[ep][pi][qid];
+                  if (sY !== undefined) {
+                    outCursor[ep][pi][qid] += h;
 
-                  const tY = inCursor[ep + 1][elimIdx][qid];
-                  if (tY !== undefined) {
-                    inCursor[ep + 1][elimIdx][qid] += h;
+                    const tY = inCursor[ep + 1][elimIdx][qid];
+                    if (tY !== undefined) {
+                      inCursor[ep + 1][elimIdx][qid] += h;
 
-                    allRibbons.push({
-                      queenId: qid, color: queen.color,
-                      srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-                      tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-                      h,
-                    });
+                      allRibbons.push({
+                        queenId: qid, color: queen.color,
+                        srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
+                        tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
+                        h,
+                      });
+                    }
                   }
                 }
               }
@@ -572,26 +591,103 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           const overlay = overlayGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
-            .attr('fill', isPinned ? PLACEMENT_COLORS[placementName] : 'transparent')
+            .attr('fill', isPinned ? selectedQueen!.color : 'transparent')
             .attr('opacity', isPinned ? 0.5 : 0)
             .attr('rx', 1)
             .style('cursor', 'pointer');
 
           overlay
-            .on('mouseenter', function () {
+            .on('mouseenter', function (event) {
               if (!isPinned) {
                 d3.select(this).attr('fill', PLACEMENT_COLORS[placementName]).attr('opacity', 0.35);
               }
+
+              g.select('.flow-tooltip').remove();
+
+              const [mx, my] = d3.pointer(event, g.node());
+              const qid = selectedQueen!.id;
+              const dist = results.episodePlacements[col]?.[qid] ?? {};
+              const elimProb = elimByEp[qid]?.[col] ?? 0;
+              const surv = survival[qid]?.[col] ?? 0;
+              const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
+              const noRoutes = !isPinned && !isOutcome && rawProb < 0.001;
+
+              const ttW = 110;
+              const lineH = 12;
+              const ttH = 16 + CHART_PLACEMENTS.length * lineH;
+              const rawX = mx + 12;
+              const flipLeft = rawX + ttW > innerW;
+              const initX = flipLeft ? mx - ttW - 12 : rawX;
+              const initY = Math.min(my - 8, placementAreaH - ttH - 4);
+              const tt = g.append('g').attr('class', 'flow-tooltip')
+                .style('pointer-events', 'none')
+                .attr('transform', `translate(${initX},${initY})`);
+
+              tt.append('rect').attr('class', 'tt-bg')
+                .attr('width', ttW).attr('height', ttH)
+                .attr('rx', 4)
+                .attr('fill', '#1a1a24').attr('stroke', '#2a2a3a').attr('stroke-width', 1);
+
+              tt.append('text').attr('class', 'tt-title')
+                .attr('x', 6).attr('y', 11)
+                .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
+                .text(isOutcome ? `Result / ${placementName}` : `Ep ${season.episodes[col].number} / ${placementName}`);
+
+              CHART_PLACEMENTS.forEach((p, idx) => {
+                const prob = p === 'ELIM' ? elimProb : surv * (dist[p] ?? 0);
+                const rowRaw = p === 'ELIM' ? elimProb : (dist[p] ?? 0);
+                const rowDead = !isOutcome && rowRaw < 0.001;
+                const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
+                tt.append('text')
+                  .attr('x', 6).attr('y', 24 + idx * lineH)
+                  .attr('fill', PLACEMENT_COLORS[p])
+                  .attr('font-size', '9px').attr('font-family', 'monospace')
+                  .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
+                  .text(`${p.padEnd(4)} ${valStr}`);
+              });
+
+              if (isPinned || noRoutes) {
+                const statsH = CHART_PLACEMENTS.length * lineH;
+                tt.append('text')
+                  .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
+                  .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+                  .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
+                  .attr('font-size', '11px').attr('font-weight', 'bold')
+                  .attr('font-family', 'monospace')
+                  .text(noRoutes ? 'NO SIM RESULTS' : 'PINNED');
+              }
+            })
+            .on('mousemove', function (event) {
+              const tt = g.select('.flow-tooltip');
+              if (tt.empty()) return;
+              const [mx, my] = d3.pointer(event, g.node());
+              const ttW = 110;
+              const ttH = 16 + CHART_PLACEMENTS.length * 12;
+              const rawX = mx + 12;
+              const flipLeft = rawX + ttW > innerW;
+              const ttX = flipLeft ? mx - ttW - 12 : rawX;
+              const ttY = Math.min(my - 8, placementAreaH - ttH - 4);
+              tt.attr('transform', `translate(${ttX},${ttY})`);
             })
             .on('mouseleave', function () {
               if (!isPinned) {
                 d3.select(this).attr('fill', 'transparent').attr('opacity', 0);
               }
+              g.select('.flow-tooltip').remove();
             })
             .on('click', () => {
               if (isPinned) {
                 removeCondition(condEpIdx, selectedQueenIdx);
               } else {
+                // Don't pin if queen has ~0 probability for this placement
+                const qid = selectedQueen!.id;
+                if (!isOutcome) {
+                  const dist = results.episodePlacements[col]?.[qid] ?? {};
+                  const prob = placementName === 'ELIM'
+                    ? (elimByEp[qid]?.[col] ?? 0)
+                    : (dist[placementName] ?? 0);
+                  if (prob < 0.001) return;
+                }
                 addCondition({
                   episodeIndex: condEpIdx,
                   queenIndex: selectedQueenIdx,
@@ -617,7 +713,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
-  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition]);
+  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition, clearConditions]);
 
   if (!results) {
     return (
