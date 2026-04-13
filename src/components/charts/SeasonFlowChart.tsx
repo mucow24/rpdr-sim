@@ -32,8 +32,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
+  const [hiddenQueens, setHiddenQueens] = useState<Set<string>>(new Set());
 
-  const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { currentSeason: season, baselineResults, filteredResults } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -61,24 +62,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const innerH = height - MARGIN.top - MARGIN.bottom;
     const placementAreaH = innerH;
 
-    // d3.zoom for left-click drag pan + scroll-wheel zoom
-    const zoomG = svg.append('g');
-    const g = zoomG.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
-
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 5])
-      .filter((event) => {
-        if (event.type === 'wheel') return true;
-        if (event.type === 'mousedown' || event.type === 'mousemove' || event.type === 'mouseup') {
-          return event.button === 0;
-        }
-        return false;
-      })
-      .on('zoom', (event) => {
-        zoomG.attr('transform', event.transform);
-      });
-
-    svg.call(zoom);
+    const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
     // -- Queen order (consistent stacking, best first) --
     const queenOrder = [...season.queens].sort(
@@ -309,7 +293,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     // ============ RENDER ============
 
-    const activeQueenId = selectedQueenId;
+    const anyHidden = hiddenQueens.size > 0;
 
     // Episode labels
     for (let ep = 0; ep < numEps; ep++) {
@@ -368,31 +352,14 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           const queen = queenMap.get(qid);
           if (!queen) continue;
           const t = band.h / maxBandH;
-          const isFaded = activeQueenId !== null && activeQueenId !== qid;
+          const isHidden = hiddenQueens.has(qid);
           g.append('rect')
             .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
-            .attr('fill', queen.color).attr('opacity', isFaded ? 0.02 * t : 0.065 + 0.4 * t);
+            .attr('fill', queen.color)
+            .attr('opacity', isHidden ? 0.02 * t : anyHidden ? 0.15 + 0.45 * t : 0.065 + 0.4 * t);
         }
       }
-    }
-
-    // Source emitters + labels
-    for (const queen of queenOrder) {
-      const sb = srcBands[queen.id];
-      const isFaded = activeQueenId !== null && activeQueenId !== queen.id;
-      g.append('rect')
-        .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
-        .attr('width', 6).attr('height', sb.h)
-        .attr('fill', queen.color).attr('opacity', isFaded ? 0.15 : 0.8).attr('rx', 1);
-      g.append('text')
-        .attr('x', SOURCE_COL_WIDTH - 26).attr('y', sb.y + sb.h / 2)
-        .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
-        .attr('fill', isFaded ? '#333' : queen.color)
-        .attr('font-size', numQueens > 10 ? '8px' : '10px')
-        .attr('font-weight', isFaded ? '400' : '600')
-        .attr('opacity', isFaded ? 0.4 : 0.9)
-        .text(queen.name.split(' ')[0]);
     }
 
     // Sub-ribbons (render weakest queens first, strongest on top)
@@ -407,10 +374,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     for (const r of sortedRibbons) {
       const t = r.h / maxRibbonH; // 0–1, linear
-      const isFaded = activeQueenId !== null && activeQueenId !== r.queenId;
-      const isActive = activeQueenId === r.queenId;
-      const fillOp = isActive ? 0.15 + 0.45 * t : isFaded ? 0.02 * t : 0.03 + 0.3 * t;
-      const strokeOp = isActive ? 0.2 + 0.5 * t : isFaded ? 0.01 * t : 0.03 + 0.4 * t;
+      const isHidden = hiddenQueens.has(r.queenId);
+      const fillOp = isHidden ? 0.02 * t : anyHidden ? 0.15 + 0.45 * t : 0.03 + 0.3 * t;
+      const strokeOp = isHidden ? 0.01 * t : anyHidden ? 0.2 + 0.5 * t : 0.03 + 0.4 * t;
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.h, r.tgtX, r.tgtY, r.tgtY + r.h))
         .attr('fill', r.color)
@@ -419,45 +385,99 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         .attr('stroke-width', 0.3)
         .attr('stroke-opacity', strokeOp)
         .attr('data-queen', r.queenId)
-        .attr('data-t', t)
-        .style('cursor', 'pointer');
+        .attr('data-t', t);
     }
 
+    const allPaths = ribbonGroup.selectAll<SVGPathElement, unknown>('path[data-queen]');
 
-    // Interaction: hover highlights queen, click selects
-    const allPaths = g.selectAll<SVGPathElement, unknown>('path[data-queen]');
-
-    allPaths.on('mouseenter', function () {
-      const qid = d3.select(this).attr('data-queen');
-      if (!qid) return;
+    // Helper: set ribbon opacities for a given highlight state.
+    // Hover boosts the hovered queen without fading visible queens.
+    function setRibbonOpacity(highlightId: string | null) {
       allPaths.each(function () {
         const el = d3.select(this);
-        const pq = el.attr('data-queen');
-        const t = parseFloat(el.attr('data-t') || '1');
-        const isThis = pq === qid;
-        el.attr('fill-opacity', isThis ? 0.15 + 0.45 * t : 0.02 * t)
-          .attr('stroke-opacity', isThis ? 0.2 + 0.5 * t : 0.01 * t);
+        const pq = el.attr('data-queen')!;
+        const pt = parseFloat(el.attr('data-t') || '1');
+        const isHighlighted = highlightId !== null && pq === highlightId;
+        const isHid = hiddenQueens.has(pq);
+        let fOp: number, sOp: number;
+        if (isHighlighted || (!isHid && anyHidden)) {
+          fOp = 0.15 + 0.45 * pt; sOp = 0.2 + 0.5 * pt;
+        } else if (isHid) {
+          fOp = 0.02 * pt; sOp = 0.01 * pt;
+        } else {
+          fOp = 0.03 + 0.3 * pt; sOp = 0.03 + 0.4 * pt;
+        }
+        el.attr('fill-opacity', fOp).attr('stroke-opacity', sOp);
       });
-    });
+    }
 
-    allPaths.on('mouseleave', function () {
-      allPaths.each(function () {
-        const el = d3.select(this);
-        const pq = el.attr('data-queen');
-        const t = parseFloat(el.attr('data-t') || '1');
-        const isSel = activeQueenId === pq;
-        const isFad = activeQueenId !== null && !isSel;
-        el.attr('fill-opacity', isSel ? 0.15 + 0.45 * t : isFad ? 0.02 * t : 0.03 + 0.3 * t)
-          .attr('stroke-opacity', isSel ? 0.2 + 0.5 * t : isFad ? 0.01 * t : 0.03 + 0.4 * t);
-      });
-    });
+    // Source emitters + labels (clickable to toggle visibility)
+    let clickTimer: ReturnType<typeof setTimeout> | null = null;
 
-    allPaths.on('click', function () {
-      const qid = d3.select(this).attr('data-queen');
-      if (qid) setSelectedQueenId(qid);
-    });
+    for (const queen of queenOrder) {
+      const sb = srcBands[queen.id];
+      const isHidden = hiddenQueens.has(queen.id);
 
-  }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
+      const srcGroup = g.append('g')
+        .style('cursor', 'pointer');
+
+      // Invisible hit area covering the full row
+      srcGroup.append('rect')
+        .attr('x', -MARGIN.left).attr('y', sb.y)
+        .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', sb.h)
+        .attr('fill', 'transparent');
+
+      // Color bar — serves as on/off indicator
+      const colorBar = srcGroup.append('rect')
+        .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
+        .attr('width', 6).attr('height', sb.h)
+        .attr('fill', queen.color).attr('opacity', isHidden ? 0.15 : 0.8).attr('rx', 1);
+
+      // Queen name — always visible
+      const nameText = srcGroup.append('text')
+        .attr('x', SOURCE_COL_WIDTH - 26).attr('y', sb.y + sb.h / 2)
+        .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
+        .attr('fill', queen.color)
+        .attr('font-size', numQueens > 10 ? '8px' : '10px')
+        .attr('font-weight', '600')
+        .attr('opacity', 0.9)
+        .text(queen.name.split(' ')[0]);
+
+      // Hover: highlight this queen's ribbons + brighten bar
+      srcGroup
+        .on('mouseenter', function () {
+          colorBar.attr('opacity', isHidden ? 0.35 : 1.0);
+          nameText.attr('opacity', 1.0);
+          setRibbonOpacity(queen.id);
+        })
+        .on('mouseleave', function () {
+          colorBar.attr('opacity', isHidden ? 0.15 : 0.8);
+          nameText.attr('opacity', 0.9);
+          setRibbonOpacity(null);
+        })
+        .on('click', () => {
+          // Delay single-click to let double-click cancel it
+          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; }
+          clickTimer = setTimeout(() => {
+            clickTimer = null;
+            setHiddenQueens(prev => {
+              const next = new Set(prev);
+              if (next.has(queen.id)) next.delete(queen.id);
+              else next.add(queen.id);
+              return next;
+            });
+          }, 250);
+        })
+        .on('dblclick', () => {
+          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+          // Solo: hide everyone except this queen
+          setHiddenQueens(new Set(
+            season.queens.filter(q => q.id !== queen.id).map(q => q.id)
+          ));
+        });
+    }
+
+  }, [results, season, width, height, hiddenQueens]);
 
   if (!results) {
     return (
@@ -468,14 +488,28 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="overflow-hidden"
-    >
-      <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Season Flow — hover to trace a queen&apos;s path
-      </h3>
-      <svg ref={svgRef} width={Math.max(width, 900)} height={height} className="overflow-visible" />
+    <div ref={containerRef}>
+      <div className="flex items-center justify-between mb-2 px-1">
+        <h3 className="text-sm font-medium text-[#888]">
+          Season Flow — click a queen to toggle visibility
+        </h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setHiddenQueens(new Set())}
+            className="text-xs text-[#555] hover:text-[#999] transition-colors"
+          >
+            All on
+          </button>
+          <span className="text-xs text-[#333]">|</span>
+          <button
+            onClick={() => setHiddenQueens(new Set(season.queens.map(q => q.id)))}
+            className="text-xs text-[#555] hover:text-[#999] transition-colors"
+          >
+            All off
+          </button>
+        </div>
+      </div>
+      <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
     </div>
   );
 }
