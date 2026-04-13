@@ -298,6 +298,11 @@ export function getMatchingIndices(
           matches = false;
           break;
         }
+        // BTM2 pin means "survived the lip sync" — exclude if this queen was eliminated
+        if (cond.placement === 4 && buffer[elimBase + cond.episodeIndex] === cond.queenIndex) {
+          matches = false;
+          break;
+        }
       }
     }
     if (matches) matchingIndices.push(r);
