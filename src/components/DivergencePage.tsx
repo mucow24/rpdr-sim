@@ -9,8 +9,6 @@ import EliminationHeatmap from './charts/EliminationHeatmap';
 import PlacementDistChart from './charts/PlacementDistChart';
 import TrajectoryChart from './charts/TrajectoryChart';
 
-const NUM_SIMULATIONS = 100_000;
-
 /** Compare two episode outcomes for equality. */
 function isEpisodeModified(
   current: { placements: Record<string, Placement>; eliminated: string[] },
@@ -73,6 +71,7 @@ export default function DivergencePage() {
   const simulationProgress = useStore((s) => s.simulationProgress);
   const selectedQueenId = useStore((s) => s.selectedQueenId);
   const baselineResults = useStore((s) => s.baselineResults);
+  const numSimulations = useStore((s) => s.numSimulations);
 
   const { runFromState } = useSimulation((pct) => setSimulationProgress(pct));
 
@@ -108,7 +107,7 @@ export default function DivergencePage() {
       runFromState({
         season: state.currentSeason,
         fromEpisode: lastMod + 1,
-        numSimulations: NUM_SIMULATIONS,
+        numSimulations,
       }).then((results) => {
         setBaselineResults(results);
         setIsSimulating(false);
@@ -148,7 +147,7 @@ export default function DivergencePage() {
         )}
         {hasDivergenceResults && !isSimulating && (
           <span className="ml-2 text-[#555]">
-            {NUM_SIMULATIONS.toLocaleString()} simulations from divergence
+            {numSimulations.toLocaleString()} simulations from divergence
           </span>
         )}
       </p>
