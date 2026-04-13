@@ -34,7 +34,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const [width, setWidth] = useState(1000);
   const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -55,6 +55,22 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
+
+    if (results.numSimulations === 0) {
+      svg.append('text')
+        .attr('x', width / 2).attr('y', height / 2 - 10)
+        .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+        .attr('fill', '#888').attr('font-size', '14px').attr('font-family', 'monospace')
+        .text('No sim results');
+      svg.append('text')
+        .attr('x', width / 2).attr('y', height / 2 + 14)
+        .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+        .attr('fill', '#ffd700').attr('font-size', '12px').attr('font-family', 'monospace')
+        .style('cursor', 'pointer')
+        .text('Clear pins')
+        .on('click', clearConditions);
+      return;
+    }
 
     const numQueens = season.queens.length;
     const numEps = season.episodes.length;
@@ -694,7 +710,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
-  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition]);
+  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition, clearConditions]);
 
   if (!results) {
     return (
