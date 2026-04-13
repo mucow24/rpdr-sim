@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, type Placement } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, CHALLENGE_CATEGORIES, type Placement, type ChallengeCategory } from '../../engine/types';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -20,6 +20,17 @@ const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
 const MIN_FLOW = 0.0001;
 
+const CHALLENGE_LABELS: Record<ChallengeCategory, string> = {
+  comedy: 'Comedy',
+  design: 'Design',
+  acting: 'Acting',
+  dance: 'Dance',
+  snatchGame: 'Snatch',
+  improv: 'Improv',
+  runway: 'Runway',
+  singing: 'Singing',
+};
+
 function ribbonPath(
   x0: number, y0top: number, y0bot: number,
   x1: number, y1top: number, y1bot: number,
@@ -34,7 +45,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const [width, setWidth] = useState(1000);
   const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, updateEpisodeChallengeType } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -723,11 +734,48 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     );
   }
 
+  // Column positions for dropdown alignment (same math as D3 effect)
+  const numEps = season.episodes.length;
+  const numCols = numEps + 1;
+  const innerW = width - MARGIN.left - MARGIN.right;
+  const epAreaW = innerW - SOURCE_COL_WIDTH;
+  const epSpacing = epAreaW / numCols;
+  const dropdownX = (col: number) => MARGIN.left + SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
+
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Season Flow — click a queen to select, click placements to pin
       </h3>
+      <div style={{ position: 'relative', height: 20, marginBottom: 4 }}>
+        {season.episodes.map((ep, i) => (
+          <select
+            key={i}
+            value={ep.challengeType}
+            onChange={(e) => updateEpisodeChallengeType(i, e.target.value as ChallengeCategory)}
+            style={{
+              position: 'absolute',
+              left: dropdownX(i),
+              transform: 'translateX(-50%)',
+              fontSize: 9,
+              padding: '1px 2px',
+              background: '#0a0a10',
+              color: '#888',
+              border: '1px solid #2a2a3a',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              maxWidth: Math.max(epSpacing - 4, 48),
+            }}
+          >
+            {CHALLENGE_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {CHALLENGE_LABELS[cat]}
+              </option>
+            ))}
+          </select>
+        ))}
+      </div>
       <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
     </div>
   );

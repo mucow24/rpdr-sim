@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath } from '../engine/types';
+import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath, ChallengeCategory } from '../engine/types';
 import season5 from '../data/season5';
 
 function cloneSeason(s: SeasonData): SeasonData {
@@ -37,6 +37,7 @@ interface AppState {
   appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate';
   spreadSelectedEpisode: number;
 
+  updateEpisodeChallengeType: (epIdx: number, challengeType: ChallengeCategory) => void;
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
   resetEpisode: (epIdx: number) => void;
   resetAllEpisodes: () => void;
@@ -88,6 +89,24 @@ export const useStore = create<AppState>()((set) => ({
 
   appMode: 'simulation',
   spreadSelectedEpisode: 0,
+
+  updateEpisodeChallengeType: (epIdx, challengeType) =>
+    set((s) => {
+      const realEpisodes = s.realSeason.episodes.map((ep, i) =>
+        i === epIdx ? { ...ep, challengeType } : ep,
+      );
+      const currentEpisodes = s.currentSeason.episodes.map((ep, i) =>
+        i === epIdx ? { ...ep, challengeType } : ep,
+      );
+      return {
+        realSeason: { ...s.realSeason, episodes: realEpisodes },
+        currentSeason: { ...s.currentSeason, episodes: currentEpisodes },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
 
   updateEpisodeOutcome: (epIdx, outcome) =>
     set((s) => {
