@@ -12,6 +12,7 @@ import DivergencePage from './components/DivergencePage';
 import SpreadPage from './components/SpreadPage';
 import SeasonEditorPage from './components/SeasonEditorPage';
 import QueenEditorPage from './components/QueenEditorPage';
+import CalibratePage from './components/CalibratePage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
 
 const NUM_SIMULATIONS = 100_000;
@@ -132,6 +133,16 @@ export default function App() {
           >
             Queens
           </button>
+          <button
+            onClick={() => setAppMode('calibrate')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              appMode === 'calibrate'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-[#666] hover:text-[#999] border border-transparent'
+            }`}
+          >
+            Calibrate
+          </button>
         </div>
       </header>
 
@@ -139,6 +150,8 @@ export default function App() {
         <SeasonEditorPage />
       ) : appMode === 'queenEditor' ? (
         <QueenEditorPage />
+      ) : appMode === 'calibrate' ? (
+        <CalibratePage />
       ) : appMode === 'spread' ? (
         <SpreadPage />
       ) : appMode === 'simulation' ? (
