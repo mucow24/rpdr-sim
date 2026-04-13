@@ -262,6 +262,183 @@ export function runBaseline({
   return { results, buffer, numQueens, numEpisodes, queenIds };
 }
 
+/** Run baseline simulations and return only the compact buffer (no aggregation). */
+export function runBaselinePartial(
+  { season, numSimulations = 100_000, noise = 1.8 }: RunBaselineOptions,
+  onProgress?: (pct: number) => void,
+): { buffer: Uint8Array } {
+  const { queens, episodes } = season;
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+  const buffer = new Uint8Array(numSimulations * stride);
+
+  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
+  for (let i = 0; i < numSimulations; i++) {
+    const run = simulateOneSeason(queens, episodes, noise);
+    writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
+    if (onProgress && i % progressInterval === 0) {
+      onProgress(Math.round((i / numSimulations) * 100));
+    }
+  }
+  return { buffer };
+}
+
+/** Run from mid-season state and return only the compact buffer (no aggregation). */
+export function runFromStatePartial(
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8 }: RunFromStateOptions,
+  onProgress?: (pct: number) => void,
+): { buffer: Uint8Array } {
+  const { queens, episodes } = season;
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+  const buffer = new Uint8Array(numSimulations * stride);
+
+  const priorResults: EpisodeResult[] = [];
+  const allEliminated = new Set<string>();
+  for (let i = 0; i < fromEpisode && i < numEpisodes; i++) {
+    priorResults.push(outcomeToEpisodeResult(episodes[i]));
+    for (const id of episodes[i].eliminated) allEliminated.add(id);
+  }
+
+  const midSeason: MidSeasonState = {
+    remainingQueenIds: new Set(queenIds.filter((id) => !allEliminated.has(id))),
+    priorResults,
+    startEpisodeIndex: fromEpisode,
+  };
+
+  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
+  for (let i = 0; i < numSimulations; i++) {
+    const run = simulateOneSeason(queens, episodes, noise, midSeason);
+    writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
+    if (onProgress && i % progressInterval === 0) {
+      onProgress(Math.round((i / numSimulations) * 100));
+    }
+  }
+  return { buffer };
+}
+
+/** Aggregate SimulationResults directly from a compact buffer. */
+export function aggregateFromBuffer(
+  buffer: Uint8Array,
+  totalRuns: number,
+  queens: Queen[],
+  episodes: EpisodeData[],
+): SimulationResults {
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+  const n = totalRuns;
+
+  // Pre-allocate per-episode count arrays
+  const aliveCountsPerEp = Array.from({ length: numEpisodes }, () => new Int32Array(numQueens));
+  const winCountsPerEp = Array.from({ length: numEpisodes }, () => new Int32Array(numQueens));
+  const elimCountsPerEp = Array.from({ length: numEpisodes }, () => new Int32Array(numQueens));
+  // 5 placement types per queen per episode
+  const placeCountsPerEp = Array.from({ length: numEpisodes }, () => new Int32Array(numQueens * 5));
+
+  // Final placement counts
+  const placementDistCounts = Array.from({ length: numQueens }, () => new Int32Array(numQueens + 1));
+  const top4Counts = new Int32Array(numQueens);
+  const winCounts = new Int32Array(numQueens);
+
+  // Single pass over all runs — run-first for cache locality
+  for (let r = 0; r < totalRuns; r++) {
+    const base = r * stride;
+    const elimBase = base + numEpisodes * numQueens;
+    const fpBase = elimBase + numEpisodes;
+
+    // Track eliminations as we go through episodes
+    const eliminated = new Set<number>();
+
+    for (let ep = 0; ep < numEpisodes; ep++) {
+      // Alive queens accumulate win probability
+      for (let qi = 0; qi < numQueens; qi++) {
+        if (!eliminated.has(qi)) {
+          aliveCountsPerEp[ep][qi]++;
+          if (buffer[fpBase + qi] === 1) winCountsPerEp[ep][qi]++;
+        }
+      }
+
+      // Episode placements
+      for (let qi = 0; qi < numQueens; qi++) {
+        const pIdx = buffer[base + ep * numQueens + qi];
+        if (pIdx !== 255 && pIdx <= 4) {
+          placeCountsPerEp[ep][qi * 5 + pIdx]++;
+        }
+      }
+
+      // Elimination in this episode
+      const elimInEp = buffer[elimBase + ep];
+      if (elimInEp !== 255) {
+        elimCountsPerEp[ep][elimInEp]++;
+        eliminated.add(elimInEp);
+      }
+    }
+
+    // Final placements
+    for (let qi = 0; qi < numQueens; qi++) {
+      const place = buffer[fpBase + qi];
+      if (place !== 255 && place <= numQueens) placementDistCounts[qi][place]++;
+      if (place !== 255 && place <= 4) top4Counts[qi]++;
+      if (place === 1) winCounts[qi]++;
+    }
+  }
+
+  // Convert counts to probabilities
+  const winProbByEpisode: Record<string, number>[] = [];
+  const elimProbByEpisode: Record<string, number>[] = [];
+  const episodePlacements: Record<string, Record<string, number>>[] = [];
+
+  for (let ep = 0; ep < numEpisodes; ep++) {
+    const winProb: Record<string, number> = {};
+    const elimProb: Record<string, number> = {};
+    const epPlace: Record<string, Record<string, number>> = {};
+
+    for (let qi = 0; qi < numQueens; qi++) {
+      const id = queenIds[qi];
+      winProb[id] = aliveCountsPerEp[ep][qi] > 0 ? winCountsPerEp[ep][qi] / aliveCountsPerEp[ep][qi] : 0;
+      elimProb[id] = elimCountsPerEp[ep][qi] / n;
+
+      const total = placeCountsPerEp[ep][qi * 5] + placeCountsPerEp[ep][qi * 5 + 1] +
+        placeCountsPerEp[ep][qi * 5 + 2] + placeCountsPerEp[ep][qi * 5 + 3] + placeCountsPerEp[ep][qi * 5 + 4];
+      epPlace[id] = {};
+      for (let pi = 0; pi < 5; pi++) {
+        epPlace[id][INDEX_PLACEMENT[pi]] = total > 0 ? placeCountsPerEp[ep][qi * 5 + pi] / total : 0;
+      }
+    }
+
+    winProbByEpisode.push(winProb);
+    elimProbByEpisode.push(elimProb);
+    episodePlacements.push(epPlace);
+  }
+
+  const placementDist: Record<string, number[]> = {};
+  const top4Prob: Record<string, number> = {};
+  const winProb: Record<string, number> = {};
+
+  for (let qi = 0; qi < numQueens; qi++) {
+    const id = queenIds[qi];
+    placementDist[id] = Array.from(placementDistCounts[qi]).map((c) => c / n);
+    top4Prob[id] = top4Counts[qi] / n;
+    winProb[id] = winCounts[qi] / n;
+  }
+
+  return {
+    numSimulations: n,
+    winProbByEpisode,
+    elimProbByEpisode,
+    placementDist,
+    top4Prob,
+    winProb,
+    episodePlacements,
+  };
+}
+
 /** Get indices of runs matching all conditions. */
 export function getMatchingIndices(
   buffer: Uint8Array,

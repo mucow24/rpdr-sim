@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useStore } from './store/useStore';
 import { useSimulation } from './engine/useSimulation';
 import Timeline from './components/timeline/Timeline';
@@ -17,8 +17,6 @@ import SeasonFlowChart from './components/charts/SeasonFlowChart';
 import QueenMiniChart from './components/charts/QueenMiniChart';
 import QueenFlowChart from './components/charts/QueenFlowChart';
 
-const NUM_SIMULATIONS = 100_000;
-
 export default function App() {
   const realSeason = useStore((s) => s.realSeason);
   const season = useStore((s) => s.currentSeason);
@@ -28,30 +26,38 @@ export default function App() {
   const setFilteredResults = useStore((s) => s.setFilteredResults);
   const setIsSimulating = useStore((s) => s.setIsSimulating);
   const setSimulationProgress = useStore((s) => s.setSimulationProgress);
+  const numSimulations = useStore((s) => s.numSimulations);
+  const setNumSimulations = useStore((s) => s.setNumSimulations);
 
   const selectedQueenId = useStore((s) => s.selectedQueenId);
   const appMode = useStore((s) => s.appMode);
   const setAppMode = useStore((s) => s.setAppMode);
 
+  const [simInput, setSimInput] = useState(numSimulations.toLocaleString());
+
   const { runBaseline, runFilter } = useSimulation((pct) =>
     setSimulationProgress(pct),
   );
 
-  // Run baseline on mount and when season changes — but only in simulation mode.
-  // In divergence mode, DivergencePage owns simulation via runFromState.
-  useEffect(() => {
-    if (appMode !== 'simulation' && appMode !== 'spread') return;
+  const triggerSimulation = useCallback((n: number) => {
     setIsSimulating(true);
     setSimulationProgress(0);
     runBaseline({
       season: realSeason,
-      numSimulations: NUM_SIMULATIONS,
+      numSimulations: n,
     }).then((results) => {
       setBaselineResults(results);
       setIsSimulating(false);
       setSimulationProgress(null);
     });
-  }, [realSeason, appMode, runBaseline, setBaselineResults, setIsSimulating]);
+  }, [realSeason, runBaseline, setBaselineResults, setIsSimulating, setSimulationProgress]);
+
+  // Run baseline on mount and when season changes — but only in simulation mode.
+  // In divergence mode, DivergencePage owns simulation via runFromState.
+  useEffect(() => {
+    if (appMode !== 'simulation' && appMode !== 'spread') return;
+    triggerSimulation(numSimulations);
+  }, [realSeason, appMode]);
 
   // Run filter when conditions change
   useEffect(() => {
@@ -158,27 +164,60 @@ export default function App() {
         <SpreadPage />
       ) : appMode === 'simulation' ? (
         <>
-          <p className="text-[#666] mb-6">
-            {season.name} &middot;{' '}
-            {matchCount !== null
-              ? `${matchCount.toLocaleString()} of ${totalRuns?.toLocaleString()} matching timelines`
-              : `${NUM_SIMULATIONS.toLocaleString()} simulations`}
+          <div className="flex items-center gap-4 mb-6 text-[#666]">
+            <span>
+              {season.name} &middot;{' '}
+              {matchCount !== null
+                ? `${matchCount.toLocaleString()} of ${totalRuns?.toLocaleString()} matching timelines`
+                : `${numSimulations.toLocaleString()} simulations`}
+            </span>
             {isSimulating && simulationProgress !== null && (
-              <span className="ml-2 text-amber-400">
+              <span className="text-amber-400">
                 Simulating {simulationProgress}%
               </span>
             )}
             {isSimulating && simulationProgress === null && (
-              <span className="ml-2 text-amber-400 animate-pulse">
+              <span className="text-amber-400 animate-pulse">
                 Filtering...
               </span>
             )}
             {matchCount !== null && matchCount < 50 && (
-              <span className="ml-2 text-red-400">
+              <span className="text-red-400">
                 Low sample size — results may be unreliable
               </span>
             )}
-          </p>
+            <span className="ml-auto" />
+            <input
+              type="text"
+              value={simInput}
+              onChange={(e) => setSimInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const n = parseInt(simInput.replace(/,/g, ''), 10);
+                  if (n > 0 && !isSimulating) {
+                    setNumSimulations(n);
+                    setSimInput(n.toLocaleString());
+                    triggerSimulation(n);
+                  }
+                }
+              }}
+              className="w-28 px-2 py-1 bg-[#0a0a10] border border-[#2a2a3a] rounded text-sm text-[#ccc] text-right focus:outline-none focus:border-amber-500/50"
+            />
+            <button
+              onClick={() => {
+                const n = parseInt(simInput.replace(/,/g, ''), 10);
+                if (n > 0 && !isSimulating) {
+                  setNumSimulations(n);
+                  setSimInput(n.toLocaleString());
+                  triggerSimulation(n);
+                }
+              }}
+              disabled={isSimulating}
+              className="px-3 py-1 rounded text-sm font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Re-run Simulation
+            </button>
+          </div>
 
           <DivergencePanel />
 
@@ -234,7 +273,7 @@ export default function App() {
           </section>
 
           <footer className="text-center text-[#333] text-xs pb-8">
-            Powered by {NUM_SIMULATIONS.toLocaleString()} Monte Carlo simulations. May the best woman win.
+            Powered by {numSimulations.toLocaleString()} Monte Carlo simulations. May the best woman win.
           </footer>
         </>
       ) : (

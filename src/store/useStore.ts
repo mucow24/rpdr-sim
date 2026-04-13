@@ -32,6 +32,8 @@ interface AppState {
   editorEpisodes: EpisodeData[];
   editorQueens: Queen[];
 
+  numSimulations: number;
+
   appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate';
   spreadSelectedEpisode: number;
 
@@ -53,6 +55,8 @@ interface AppState {
 
   setEditorEpisodes: (episodes: EpisodeData[]) => void;
   setEditorQueens: (queens: Queen[]) => void;
+
+  setNumSimulations: (n: number) => void;
 
   setAppMode: (mode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate') => void;
   setSpreadSelectedEpisode: (idx: number) => void;
@@ -79,6 +83,8 @@ export const useStore = create<AppState>()((set) => ({
 
   editorEpisodes: [],
   editorQueens: [],
+
+  numSimulations: 100_000,
 
   appMode: 'simulation',
   spreadSelectedEpisode: 0,
@@ -129,6 +135,8 @@ export const useStore = create<AppState>()((set) => ({
 
   setEditorEpisodes: (episodes) => set({ editorEpisodes: episodes }),
   setEditorQueens: (queens) => set({ editorQueens: queens }),
+
+  setNumSimulations: (n) => set({ numSimulations: n }),
 
   setAppMode: (mode) => set({ appMode: mode }),
   setSpreadSelectedEpisode: (idx) => set({ spreadSelectedEpisode: idx }),

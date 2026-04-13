@@ -1,5 +1,8 @@
 import {
   runBaseline,
+  runBaselinePartial,
+  runFromStatePartial,
+  aggregateFromBuffer,
   filterAndAggregate,
   extractTrajectories,
   runFromState,
@@ -16,12 +19,18 @@ let storedSeason: SeasonData | null = null;
 // ── Message types ──
 export type WorkerRequest =
   | { type: 'baseline'; options: RunBaselineOptions }
+  | { type: 'partialBaseline'; options: RunBaselineOptions }
+  | { type: 'partialFromState'; options: RunFromStateOptions }
+  | { type: 'importBuffer'; buffer: Uint8Array; totalRuns: number; season: SeasonData }
   | { type: 'filter'; conditions: FilterCondition[] }
   | { type: 'trajectories'; queenIndex: number; conditions: FilterCondition[] }
   | { type: 'fromState'; options: RunFromStateOptions };
 
 export type WorkerResponse =
   | { type: 'baseline'; results: SimulationResults }
+  | { type: 'partialBaseline'; buffer: ArrayBuffer }
+  | { type: 'partialFromState'; buffer: ArrayBuffer }
+  | { type: 'importBuffer'; results: SimulationResults }
   | { type: 'progress'; pct: number }
   | {
       type: 'filter';
@@ -48,6 +57,26 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
     storedTotalRuns = msg.options.numSimulations ?? 100_000;
     storedSeason = msg.options.season;
     self.postMessage({ type: 'baseline', results } satisfies WorkerResponse);
+  } else if (msg.type === 'partialBaseline') {
+    const { buffer } = runBaselinePartial(
+      msg.options,
+      (pct) => self.postMessage({ type: 'progress', pct } satisfies WorkerResponse),
+    );
+    const ab = buffer.buffer as ArrayBuffer;
+    self.postMessage({ type: 'partialBaseline', buffer: ab } satisfies WorkerResponse, { transfer: [ab] });
+  } else if (msg.type === 'partialFromState') {
+    const { buffer } = runFromStatePartial(
+      msg.options,
+      (pct) => self.postMessage({ type: 'progress', pct } satisfies WorkerResponse),
+    );
+    const ab = buffer.buffer as ArrayBuffer;
+    self.postMessage({ type: 'partialFromState', buffer: ab } satisfies WorkerResponse, { transfer: [ab] });
+  } else if (msg.type === 'importBuffer') {
+    storedBuffer = msg.buffer;
+    storedTotalRuns = msg.totalRuns;
+    storedSeason = msg.season;
+    const results = aggregateFromBuffer(msg.buffer, msg.totalRuns, msg.season.queens, msg.season.episodes);
+    self.postMessage({ type: 'importBuffer', results } satisfies WorkerResponse);
   } else if (msg.type === 'filter') {
     if (!storedBuffer || !storedSeason) {
       const empty: SimulationResults = {
