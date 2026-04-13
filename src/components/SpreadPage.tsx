@@ -122,8 +122,6 @@ export default function SpreadPage() {
     );
   }
 
-  const selectedEpisode = season.episodes[spreadSelectedEpisode];
-
   return (
     <div>
       {/* Status line */}

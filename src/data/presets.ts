@@ -15,6 +15,7 @@ import season14 from './season14';
 import season15 from './season15';
 import season16 from './season16';
 import season17 from './season17';
+import season18 from './season18';
 import type { SeasonData } from '../engine/types';
 
 export interface SeasonPreset {
@@ -41,4 +42,5 @@ export const SEASON_PRESETS: SeasonPreset[] = [
   { id: 'season15', name: 'Season 15', season: season15 },
   { id: 'season16', name: 'Season 16', season: season16 },
   { id: 'season17', name: 'Season 17', season: season17 },
+  { id: 'season18', name: 'Season 18', season: season18 },
 ];
