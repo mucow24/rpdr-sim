@@ -635,12 +635,15 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
               CHART_PLACEMENTS.forEach((p, idx) => {
                 const prob = p === 'ELIM' ? elimProb : surv * (dist[p] ?? 0);
+                const rowRaw = p === 'ELIM' ? elimProb : (dist[p] ?? 0);
+                const rowDead = !isOutcome && rowRaw < 0.001;
+                const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
                 tt.append('text')
                   .attr('x', 6).attr('y', 24 + idx * lineH)
                   .attr('fill', PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
                   .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-                  .text(`${p.padEnd(4)} ${(prob * 100).toFixed(0).padStart(3)}%`);
+                  .text(`${p.padEnd(4)} ${valStr}`);
               });
 
               if (isPinned || noRoutes) {
