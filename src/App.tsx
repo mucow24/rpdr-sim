@@ -14,6 +14,8 @@ import SeasonEditorPage from './components/SeasonEditorPage';
 import QueenEditorPage from './components/QueenEditorPage';
 import CalibratePage from './components/CalibratePage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
+import QueenMiniChart from './components/charts/QueenMiniChart';
+import QueenFlowChart from './components/charts/QueenFlowChart';
 
 const NUM_SIMULATIONS = 100_000;
 
@@ -187,6 +189,18 @@ export default function App() {
               </h2>
             </div>
             <Timeline />
+          </section>
+
+          <section className="mb-4 grid grid-cols-4 gap-2">
+            {season.queens.map((q) => (
+              <QueenMiniChart key={q.id} queenId={q.id} />
+            ))}
+          </section>
+
+          <section className="mb-4 grid grid-cols-2 gap-2">
+            {season.queens.map((q) => (
+              <QueenFlowChart key={q.id} queenId={q.id} height={80} />
+            ))}
           </section>
 
           <section className="mb-8">

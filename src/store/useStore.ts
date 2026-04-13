@@ -80,7 +80,7 @@ export const useStore = create<AppState>()((set) => ({
   editorEpisodes: [],
   editorQueens: [],
 
-  appMode: 'spread',
+  appMode: 'simulation',
   spreadSelectedEpisode: 0,
 
   updateEpisodeOutcome: (epIdx, outcome) =>

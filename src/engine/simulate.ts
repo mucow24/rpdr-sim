@@ -10,7 +10,7 @@ import type {
   SeasonData,
   RunFromStateOptions,
 } from './types';
-import { PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT } from './types';
+import { PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX } from './types';
 export type { RunFromStateOptions } from './types';
 
 /** Internal mid-season state for simulateOneSeason. */
@@ -263,9 +263,19 @@ export function getMatchingIndices(
   for (let r = 0; r < totalRuns; r++) {
     const base = r * stride;
     const elimBase = base + numEpisodes * numQueens;
+    const fpBase = elimBase + numEpisodes;
     let matches = true;
     for (const cond of conditions) {
-      if (cond.placement === ELIM_PLACEMENT) {
+      if (cond.episodeIndex === OUTCOME_EPISODE_INDEX) {
+        // Outcome condition: WIN (placement 0) means finalPlace === 1
+        const finalPlace = buffer[fpBase + cond.queenIndex];
+        if (cond.placement === 0) {
+          if (finalPlace !== 1) { matches = false; break; }
+        } else {
+          // ELIM in outcome = didn't win
+          if (finalPlace === 1) { matches = false; break; }
+        }
+      } else if (cond.placement === ELIM_PLACEMENT) {
         if (buffer[elimBase + cond.episodeIndex] !== cond.queenIndex) {
           matches = false;
           break;
