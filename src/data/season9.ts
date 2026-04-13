@@ -1,191 +1,450 @@
 import type { SeasonData } from '../engine/types';
 
+// Skill ratings are 1-10, based on actual Season 9 performance.
+// Calibrated against Season 5 (e.g. Jinkx: comedy:10, design:5, acting:9,
+// dance:5, snatchGame:10, improv:9, runway:5, singing:8, lipSync:6).
 const season9: SeasonData = {
   id: 'season9',
   name: 'Season 9',
   queens: [
     {
-      id: 'sasha9',
+      id: 'sasha',
       name: 'Sasha Velour',
-      skills: { comedy: 7, design: 9, acting: 7, dance: 5, snatchGame: 7, improv: 7, runway: 9, singing: 6 },
-      lipSync: 8,
-      color: '#e6194b',
+      // 2 shared wins (comedy/acting Ep4, acting/improv Ep9), consistently HIGH.
+      // Never bottom 2. Iconic finale lip syncs. Strong runway, brainy comedy.
+      // Low in acting Ep7 (9021-HO).
+      skills: {
+        comedy: 8,
+        design: 9,
+        acting: 7,
+        dance: 5,
+        snatchGame: 8,
+        improv: 8,
+        runway: 9,
+        singing: 6,
+      },
+      lipSync: 9,
+      color: '#e74c3c',
     },
     {
       id: 'peppermint',
       name: 'Peppermint',
-      skills: { comedy: 7, design: 4, acting: 7, dance: 6, snatchGame: 5, improv: 7, runway: 5, singing: 7 },
+      // 1 win (roast Ep8). Runner-up. Lip synced 2x for her life and won both.
+      // Legendary finale lip sync performer. Weak runway (repeatedly critiqued).
+      // LOW/BTM in Snatch Game. HIGH in musical Ep5 and comedy Ep8.
+      skills: {
+        comedy: 8,
+        design: 4,
+        acting: 7,
+        dance: 6,
+        snatchGame: 4,
+        improv: 6,
+        runway: 4,
+        singing: 7,
+      },
       lipSync: 9,
-      color: '#3cb44b',
+      color: '#ff69b4',
     },
     {
       id: 'shea',
       name: 'Shea Coulee',
-      skills: { comedy: 7, design: 8, acting: 7, dance: 8, snatchGame: 6, improv: 6, runway: 8, singing: 7 },
-      lipSync: 7,
-      color: '#4363d8',
-    },
-    {
-      id: 'trinity9',
-      name: 'Trinity Taylor',
-      skills: { comedy: 7, design: 7, acting: 8, dance: 7, snatchGame: 6, improv: 6, runway: 8, singing: 5 },
+      // 4 wins (most of the season): Ep4 comedy, Ep5 musical, Ep9 improv, Ep11 ball.
+      // Costume design degree. Strong runway, dance, acting. Only 1 BTM2 (makeover Ep10).
+      // Lost iconic finale lip sync to Sasha. Well-rounded powerhouse.
+      skills: {
+        comedy: 7,
+        design: 8,
+        acting: 8,
+        dance: 8,
+        snatchGame: 7,
+        improv: 8,
+        runway: 9,
+        singing: 7,
+      },
       lipSync: 8,
-      color: '#f58231',
+      color: '#3498db',
     },
     {
-      id: 'alexis9',
+      id: 'trinity',
+      name: 'Trinity Taylor',
+      // 3 wins: Ep3 design, Ep7 acting, Ep10 makeover. Pageant queen with great body.
+      // BTM2 once (Ep4 comedy vs Charlie, easy win). LOW in roast Ep8 and ball Ep11.
+      // Lost finale lip sync to Peppermint. Strong design, acting, weak comedy/improv.
+      skills: {
+        comedy: 5,
+        design: 8,
+        acting: 8,
+        dance: 7,
+        snatchGame: 6,
+        improv: 5,
+        runway: 8,
+        singing: 5,
+      },
+      lipSync: 7,
+      color: '#9b59b6',
+    },
+    {
+      id: 'alexis',
       name: 'Alexis Michelle',
-      skills: { comedy: 6, design: 5, acting: 7, dance: 5, snatchGame: 5, improv: 6, runway: 5, singing: 7 },
-      lipSync: 6,
-      color: '#911eb4',
+      // 1 win (Snatch Game as Liza). Broadway background. 5th place.
+      // BTM2 three times (roast Ep8, ball Ep11, plus early low placements).
+      // Strong singing/theatre, struggled with design and comedy roast.
+      skills: {
+        comedy: 5,
+        design: 5,
+        acting: 7,
+        dance: 5,
+        snatchGame: 8,
+        improv: 6,
+        runway: 5,
+        singing: 8,
+      },
+      lipSync: 7,
+      color: '#2ecc71',
     },
     {
-      id: 'nina9',
+      id: 'nina',
       name: "Nina Bo'nina Brown",
-      skills: { comedy: 5, design: 7, acting: 6, dance: 5, snatchGame: 7, improv: 5, runway: 6, singing: 4 },
-      lipSync: 5,
-      color: '#42d4f4',
+      // 1 win (Ep1 pageant/runway). HIGH in Snatch Game (Jasmine Masters).
+      // BTM2 three times (Ep7, Ep9, Ep10). Amazing makeup/creativity.
+      // Self-sabotage hurt her. Eliminated Aja and Valentina in lip syncs.
+      skills: {
+        comedy: 5,
+        design: 8,
+        acting: 5,
+        dance: 4,
+        snatchGame: 7,
+        improv: 4,
+        runway: 7,
+        singing: 4,
+      },
+      lipSync: 7,
+      color: '#e67e22',
     },
     {
       id: 'valentina',
       name: 'Valentina',
-      skills: { comedy: 5, design: 6, acting: 7, dance: 5, snatchGame: 5, improv: 4, runway: 8, singing: 7 },
-      lipSync: 4,
-      color: '#f032e6',
+      // 1 win (Ep2 cheerleading). HIGH multiple times (design Ep3, acting Ep7).
+      // Eliminated in the infamous mask lip sync (didn't know the words).
+      // Beautiful runway, polished, but limited versatility. Weak lip sync.
+      skills: {
+        comedy: 4,
+        design: 6,
+        acting: 6,
+        dance: 6,
+        snatchGame: 5,
+        improv: 4,
+        runway: 9,
+        singing: 5,
+      },
+      lipSync: 6,
+      color: '#f1c40f',
     },
     {
       id: 'farrah',
       name: 'Farrah Moan',
-      skills: { comedy: 3, design: 4, acting: 4, dance: 4, snatchGame: 3, improv: 3, runway: 6, singing: 5 },
-      lipSync: 3,
-      color: '#bfef45',
+      // No wins. LOW or BTM2 repeatedly (Ep3, Ep5, Ep6, Ep8). 8th place.
+      // Pretty but struggled with comedy, acting, performance challenges.
+      // Eliminated in roast. Weak across performance categories.
+      skills: {
+        comedy: 2,
+        design: 5,
+        acting: 3,
+        dance: 4,
+        snatchGame: 3,
+        improv: 3,
+        runway: 7,
+        singing: 4,
+      },
+      lipSync: 4,
+      color: '#ffb6c1',
     },
     {
       id: 'aja',
       name: 'Aja',
-      skills: { comedy: 4, design: 4, acting: 4, dance: 6, snatchGame: 4, improv: 4, runway: 6, singing: 5 },
-      lipSync: 6,
-      color: '#fabed4',
+      // No wins. BTM2 twice (Ep3 design, Ep7 acting). 9th place.
+      // Raw talent but unpolished on S9. Improved dramatically on All Stars 3.
+      // Decent dance/lip sync ability, weak design and acting on this season.
+      skills: {
+        comedy: 5,
+        design: 4,
+        acting: 4,
+        dance: 8,
+        snatchGame: 4,
+        improv: 5,
+        runway: 5,
+        singing: 5,
+      },
+      lipSync: 8,
+      color: '#1abc9c',
     },
     {
-      id: 'cynthia9',
-      name: 'Cynthia Lee Fontaine',
-      skills: { comedy: 5, design: 3, acting: 4, dance: 4, snatchGame: 3, improv: 5, runway: 4, singing: 4 },
-      lipSync: 5,
-      color: '#469990',
-    },
-    {
-      id: 'eureka9',
+      id: 'eureka',
       name: 'Eureka',
-      skills: { comedy: 5, design: 5, acting: 5, dance: 4, snatchGame: 4, improv: 5, runway: 5, singing: 4 },
+      // No wins, no bottoms before medical exit Ep5. HIGH in Ep1 pageant.
+      // Showed promise before torn ACL. Limited data. Returned on S10 as runner-up.
+      // Big personality, decent across categories.
+      skills: {
+        comedy: 7,
+        design: 5,
+        acting: 6,
+        dance: 5,
+        snatchGame: 5,
+        improv: 6,
+        runway: 6,
+        singing: 5,
+      },
       lipSync: 6,
-      color: '#dcbeff',
+      color: '#c0392b',
     },
     {
-      id: 'charlie',
-      name: 'Charlie Hides',
-      skills: { comedy: 5, design: 4, acting: 5, dance: 3, snatchGame: 5, improv: 4, runway: 4, singing: 4 },
-      lipSync: 2,
-      color: '#9A6324',
-    },
-    {
-      id: 'kimora',
-      name: 'Kimora Blac',
-      skills: { comedy: 3, design: 4, acting: 3, dance: 3, snatchGame: 3, improv: 3, runway: 5, singing: 3 },
-      lipSync: 3,
-      color: '#800000',
+      id: 'cynthia',
+      name: 'Cynthia Lee Fontaine',
+      // No wins. Returning queen from S8. LOW/BTM2 repeatedly (Ep5, Ep6).
+      // Eliminated Ep6 Snatch Game. Lovable personality but struggled with
+      // impersonation and polish. Cucu!
+      skills: {
+        comedy: 5,
+        design: 4,
+        acting: 4,
+        dance: 5,
+        snatchGame: 2,
+        improv: 4,
+        runway: 4,
+        singing: 4,
+      },
+      lipSync: 5,
+      color: '#d4a574',
     },
     {
       id: 'jaymes',
       name: 'Jaymes Mansfield',
-      skills: { comedy: 3, design: 2, acting: 3, dance: 2, snatchGame: 2, improv: 3, runway: 3, singing: 2 },
-      lipSync: 2,
-      color: '#aaffc3',
+      // First eliminated (Ep2). BTM2 in cheerleading challenge.
+      // Wig-styling talent but very nervous on the show. Limited data.
+      skills: {
+        comedy: 4,
+        design: 5,
+        acting: 3,
+        dance: 3,
+        snatchGame: 3,
+        improv: 3,
+        runway: 4,
+        singing: 3,
+      },
+      lipSync: 3,
+      color: '#8e44ad',
+    },
+    {
+      id: 'kimora',
+      name: 'Kimora Blac',
+      // Eliminated Ep3 (design). BTM2 twice (Ep2, Ep3). LOW Ep2 cheerleading.
+      // Gorgeous but couldn't sew and struggled in performance challenges.
+      skills: {
+        comedy: 3,
+        design: 3,
+        acting: 3,
+        dance: 4,
+        snatchGame: 3,
+        improv: 3,
+        runway: 6,
+        singing: 3,
+      },
+      lipSync: 4,
+      color: '#f39c12',
+    },
+    {
+      id: 'charlie',
+      name: 'Charlie Hides',
+      // Eliminated Ep4. LOW in Ep2 cheerleading. BTM2 Ep4 (comedy/acting).
+      // Infamous for not lip syncing (stood still due to cracked rib).
+      // Comedy background (YouTube) but flopped on the show. Oldest queen at 52.
+      skills: {
+        comedy: 5,
+        design: 5,
+        acting: 4,
+        dance: 2,
+        snatchGame: 5,
+        improv: 4,
+        runway: 6,
+        singing: 5,
+      },
+      lipSync: 1,
+      color: '#7f8c8d',
     },
   ],
   episodes: [
+    // Ep 1: "Oh. My. Gaga!" — Pageant (two looks: hometown + Lady Gaga inspired)
+    // No elimination this episode
     {
       number: 1,
-      challengeType: 'design',
+      challengeType: 'runway',
       challengeName: 'Oh. My. Gaga!',
-      placements: {},
+      placements: {
+        nina: 'WIN',
+        eureka: 'HIGH', sasha: 'HIGH',
+        peppermint: 'SAFE', shea: 'SAFE', trinity: 'SAFE',
+        alexis: 'SAFE', valentina: 'SAFE', farrah: 'SAFE',
+        aja: 'SAFE', cynthia: 'SAFE', jaymes: 'SAFE',
+        kimora: 'SAFE', charlie: 'SAFE',
+      },
       eliminated: [],
     },
+    // Ep 2: "She Done Already Done Brought It On" — Team Cheerleading
     {
       number: 2,
       challengeType: 'dance',
       challengeName: 'She Done Already Done Brought It On',
-      placements: {},
+      placements: {
+        valentina: 'WIN',
+        shea: 'HIGH', trinity: 'HIGH',
+        nina: 'SAFE', sasha: 'SAFE', peppermint: 'SAFE',
+        alexis: 'SAFE', farrah: 'SAFE', aja: 'SAFE',
+        eureka: 'SAFE', cynthia: 'SAFE',
+        charlie: 'LOW',
+        jaymes: 'BTM2', kimora: 'BTM2',
+      },
       eliminated: ['jaymes'],
     },
+    // Ep 3: "Draggily Ever After" — Fairytale Princess Design
     {
       number: 3,
       challengeType: 'design',
       challengeName: 'Draggily Ever After',
-      placements: {},
+      placements: {
+        trinity: 'WIN',
+        peppermint: 'HIGH', valentina: 'HIGH',
+        nina: 'SAFE', sasha: 'SAFE', shea: 'SAFE',
+        alexis: 'SAFE', eureka: 'SAFE', charlie: 'SAFE',
+        cynthia: 'SAFE',
+        farrah: 'LOW',
+        aja: 'BTM2', kimora: 'BTM2',
+      },
       eliminated: ['kimora'],
     },
+    // Ep 4: "Good Morning Bitches" — Morning Talk Show (comedy/acting)
     {
       number: 4,
-      challengeType: 'improv',
+      challengeType: 'comedy',
       challengeName: 'Good Morning Bitches',
-      placements: {},
+      placements: {
+        sasha: 'WIN', shea: 'WIN',
+        nina: 'SAFE', valentina: 'SAFE', alexis: 'SAFE',
+        aja: 'SAFE', eureka: 'SAFE', farrah: 'SAFE',
+        cynthia: 'SAFE',
+        peppermint: 'LOW',
+        charlie: 'BTM2', trinity: 'BTM2',
+      },
       eliminated: ['charlie'],
     },
+    // Ep 5: "Reality Stars: The Musical" — Kardashian Musical
     {
       number: 5,
       challengeType: 'singing',
       challengeName: 'Reality Stars: The Musical',
-      placements: {},
-      eliminated: ['eureka9'],
+      placements: {
+        shea: 'WIN',
+        alexis: 'HIGH', peppermint: 'HIGH',
+        sasha: 'SAFE', trinity: 'SAFE', valentina: 'SAFE',
+        aja: 'SAFE',
+        nina: 'LOW',
+        cynthia: 'BTM2', farrah: 'BTM2',
+      },
+      // Eureka removed due to knee injury; both BTM2 queens saved
+      eliminated: ['eureka'],
     },
+    // Ep 6: "Snatch Game"
     {
       number: 6,
       challengeType: 'snatchGame',
       challengeName: 'Snatch Game',
-      placements: {},
-      eliminated: ['cynthia9'],
+      placements: {
+        alexis: 'WIN',
+        nina: 'HIGH', sasha: 'HIGH',
+        shea: 'SAFE', trinity: 'SAFE', valentina: 'SAFE',
+        aja: 'SAFE',
+        farrah: 'LOW',
+        cynthia: 'BTM2', peppermint: 'BTM2',
+      },
+      eliminated: ['cynthia'],
     },
+    // Ep 7: "9021-HO" — 90210 Parody (acting)
     {
       number: 7,
       challengeType: 'acting',
       challengeName: '9021-HO',
-      placements: {},
+      placements: {
+        trinity: 'WIN',
+        shea: 'HIGH', valentina: 'HIGH',
+        peppermint: 'SAFE', alexis: 'SAFE', farrah: 'SAFE',
+        sasha: 'LOW',
+        aja: 'BTM2', nina: 'BTM2',
+      },
       eliminated: ['aja'],
     },
+    // Ep 8: "RuPaul Roast" — Comedy Roast of Michelle Visage
     {
       number: 8,
       challengeType: 'comedy',
       challengeName: 'RuPaul Roast',
-      placements: {},
+      placements: {
+        peppermint: 'WIN',
+        sasha: 'HIGH', shea: 'HIGH',
+        nina: 'SAFE', valentina: 'SAFE',
+        trinity: 'LOW',
+        alexis: 'BTM2', farrah: 'BTM2',
+      },
       eliminated: ['farrah'],
     },
+    // Ep 9: "Your Pilot's on Fire" — Create TV Pilots (acting/improv)
     {
       number: 9,
       challengeType: 'improv',
       challengeName: "Your Pilot's on Fire",
-      placements: {},
+      placements: {
+        sasha: 'WIN', shea: 'WIN',
+        peppermint: 'HIGH', trinity: 'HIGH',
+        alexis: 'LOW',
+        nina: 'BTM2', valentina: 'BTM2',
+      },
       eliminated: ['valentina'],
     },
+    // Ep 10: "Makeovers: Crew Better Work" — Makeover Challenge
     {
       number: 10,
       challengeType: 'design',
       challengeName: 'Makeovers: Crew Better Work',
-      placements: {},
-      eliminated: ['nina9'],
+      placements: {
+        trinity: 'WIN',
+        sasha: 'HIGH',
+        peppermint: 'SAFE', alexis: 'SAFE',
+        shea: 'LOW',
+        nina: 'BTM2',
+      },
+      // Nina was BTM2 against Shea; Nina eliminated
+      eliminated: ['nina'],
     },
+    // Ep 11: "Gayest Ball Ever" — Three-Look Ball (design)
     {
       number: 11,
       challengeType: 'design',
       challengeName: 'Gayest Ball Ever',
-      placements: {},
-      eliminated: ['alexis9'],
+      placements: {
+        shea: 'WIN',
+        sasha: 'HIGH',
+        trinity: 'LOW',
+        alexis: 'BTM2', peppermint: 'BTM2',
+      },
+      eliminated: ['alexis'],
     },
+    // Ep 12: "Category Is..." — Write & Perform Verses (singing/performance)
+    // No elimination; top 4 advance to finale
     {
       number: 12,
       challengeType: 'singing',
       challengeName: 'Category Is...',
-      placements: {},
+      placements: {
+        sasha: 'SAFE', shea: 'SAFE', trinity: 'SAFE', peppermint: 'SAFE',
+      },
       eliminated: [],
     },
   ],
