@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { outcomeToEpisodeResult, runFromState, runBaseline } from './simulate';
 import type { SeasonData, Queen, EpisodeData, Placement } from './types';
 import season5 from '../data/season5';
+import season9 from '../data/season9';
 
 // ── Minimal test fixture ─────────────────────────────────────
 // 6 queens, 4 episodes. Deterministic locked outcomes for clear assertions.
@@ -303,5 +304,87 @@ describe('elimination integration', () => {
     expect(baselineResults.winProb['jinkx']).toBeGreaterThan(0);
     // fromState RESPECTS it — Jinkx cannot win
     expect(fromStateResults.winProb['jinkx']).toBe(0);
+  });
+});
+
+// ── Non-elimination episodes + early termination ───────────
+
+describe('non-elimination episodes', () => {
+  test('runBaseline respects non-elim episodes: no queen eliminated at ep with eliminated:[]', () => {
+    const season = makeTestSeason(); // Ep 1 is non-elim (eliminated: [])
+
+    const { results } = runBaseline({
+      season,
+      numSimulations: 500,
+    });
+
+    // At episode 0 (non-elim), nobody should be eliminated
+    for (const q of season.queens) {
+      expect(results.elimProbByEpisode[0][q.id]).toBe(0);
+    }
+
+    // All 6 queens should have placement data at ep 0
+    const activeEp0 = Object.entries(results.episodePlacements[0])
+      .filter(([, probs]) => Object.values(probs).some((p) => p > 0));
+    expect(activeEp0).toHaveLength(6);
+  });
+
+  test('all defined episodes produce placement data', () => {
+    const season = makeTestSeason(); // 6 queens, 4 episodes (Ep1 non-elim)
+
+    const { results } = runBaseline({
+      season,
+      numSimulations: 500,
+    });
+
+    // Should have data for all 4 episodes
+    expect(results.episodePlacements).toHaveLength(4);
+
+    // Every episode should have at least some queens with non-zero placements
+    for (let ep = 0; ep < 4; ep++) {
+      const activeQueens = Object.entries(results.episodePlacements[ep])
+        .filter(([, probs]) => Object.values(probs).some((p) => p > 0));
+      expect(activeQueens.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('correct finalist count with non-elim episodes', () => {
+    const season = makeTestSeason();
+    // 6 queens, 4 episodes, 1 non-elim (Ep 1) → 3 elim episodes → 3 finalists
+    // At last episode (ep 3): 4 queens compete (1 gets eliminated during it)
+    // So placement data should show ~4 queens active, not 3
+
+    const { results } = runBaseline({
+      season,
+      numSimulations: 1000,
+    });
+
+    // Last episode must have placement data (not empty)
+    const activeLastEp = Object.entries(results.episodePlacements[3])
+      .filter(([, probs]) => Object.values(probs).some((p) => p > 0));
+    expect(activeLastEp.length).toBeGreaterThanOrEqual(3);
+
+    // Non-elim ep 0: no queen should have high elim probability
+    const maxElimEp0 = Math.max(...Object.values(results.elimProbByEpisode[0]));
+    expect(maxElimEp0).toBe(0);
+  });
+
+  test('Season 9: top 4 finale — all 12 episodes have placement data', () => {
+    const { results } = runBaseline({
+      season: season9,
+      numSimulations: 500,
+    });
+
+    // All 12 episodes should have data
+    expect(results.episodePlacements).toHaveLength(12);
+
+    // Episode 12 (index 11, non-elim) must have non-empty placement data
+    const activeEp12 = Object.entries(results.episodePlacements[11])
+      .filter(([, probs]) => Object.values(probs).some((p) => p > 0));
+    expect(activeEp12.length).toBeGreaterThan(0);
+
+    // Episode 12 is non-elim: no queen should be eliminated there
+    const maxElimEp12 = Math.max(...Object.values(results.elimProbByEpisode[11]));
+    expect(maxElimEp12).toBe(0);
   });
 });

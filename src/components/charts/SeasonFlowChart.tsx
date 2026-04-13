@@ -125,7 +125,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const q of queenOrder) totalF += flowData[q.id][col][CHART_PLACEMENTS[pi]] ?? 0;
         const h = totalF * SCALE;
         nodeCol.push({ y: cy, h });
-        cy += h + PLACEMENT_GAP;
+        // No gap between BTM2 and ELIM — they form one contiguous "bottom zone"
+        const gapAfter = CHART_PLACEMENTS[pi] === 'BTM2' ? 0 : PLACEMENT_GAP;
+        cy += h + gapAfter;
       }
       nodes[col] = nodeCol;
     }
