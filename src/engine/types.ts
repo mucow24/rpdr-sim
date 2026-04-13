@@ -35,6 +35,7 @@ export const INDEX_PLACEMENT: Record<number, Placement> = {
 
 /** An episode with challenge metadata and outcomes */
 export interface EpisodeData {
+  id?: string;
   number: number;
   challengeType: ChallengeCategory;
   challengeName: string;

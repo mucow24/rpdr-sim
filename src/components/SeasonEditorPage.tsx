@@ -148,28 +148,29 @@ export default function SeasonEditorPage() {
   const setAppMode = useStore((s) => s.setAppMode);
 
   const [presetId, setPresetId] = useState(SEASON_PRESETS[0].id);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const renumber = (eps: EpisodeData[]) =>
-    eps.map((ep, i) => ({ ...ep, number: i + 1 }));
+  const ensureIds = (eps: EpisodeData[]) =>
+    eps.map((ep, i) => ({ ...ep, id: ep.id ?? crypto.randomUUID(), number: i + 1 }));
 
   const handleLoadPreset = () => {
     const preset = SEASON_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     setEpisodes(
-      preset.season.episodes.map((ep) => ({
+      ensureIds(preset.season.episodes.map((ep) => ({
         ...ep,
         placements: { ...ep.placements },
         eliminated: [...ep.eliminated],
-      })),
+      }))),
     );
-    setEditingIndex(null);
+    setEditingId(null);
   };
 
   const handleNewEpisode = () => {
     setEpisodes([
       ...episodes,
       {
+        id: crypto.randomUUID(),
         number: episodes.length + 1,
         challengeType: 'comedy',
         challengeName: 'New Challenge',
@@ -188,13 +189,13 @@ export default function SeasonEditorPage() {
     if (target < 0 || target >= episodes.length) return;
     const next = [...episodes];
     [next[index], next[target]] = [next[target], next[index]];
-    setEpisodes(renumber(next));
-    setEditingIndex(null);
+    setEpisodes(ensureIds(next));
+    setEditingId(null);
   };
 
   const handleRemove = (index: number) => {
-    setEpisodes(renumber(episodes.filter((_, i) => i !== index)));
-    setEditingIndex(null);
+    setEpisodes(ensureIds(episodes.filter((_, i) => i !== index)));
+    setEditingId(null);
   };
 
   const canApply = episodes.length > 0 && queens.length > 0;
@@ -281,7 +282,7 @@ export default function SeasonEditorPage() {
             <button
               onClick={() => {
                 setEpisodes([]);
-                setEditingIndex(null);
+                setEditingId(null);
               }}
               disabled={episodes.length === 0}
               className="px-3 py-1.5 rounded text-sm text-[#666] hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-default"
@@ -299,13 +300,13 @@ export default function SeasonEditorPage() {
           <div className="flex flex-col gap-2">
             {episodes.map((ep, i) => (
               <EpisodeCard
-                key={`${ep.number}-${i}`}
+                key={ep.id}
                 episode={ep}
                 index={i}
                 isFirst={i === 0}
                 isLast={i === episodes.length - 1}
-                isEditing={editingIndex === i}
-                onEdit={() => setEditingIndex(editingIndex === i ? null : i)}
+                isEditing={editingId === ep.id}
+                onEdit={() => setEditingId(editingId === ep.id ? null : ep.id!)}
                 onUpdate={(updated) => handleUpdate(i, updated)}
                 onMove={(dir) => handleMove(i, dir)}
                 onRemove={() => handleRemove(i)}
