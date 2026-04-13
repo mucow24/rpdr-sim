@@ -20,7 +20,11 @@
       "Bash(npm i:*)",
       "Bash(npx vitest:*)",
       "Bash(npm run:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx --no-install tsc --noEmit)",
+      "Bash(ls node_modules/.bin/tsc*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)"
     ]
   }
 }

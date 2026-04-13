@@ -119,6 +119,15 @@ export default function EliminationHeatmap({
       .style('pointer-events', 'none')
       .style('z-index', '100');
 
+    // Which episodes are non-elimination?
+    const nonElimEpisodes = new Set(
+      season.episodes.filter((e) => e.eliminated.length === 0).map((e) => e.number),
+    );
+
+    // Non-elim cell colors
+    const nonElimBg = '#141828';
+    const nonElimX = '#2a3050';
+
     // Cells
     for (const queen of sortedQueens) {
       const isFaded =
@@ -127,6 +136,10 @@ export default function EliminationHeatmap({
       for (let epIdx = 0; epIdx < episodes.length; epIdx++) {
         const ep = episodes[epIdx];
         const prob = results.elimProbByEpisode[epIdx]?.[queen.id] ?? 0;
+        const isNonElim = nonElimEpisodes.has(ep);
+
+        const cx = (x(ep) ?? 0) + x.bandwidth() / 2;
+        const cy = (y(queen.id) ?? 0) + y.bandwidth() / 2;
 
         g.append('rect')
           .attr('x', x(ep) ?? 0)
@@ -134,7 +147,7 @@ export default function EliminationHeatmap({
           .attr('width', x.bandwidth())
           .attr('height', y.bandwidth())
           .attr('rx', 2)
-          .attr('fill', prob > 0.001 ? colorScale(prob) : '#1a1a24')
+          .attr('fill', isNonElim ? nonElimBg : prob > 0.001 ? colorScale(prob) : '#1a1a24')
           .attr('opacity', isFaded ? 0.3 : 1)
           .attr('stroke', '#0f0f13')
           .attr('stroke-width', 1)
@@ -145,7 +158,9 @@ export default function EliminationHeatmap({
               .style('left', `${event.clientX + 12}px`)
               .style('top', `${event.clientY - 10}px`)
               .html(
-                `<strong>${queen.name}</strong><br/>Ep ${ep} Sashay Risk: ${(prob * 100).toFixed(1)}%`,
+                isNonElim
+                  ? `<strong>${queen.name}</strong><br/>Ep ${ep}: Non-elimination`
+                  : `<strong>${queen.name}</strong><br/>Ep ${ep} Sashay Risk: ${(prob * 100).toFixed(1)}%`,
               );
           })
           .on('mousemove', (event) => {
@@ -157,6 +172,25 @@ export default function EliminationHeatmap({
             tooltip.style('display', 'none');
           })
           .on('click', () => setSelectedQueenId(queen.id));
+
+        // Draw × for non-elimination episodes
+        if (isNonElim) {
+          const size = Math.min(x.bandwidth(), y.bandwidth()) * 0.25;
+          g.append('line')
+            .attr('x1', cx - size).attr('y1', cy - size)
+            .attr('x2', cx + size).attr('y2', cy + size)
+            .attr('stroke', nonElimX)
+            .attr('stroke-width', 1.5)
+            .attr('opacity', isFaded ? 0.3 : 1)
+            .style('pointer-events', 'none');
+          g.append('line')
+            .attr('x1', cx + size).attr('y1', cy - size)
+            .attr('x2', cx - size).attr('y2', cy + size)
+            .attr('stroke', nonElimX)
+            .attr('stroke-width', 1.5)
+            .attr('opacity', isFaded ? 0.3 : 1)
+            .style('pointer-events', 'none');
+        }
       }
     }
 
