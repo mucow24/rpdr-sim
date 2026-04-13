@@ -212,9 +212,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       const qid = queen.id;
 
       // Source → ep 0: queen's source band splits into placement bands at ep 0
-      // (only non-ELIM placements — no one starts eliminated)
-      for (let ti = 0; ti < PLACEMENTS.length; ti++) {
-        const weight = flowData[qid][0][PLACEMENTS[ti]];
+      for (let ti = 0; ti < CHART_PLACEMENTS.length; ti++) {
+        const weight = flowData[qid][0][CHART_PLACEMENTS[ti]];
         if (weight < MIN_FLOW) continue;
         const h = weight * SCALE;
 
