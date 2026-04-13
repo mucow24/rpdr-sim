@@ -6,7 +6,7 @@ import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, typ
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
   HIGH: '#a8d8ea',
-  SAFE: '#555555',
+  SAFE: '#888888',
   LOW: '#e8a87c',
   BTM2: '#e74c3c',
   ELIM: '#8b0000',
@@ -575,21 +575,83 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           const overlay = overlayGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
-            .attr('fill', isPinned ? PLACEMENT_COLORS[placementName] : 'transparent')
+            .attr('fill', isPinned ? selectedQueen!.color : 'transparent')
             .attr('opacity', isPinned ? 0.5 : 0)
             .attr('rx', 1)
             .style('cursor', 'pointer');
 
           overlay
-            .on('mouseenter', function () {
+            .on('mouseenter', function (event) {
               if (!isPinned) {
                 d3.select(this).attr('fill', PLACEMENT_COLORS[placementName]).attr('opacity', 0.35);
               }
+
+              g.select('.flow-tooltip').remove();
+
+              const [mx, my] = d3.pointer(event, g.node());
+              const qid = selectedQueen!.id;
+              const dist = results.episodePlacements[col]?.[qid] ?? {};
+              const elimProb = elimByEp[qid]?.[col] ?? 0;
+              const surv = survival[qid]?.[col] ?? 0;
+
+              const ttW = 110;
+              const lineH = 12;
+              const ttH = 16 + CHART_PLACEMENTS.length * lineH;
+              const rawX = mx + 12;
+              const flipLeft = rawX + ttW > innerW;
+              const initX = flipLeft ? mx - ttW - 12 : rawX;
+              const initY = Math.min(my - 8, placementAreaH - ttH - 4);
+              const tt = g.append('g').attr('class', 'flow-tooltip')
+                .style('pointer-events', 'none')
+                .attr('transform', `translate(${initX},${initY})`);
+
+              tt.append('rect').attr('class', 'tt-bg')
+                .attr('width', ttW).attr('height', ttH)
+                .attr('rx', 4)
+                .attr('fill', '#1a1a24').attr('stroke', '#2a2a3a').attr('stroke-width', 1);
+
+              tt.append('text').attr('class', 'tt-title')
+                .attr('x', 6).attr('y', 11)
+                .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
+                .text(isOutcome ? `Result / ${placementName}` : `Ep ${season.episodes[col].number} / ${placementName}`);
+
+              CHART_PLACEMENTS.forEach((p, idx) => {
+                const prob = p === 'ELIM' ? elimProb : surv * (dist[p] ?? 0);
+                tt.append('text')
+                  .attr('x', 6).attr('y', 24 + idx * lineH)
+                  .attr('fill', PLACEMENT_COLORS[p])
+                  .attr('font-size', '9px').attr('font-family', 'monospace')
+                  .attr('opacity', isPinned ? 0.2 : 1)
+                  .text(`${p.padEnd(4)} ${(prob * 100).toFixed(0).padStart(3)}%`);
+              });
+
+              if (isPinned) {
+                const statsH = CHART_PLACEMENTS.length * lineH;
+                tt.append('text')
+                  .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
+                  .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+                  .attr('fill', '#e74c3c').attr('font-size', '11px').attr('font-weight', 'bold')
+                  .attr('font-family', 'monospace')
+                  .text('PINNED');
+              }
+            })
+            .on('mousemove', function (event) {
+              const tt = g.select('.flow-tooltip');
+              if (tt.empty()) return;
+              const [mx, my] = d3.pointer(event, g.node());
+              const ttW = 110;
+              const ttH = 16 + CHART_PLACEMENTS.length * 12;
+              const rawX = mx + 12;
+              const flipLeft = rawX + ttW > innerW;
+              const ttX = flipLeft ? mx - ttW - 12 : rawX;
+              const ttY = Math.min(my - 8, placementAreaH - ttH - 4);
+              tt.attr('transform', `translate(${ttX},${ttY})`);
             })
             .on('mouseleave', function () {
               if (!isPinned) {
                 d3.select(this).attr('fill', 'transparent').attr('opacity', 0);
               }
+              g.select('.flow-tooltip').remove();
             })
             .on('click', () => {
               if (isPinned) {
