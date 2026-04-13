@@ -596,6 +596,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               if (isPinned) {
                 removeCondition(condEpIdx, selectedQueenIdx);
               } else {
+                // Don't pin if queen has ~0 flow at this episode (e.g. already eliminated)
+                const surv = survival[selectedQueen!.id]?.[col] ?? 0;
+                if (surv < 0.001 && !isOutcome) return;
                 addCondition({
                   episodeIndex: condEpIdx,
                   queenIndex: selectedQueenIdx,
