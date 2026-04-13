@@ -596,9 +596,14 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               if (isPinned) {
                 removeCondition(condEpIdx, selectedQueenIdx);
               } else {
-                // Don't pin if queen has ~0 flow at this episode (e.g. already eliminated)
-                const surv = survival[selectedQueen!.id]?.[col] ?? 0;
-                if (surv < 0.001 && !isOutcome) return;
+                // Don't pin if queen has ~0 probability for this placement
+                const qid = selectedQueen!.id;
+                if (!isOutcome) {
+                  const prob = placementName === 'ELIM'
+                    ? (elimByEp[qid]?.[col] ?? 0)
+                    : (flowData[qid]?.[col]?.[placementName] ?? 0);
+                  if (prob < 0.001) return;
+                }
                 addCondition({
                   episodeIndex: condEpIdx,
                   queenIndex: selectedQueenIdx,
