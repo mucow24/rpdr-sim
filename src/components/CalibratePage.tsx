@@ -1,4 +1,4 @@
-import { useState, useRef, type DragEvent } from 'react';
+import { useState, useRef, useCallback, type DragEvent } from 'react';
 import { SEASON_PRESETS } from '../data/presets';
 import { CHALLENGE_CATEGORIES, type ChallengeCategory, type Queen } from '../engine/types';
 
@@ -20,6 +20,26 @@ function seasonAbbrev(seasonId: string): string {
   const num = seasonId.replace(/\D/g, '');
   return `S${num}`;
 }
+
+const SEASON_COLORS: Record<string, string> = {
+  season1: '#e74c3c',
+  season2: '#3498db',
+  season3: '#2ecc71',
+  season4: '#f39c12',
+  season5: '#9b59b6',
+  season6: '#1abc9c',
+  season7: '#e91e63',
+  season8: '#ff9800',
+  season9: '#00bcd4',
+  season10: '#8bc34a',
+  season11: '#ff5722',
+  season12: '#673ab7',
+  season13: '#009688',
+  season14: '#ffc107',
+  season15: '#03a9f4',
+  season16: '#e040fb',
+  season17: '#cddc39',
+};
 
 function getStatValue(queen: Queen, stat: StatKey): number {
   return stat === 'lipSync' ? queen.lipSync : queen.skills[stat];
@@ -50,8 +70,32 @@ function compositeKey(entry: RosterEntry): string {
   return `${entry.seasonId}:${entry.queen.id}`;
 }
 
+const STORAGE_KEY = 'rpdr-calibrate-roster';
+
+function loadRoster(): RosterEntry[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw) as RosterEntry[];
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch { /* ignore corrupt data */ }
+  return buildInitialRoster();
+}
+
+function saveRoster(roster: RosterEntry[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(roster));
+}
+
 export default function CalibratePage() {
-  const [roster, setRoster] = useState<RosterEntry[]>(buildInitialRoster);
+  const [roster, setRosterRaw] = useState<RosterEntry[]>(loadRoster);
+  const setRoster = useCallback((update: RosterEntry[] | ((prev: RosterEntry[]) => RosterEntry[])) => {
+    setRosterRaw((prev) => {
+      const next = typeof update === 'function' ? update(prev) : update;
+      saveRoster(next);
+      return next;
+    });
+  }, []);
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,7 +264,7 @@ export default function CalibratePage() {
                   >
                     <span
                       className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: entry.queen.color }}
+                      style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
                     />
                     <span className="text-[#ccc] whitespace-nowrap">
                       {entry.queen.name}
