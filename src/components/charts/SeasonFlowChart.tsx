@@ -88,7 +88,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
         const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
         elimByEp[q.id][ep] = elim;
-        f['ELIM'] = cumElim;
+        // Shift eliminated flow from BTM2 to ELIM at this episode
+        f['BTM2'] = Math.max(0, f['BTM2'] - elim);
+        f['ELIM'] = cumElim + elim;
         flowData[q.id][ep] = f;
         surv = Math.max(0, surv - elim);
         cumElim += elim;
@@ -202,7 +204,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const srcCursor: Record<string, number> = {};
     for (const q of queenOrder) srcCursor[q.id] = srcBands[q.id].y;
 
-    const btm2Idx = CHART_PLACEMENTS.indexOf('BTM2');
     const elimIdx = CHART_PLACEMENTS.indexOf('ELIM');
 
     // Process per queen (consistent stacking order)
@@ -241,8 +242,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         // Surviving flow ribbons (only if queen still alive)
         if (survNext >= 0.001) {
           for (let pi = 0; pi < PLACEMENTS.length; pi++) {
-            let continuing = flowData[qid][ep][PLACEMENTS[pi]];
-            if (PLACEMENTS[pi] === 'BTM2') continuing = Math.max(0, continuing - elimByEp[qid][ep]);
+            const continuing = flowData[qid][ep][PLACEMENTS[pi]];
             if (continuing < MIN_FLOW) continue;
 
             // Ribbons to non-ELIM placements at ep+1
@@ -267,26 +267,29 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               });
             }
 
-            // BTM2 → ELIM at ep+1
-            if (PLACEMENTS[pi] === 'BTM2') {
-              const elimAmt = elimByEp[qid][ep];
-              if (elimAmt >= MIN_FLOW) {
-                const h = elimAmt * SCALE;
+            // Surviving flow → ELIM at ep+1 (newly eliminated at target episode)
+            {
+              const elimAtTarget = elimByEp[qid][ep + 1];
+              if (elimAtTarget >= MIN_FLOW) {
+                const weight = continuing * elimAtTarget / survNext;
+                if (weight >= MIN_FLOW) {
+                  const h = weight * SCALE;
 
-                const sY = outCursor[ep][btm2Idx][qid];
-                if (sY !== undefined) {
-                  outCursor[ep][btm2Idx][qid] += h;
+                  const sY = outCursor[ep][pi][qid];
+                  if (sY !== undefined) {
+                    outCursor[ep][pi][qid] += h;
 
-                  const tY = inCursor[ep + 1][elimIdx][qid];
-                  if (tY !== undefined) {
-                    inCursor[ep + 1][elimIdx][qid] += h;
+                    const tY = inCursor[ep + 1][elimIdx][qid];
+                    if (tY !== undefined) {
+                      inCursor[ep + 1][elimIdx][qid] += h;
 
-                    allRibbons.push({
-                      queenId: qid, color: queen.color,
-                      srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-                      tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-                      h,
-                    });
+                      allRibbons.push({
+                        queenId: qid, color: queen.color,
+                        srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
+                        tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
+                        h,
+                      });
+                    }
                   }
                 }
               }
