@@ -27,6 +27,8 @@ export const PLACEMENT_INDEX: Record<Placement, number> = {
   WIN: 0, HIGH: 1, SAFE: 2, LOW: 3, BTM2: 4,
 };
 export const ELIM_PLACEMENT = 5;
+/** Sentinel episodeIndex for outcome (season winner) conditions */
+export const OUTCOME_EPISODE_INDEX = -1;
 export const INDEX_PLACEMENT: Record<number, Placement> = {
   0: 'WIN', 1: 'HIGH', 2: 'SAFE', 3: 'LOW', 4: 'BTM2',
 };

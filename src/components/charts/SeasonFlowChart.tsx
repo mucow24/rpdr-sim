@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, type Placement } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, type Placement } from '../../engine/types';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -70,7 +70,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     );
     const queenMap = new Map(season.queens.map((q) => [q.id, q]));
 
-    // -- Flow data (ELIM shifted forward: ELIM at ep N+1 shows ep N's eliminations) --
+    // -- Flow data (cumulative ELIM graveyard + virtual outcome column) --
     const survival: Record<string, number[]> = {};
     const flowData: Record<string, Record<string, number>[]> = {};
     const elimByEp: Record<string, number[]> = {};
@@ -80,6 +80,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       flowData[q.id] = [];
       elimByEp[q.id] = [];
       let surv = 1.0;
+      let cumElim = 0;
       for (let ep = 0; ep < numEps; ep++) {
         survival[q.id][ep] = surv;
         const dist = results.episodePlacements[ep]?.[q.id] ?? {};
@@ -87,64 +88,65 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
         const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
         elimByEp[q.id][ep] = elim;
-        // ELIM at this column shows previous episode's elimination
-        f['ELIM'] = ep > 0 ? elimByEp[q.id][ep - 1] : 0;
+        f['ELIM'] = cumElim;
         flowData[q.id][ep] = f;
         surv = Math.max(0, surv - elim);
+        cumElim += elim;
       }
+      // Virtual outcome column: WIN = winProb, ELIM = 1 - winProb
+      const wp = results.winProb[q.id] ?? 0;
+      survival[q.id][numEps] = surv;
+      elimByEp[q.id][numEps] = 0;
+      const outcomeF: Record<string, number> = {};
+      for (const p of PLACEMENTS) outcomeF[p] = p === 'WIN' ? wp : 0;
+      outcomeF['ELIM'] = 1 - wp;
+      flowData[q.id][numEps] = outcomeF;
     }
 
     // -- Horizontal layout --
+    const numCols = numEps + 1; // episodes + outcome
     const epAreaW = innerW - SOURCE_COL_WIDTH;
-    const epSpacing = epAreaW / numEps;
-    const colX = (ep: number) => SOURCE_COL_WIDTH + ep * epSpacing + epSpacing / 2;
+    const epSpacing = epAreaW / numCols;
+    const colX = (col: number) => SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
 
     // -- Vertical scale: total initial flow = numQueens fills placement area --
     const SCALE = (placementAreaH - (CHART_PLACEMENTS.length - 1) * PLACEMENT_GAP) / numQueens;
 
-    // -- Placement nodes (constant height across episodes) --
+    // -- Placement nodes (sized per column based on actual flow) --
     type NodePos = { y: number; h: number };
-    const maxFlowPerPlacement: number[] = [];
-    for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-      let maxF = 0;
-      for (let ep = 0; ep < numEps; ep++) {
-        let totalF = 0;
-        for (const q of queenOrder) totalF += flowData[q.id][ep][CHART_PLACEMENTS[pi]] ?? 0;
-        maxF = Math.max(maxF, totalF);
-      }
-      maxFlowPerPlacement[pi] = maxF;
-    }
     const nodes: NodePos[][] = [];
-    for (let ep = 0; ep < numEps; ep++) {
-      const col: NodePos[] = [];
+    for (let col = 0; col < numCols; col++) {
+      const nodeCol: NodePos[] = [];
       let cy = 0;
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-        const h = maxFlowPerPlacement[pi] * SCALE;
-        col.push({ y: cy, h });
+        let totalF = 0;
+        for (const q of queenOrder) totalF += flowData[q.id][col][CHART_PLACEMENTS[pi]] ?? 0;
+        const h = totalF * SCALE;
+        nodeCol.push({ y: cy, h });
         cy += h + PLACEMENT_GAP;
       }
-      nodes[ep] = col;
+      nodes[col] = nodeCol;
     }
 
     // -- Queen bands within nodes (centered in constant-height nodes) --
     type BandPos = { y: number; h: number };
     const bands: Record<string, BandPos>[][] = [];
-    for (let ep = 0; ep < numEps; ep++) {
-      bands[ep] = [];
+    for (let col = 0; col < numCols; col++) {
+      bands[col] = [];
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         const p = CHART_PLACEMENTS[pi];
         const bmap: Record<string, BandPos> = {};
         let actualH = 0;
-        for (const q of queenOrder) actualH += (flowData[q.id][ep][p] ?? 0) * SCALE;
-        const offset = (nodes[ep][pi].h - actualH) / 2;
-        let cy = nodes[ep][pi].y + offset;
+        for (const q of queenOrder) actualH += (flowData[q.id][col][p] ?? 0) * SCALE;
+        const offset = (nodes[col][pi].h - actualH) / 2;
+        let cy = nodes[col][pi].y + offset;
         for (const q of queenOrder) {
-          const f = flowData[q.id][ep][p] ?? 0;
+          const f = flowData[q.id][col][p] ?? 0;
           const h = f * SCALE;
           if (h >= 0.3) bmap[q.id] = { y: cy, h };
           cy += h;
         }
-        bands[ep][pi] = bmap;
+        bands[col][pi] = bmap;
       }
     }
 
@@ -182,17 +184,17 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     // inCursor:  left (incoming) side of band at (ep, pi, queenId)
     const outCursor: Record<string, number>[][] = [];
     const inCursor: Record<string, number>[][] = [];
-    for (let ep = 0; ep < numEps; ep++) {
-      outCursor[ep] = [];
-      inCursor[ep] = [];
+    for (let col = 0; col < numCols; col++) {
+      outCursor[col] = [];
+      inCursor[col] = [];
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-        outCursor[ep][pi] = {};
-        inCursor[ep][pi] = {};
+        outCursor[col][pi] = {};
+        inCursor[col][pi] = {};
         for (const q of queenOrder) {
-          const band = bands[ep][pi][q.id];
+          const band = bands[col][pi][q.id];
           if (band) {
-            outCursor[ep][pi][q.id] = band.y;
-            inCursor[ep][pi][q.id] = band.y;
+            outCursor[col][pi][q.id] = band.y;
+            inCursor[col][pi][q.id] = band.y;
           }
         }
       }
@@ -229,48 +231,77 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         });
       }
 
-      // Ep → ep+1: each source placement band splits into target placement bands
-      // BTM2 also feeds ELIM at ep+1; ELIM is a dead end (no outgoing ribbons)
-      for (let ep = 0; ep < numEps - 1; ep++) {
+      // Ep → ep+1: placement splits + ELIM carry-forward (graveyard)
+      // Includes last episode → outcome column
+      for (let ep = 0; ep < numCols - 1; ep++) {
         const survNext = survival[qid][ep + 1];
-        if (survNext < 0.001) continue;
+        const isToOutcome = ep + 1 === numCols - 1;
+        const wp = results.winProb[qid] ?? 0;
 
-        for (let pi = 0; pi < PLACEMENTS.length; pi++) {
-          let continuing = flowData[qid][ep][PLACEMENTS[pi]];
-          if (PLACEMENTS[pi] === 'BTM2') continuing = Math.max(0, continuing - elimByEp[qid][ep]);
-          if (continuing < MIN_FLOW) continue;
+        // Surviving flow ribbons (only if queen still alive)
+        if (survNext >= 0.001) {
+          for (let pi = 0; pi < PLACEMENTS.length; pi++) {
+            let continuing = flowData[qid][ep][PLACEMENTS[pi]];
+            if (PLACEMENTS[pi] === 'BTM2') continuing = Math.max(0, continuing - elimByEp[qid][ep]);
+            if (continuing < MIN_FLOW) continue;
 
-          // Ribbons to non-ELIM placements at ep+1
-          for (let ti = 0; ti < PLACEMENTS.length; ti++) {
-            const weight = continuing * flowData[qid][ep + 1][PLACEMENTS[ti]] / survNext;
-            if (weight < MIN_FLOW) continue;
-            const h = weight * SCALE;
+            // Ribbons to non-ELIM placements at ep+1
+            for (let ti = 0; ti < PLACEMENTS.length; ti++) {
+              const weight = continuing * flowData[qid][ep + 1][PLACEMENTS[ti]] / survNext;
+              if (weight < MIN_FLOW) continue;
+              const h = weight * SCALE;
 
-            const sY = outCursor[ep][pi][qid];
-            if (sY === undefined) continue;
-            outCursor[ep][pi][qid] += h;
+              const sY = outCursor[ep][pi][qid];
+              if (sY === undefined) continue;
+              outCursor[ep][pi][qid] += h;
 
-            const tY = inCursor[ep + 1][ti][qid];
-            if (tY === undefined) continue;
-            inCursor[ep + 1][ti][qid] += h;
+              const tY = inCursor[ep + 1][ti][qid];
+              if (tY === undefined) continue;
+              inCursor[ep + 1][ti][qid] += h;
 
-            allRibbons.push({
-              queenId: qid, color: queen.color,
-              srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-              tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-              h,
-            });
-          }
+              allRibbons.push({
+                queenId: qid, color: queen.color,
+                srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
+                tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
+                h,
+              });
+            }
 
-          // BTM2 → ELIM at ep+1
-          if (PLACEMENTS[pi] === 'BTM2') {
-            const elimAmt = elimByEp[qid][ep];
-            if (elimAmt >= MIN_FLOW) {
-              const h = elimAmt * SCALE;
+            // BTM2 → ELIM at ep+1
+            if (PLACEMENTS[pi] === 'BTM2') {
+              const elimAmt = elimByEp[qid][ep];
+              if (elimAmt >= MIN_FLOW) {
+                const h = elimAmt * SCALE;
 
-              const sY = outCursor[ep][btm2Idx][qid];
-              if (sY !== undefined) {
-                outCursor[ep][btm2Idx][qid] += h;
+                const sY = outCursor[ep][btm2Idx][qid];
+                if (sY !== undefined) {
+                  outCursor[ep][btm2Idx][qid] += h;
+
+                  const tY = inCursor[ep + 1][elimIdx][qid];
+                  if (tY !== undefined) {
+                    inCursor[ep + 1][elimIdx][qid] += h;
+
+                    allRibbons.push({
+                      queenId: qid, color: queen.color,
+                      srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
+                      tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
+                      h,
+                    });
+                  }
+                }
+              }
+            }
+
+            // Surviving flow → outcome ELIM ("lost the finale")
+            if (isToOutcome) {
+              const loseFrac = Math.max(0, survNext - wp) / survNext;
+              const weight = continuing * loseFrac;
+              if (weight >= MIN_FLOW) {
+                const h = weight * SCALE;
+
+                const sY = outCursor[ep][pi][qid];
+                if (sY === undefined) continue;
+                outCursor[ep][pi][qid] += h;
 
                 const tY = inCursor[ep + 1][elimIdx][qid];
                 if (tY !== undefined) {
@@ -287,6 +318,29 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
             }
           }
         }
+
+        // ELIM carry-forward (graveyard — always, regardless of survival)
+        const elimCarry = flowData[qid][ep]['ELIM'];
+        if (elimCarry >= MIN_FLOW) {
+          const h = elimCarry * SCALE;
+
+          const sY = outCursor[ep][elimIdx][qid];
+          if (sY !== undefined) {
+            outCursor[ep][elimIdx][qid] += h;
+
+            const tY = inCursor[ep + 1][elimIdx][qid];
+            if (tY !== undefined) {
+              inCursor[ep + 1][elimIdx][qid] += h;
+
+              allRibbons.push({
+                queenId: qid, color: queen.color,
+                srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
+                tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
+                h,
+              });
+            }
+          }
+        }
       }
     }
 
@@ -299,13 +353,14 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const isSelected = (qid: string) => qid === selId;
 
-    // Episode labels
-    for (let ep = 0; ep < numEps; ep++) {
+    // Column labels
+    for (let col = 0; col < numCols; col++) {
+      const label = col < numEps ? `Ep ${season.episodes[col].number}` : 'Result';
       g.append('text')
-        .attr('x', colX(ep)).attr('y', -8)
+        .attr('x', colX(col)).attr('y', -8)
         .attr('text-anchor', 'middle')
         .attr('fill', '#555').attr('font-size', '10px').attr('font-family', 'monospace')
-        .text(`Ep ${season.episodes[ep].number}`);
+        .text(label);
     }
 
     // Placement labels (left of first episode column)
@@ -322,20 +377,20 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     }
 
     // Vertical gridlines
-    for (let ep = 0; ep < numEps; ep++) {
+    for (let col = 0; col < numCols; col++) {
       g.append('line')
-        .attr('x1', colX(ep)).attr('x2', colX(ep))
+        .attr('x1', colX(col)).attr('x2', colX(col))
         .attr('y1', 0).attr('y2', placementAreaH)
         .attr('stroke', '#111').attr('stroke-width', 1);
     }
 
     // Placement node rects (visual only — clickable overlays added later)
-    for (let ep = 0; ep < numEps; ep++) {
+    for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-        const node = nodes[ep][pi];
+        const node = nodes[col][pi];
         if (node.h < 0.5) continue;
         g.append('rect')
-          .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', node.y)
+          .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
           .attr('width', NODE_WIDTH).attr('height', node.h)
           .attr('fill', PLACEMENT_COLORS[CHART_PLACEMENTS[pi]]).attr('opacity', 0.25).attr('rx', 1);
       }
@@ -343,22 +398,22 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     // Queen bands within nodes (opacity scales with flow)
     const maxBandH = Math.max(
-      ...Array.from({ length: numEps }, (_, ep) =>
+      ...Array.from({ length: numCols }, (_, col) =>
         Math.max(...CHART_PLACEMENTS.map((_, pi) =>
-          Math.max(...Object.values(bands[ep][pi]).map((b) => b.h), 0)
+          Math.max(...Object.values(bands[col][pi]).map((b) => b.h), 0)
         ))
       ), 1
     );
-    for (let ep = 0; ep < numEps; ep++) {
+    for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-        for (const [qid, band] of Object.entries(bands[ep][pi])) {
+        for (const [qid, band] of Object.entries(bands[col][pi])) {
           if (band.h < 0.3) continue;
           const queen = queenMap.get(qid);
           if (!queen) continue;
           const t = band.h / maxBandH;
           const sel = isSelected(qid);
           g.append('rect')
-            .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', band.y)
+            .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
             .attr('fill', queen.color)
             .attr('opacity', sel ? 0.15 + 0.45 * t : 0.02 * t)
@@ -497,20 +552,25 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const overlayGroup = g.append('g').attr('class', 'pin-overlays');
 
-    for (let ep = 0; ep < numEps; ep++) {
+    for (let col = 0; col < numCols; col++) {
+      const isOutcome = col === numCols - 1;
+      const condEpIdx = isOutcome ? OUTCOME_EPISODE_INDEX : col;
+
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-        const node = nodes[ep][pi];
+        const node = nodes[col][pi];
         if (node.h < 0.5) continue;
         const placementName = CHART_PLACEMENTS[pi];
+        // Outcome column only has WIN and ELIM
+        if (isOutcome && placementName !== 'WIN' && placementName !== 'ELIM') continue;
         const placementNum = placementName === 'ELIM'
           ? ELIM_PLACEMENT
           : PLACEMENT_INDEX[placementName as Placement];
-        const isPinned = pinSet.has(`${ep}:${placementNum}`);
+        const isPinned = pinSet.has(`${condEpIdx}:${placementNum}`);
 
         if (selectedQueen) {
           // Clickable overlay
           const overlay = overlayGroup.append('rect')
-            .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', node.y)
+            .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
             .attr('fill', isPinned ? PLACEMENT_COLORS[placementName] : 'transparent')
             .attr('opacity', isPinned ? 0.5 : 0)
@@ -530,10 +590,10 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
             })
             .on('click', () => {
               if (isPinned) {
-                removeCondition(ep, selectedQueenIdx);
+                removeCondition(condEpIdx, selectedQueenIdx);
               } else {
                 addCondition({
-                  episodeIndex: ep,
+                  episodeIndex: condEpIdx,
                   queenIndex: selectedQueenIdx,
                   placement: placementNum,
                 });
@@ -542,12 +602,12 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
           // Red X indicator for existing pins — centered on the queen's band
           if (isPinned) {
-            const qBand = bands[ep][pi][selectedQueen.id];
+            const qBand = bands[col][pi][selectedQueen.id];
             const yCenter = qBand
               ? qBand.y + qBand.h / 2
               : node.y + node.h / 2;
             overlayGroup.append('text')
-              .attr('x', colX(ep)).attr('y', yCenter)
+              .attr('x', colX(col)).attr('y', yCenter)
               .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
               .attr('fill', '#e74c3c').attr('font-size', '7px').attr('font-weight', 'bold')
               .style('pointer-events', 'none')
