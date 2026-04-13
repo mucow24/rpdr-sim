@@ -593,6 +593,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               const dist = results.episodePlacements[col]?.[qid] ?? {};
               const elimProb = elimByEp[qid]?.[col] ?? 0;
               const surv = survival[qid]?.[col] ?? 0;
+              const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
+              const noRoutes = !isPinned && !isOutcome && rawProb < 0.001;
 
               const ttW = 110;
               const lineH = 12;
@@ -621,18 +623,19 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
                   .attr('x', 6).attr('y', 24 + idx * lineH)
                   .attr('fill', PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
-                  .attr('opacity', isPinned ? 0.2 : 1)
+                  .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
                   .text(`${p.padEnd(4)} ${(prob * 100).toFixed(0).padStart(3)}%`);
               });
 
-              if (isPinned) {
+              if (isPinned || noRoutes) {
                 const statsH = CHART_PLACEMENTS.length * lineH;
                 tt.append('text')
                   .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
                   .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-                  .attr('fill', '#e74c3c').attr('font-size', '11px').attr('font-weight', 'bold')
+                  .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
+                  .attr('font-size', '11px').attr('font-weight', 'bold')
                   .attr('font-family', 'monospace')
-                  .text('PINNED');
+                  .text(noRoutes ? 'NO SIM RESULTS' : 'PINNED');
               }
             })
             .on('mousemove', function (event) {
@@ -660,9 +663,10 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
                 // Don't pin if queen has ~0 probability for this placement
                 const qid = selectedQueen!.id;
                 if (!isOutcome) {
+                  const dist = results.episodePlacements[col]?.[qid] ?? {};
                   const prob = placementName === 'ELIM'
                     ? (elimByEp[qid]?.[col] ?? 0)
-                    : (flowData[qid]?.[col]?.[placementName] ?? 0);
+                    : (dist[placementName] ?? 0);
                   if (prob < 0.001) return;
                 }
                 addCondition({
