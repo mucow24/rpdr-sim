@@ -32,7 +32,7 @@ interface AppState {
   editorEpisodes: EpisodeData[];
   editorQueens: Queen[];
 
-  appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor';
+  appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate';
   spreadSelectedEpisode: number;
 
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
@@ -54,7 +54,7 @@ interface AppState {
   setEditorEpisodes: (episodes: EpisodeData[]) => void;
   setEditorQueens: (queens: Queen[]) => void;
 
-  setAppMode: (mode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor') => void;
+  setAppMode: (mode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate') => void;
   setSpreadSelectedEpisode: (idx: number) => void;
 
   addCondition: (c: FilterCondition) => void;
