@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import { PLACEMENTS } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, type Placement } from '../../engine/types';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -32,9 +32,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [hiddenQueens, setHiddenQueens] = useState<Set<string>>(new Set());
+  const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -293,7 +293,11 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     // ============ RENDER ============
 
-    const anyHidden = hiddenQueens.size > 0;
+    // Auto-select first queen if nothing selected
+    const selId = activeQueenId ?? queenOrder[0]?.id ?? null;
+    if (selId && !activeQueenId) setActiveQueenId(selId);
+
+    const isSelected = (qid: string) => qid === selId;
 
     // Episode labels
     for (let ep = 0; ep < numEps; ep++) {
@@ -325,7 +329,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         .attr('stroke', '#111').attr('stroke-width', 1);
     }
 
-    // Placement node rects
+    // Placement node rects (visual only — clickable overlays added later)
     for (let ep = 0; ep < numEps; ep++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         const node = nodes[ep][pi];
@@ -352,12 +356,13 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           const queen = queenMap.get(qid);
           if (!queen) continue;
           const t = band.h / maxBandH;
-          const isHidden = hiddenQueens.has(qid);
+          const sel = isSelected(qid);
           g.append('rect')
             .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
             .attr('fill', queen.color)
-            .attr('opacity', isHidden ? 0.02 * t : anyHidden ? 0.15 + 0.45 * t : 0.065 + 0.4 * t);
+            .attr('opacity', sel ? 0.15 + 0.45 * t : 0.02 * t)
+            .style('pointer-events', 'none');
         }
       }
     }
@@ -373,10 +378,10 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const maxRibbonH = Math.max(...sortedRibbons.map((r) => r.h), 1);
 
     for (const r of sortedRibbons) {
-      const t = r.h / maxRibbonH; // 0–1, linear
-      const isHidden = hiddenQueens.has(r.queenId);
-      const fillOp = isHidden ? 0.02 * t : anyHidden ? 0.15 + 0.45 * t : 0.03 + 0.3 * t;
-      const strokeOp = isHidden ? 0.01 * t : anyHidden ? 0.2 + 0.5 * t : 0.03 + 0.4 * t;
+      const t = r.h / maxRibbonH;
+      const sel = isSelected(r.queenId);
+      const fillOp = sel ? 0.15 + 0.45 * t : 0.02 * t;
+      const strokeOp = sel ? 0.2 + 0.5 * t : 0.01 * t;
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.h, r.tgtX, r.tgtY, r.tgtY + r.h))
         .attr('fill', r.color)
@@ -390,33 +395,37 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const allPaths = ribbonGroup.selectAll<SVGPathElement, unknown>('path[data-queen]');
 
-    // Helper: set ribbon opacities for a given highlight state.
-    // Hover boosts the hovered queen without fading visible queens.
+    // Helper: set ribbon opacities for hover highlight.
+    // Hover boosts the hovered queen without fading the selected queen.
     function setRibbonOpacity(highlightId: string | null) {
       allPaths.each(function () {
         const el = d3.select(this);
         const pq = el.attr('data-queen')!;
         const pt = parseFloat(el.attr('data-t') || '1');
-        const isHighlighted = highlightId !== null && pq === highlightId;
-        const isHid = hiddenQueens.has(pq);
+        const isSel = isSelected(pq);
+        const isHover = highlightId !== null && pq === highlightId;
         let fOp: number, sOp: number;
-        if (isHighlighted || (!isHid && anyHidden)) {
+        if (isSel || isHover) {
           fOp = 0.15 + 0.45 * pt; sOp = 0.2 + 0.5 * pt;
-        } else if (isHid) {
-          fOp = 0.02 * pt; sOp = 0.01 * pt;
         } else {
-          fOp = 0.03 + 0.3 * pt; sOp = 0.03 + 0.4 * pt;
+          fOp = 0.02 * pt; sOp = 0.01 * pt;
         }
         el.attr('fill-opacity', fOp).attr('stroke-opacity', sOp);
       });
     }
 
-    // Source emitters + labels (clickable to toggle visibility)
-    let clickTimer: ReturnType<typeof setTimeout> | null = null;
+    // Track which queens have pins (conditions)
+    const queensWithPins = new Set<string>();
+    for (const c of conditions) {
+      const q = season.queens[c.queenIndex];
+      if (q) queensWithPins.add(q.id);
+    }
 
+    // Source emitters + labels (click to select)
     for (const queen of queenOrder) {
       const sb = srcBands[queen.id];
-      const isHidden = hiddenQueens.has(queen.id);
+      const sel = isSelected(queen.id);
+      const hasPins = queensWithPins.has(queen.id);
 
       const srcGroup = g.append('g')
         .style('cursor', 'pointer');
@@ -427,11 +436,11 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', sb.h)
         .attr('fill', 'transparent');
 
-      // Color bar — serves as on/off indicator
+      // Color bar — bright when selected
       const colorBar = srcGroup.append('rect')
         .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
         .attr('width', 6).attr('height', sb.h)
-        .attr('fill', queen.color).attr('opacity', isHidden ? 0.15 : 0.8).attr('rx', 1);
+        .attr('fill', queen.color).attr('opacity', sel ? 0.8 : 0.15).attr('rx', 1);
 
       // Queen name — always visible
       const nameText = srcGroup.append('text')
@@ -443,41 +452,112 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         .attr('opacity', 0.9)
         .text(queen.name.split(' ')[0]);
 
+      // Yellow dot for queens with pins
+      if (hasPins) {
+        srcGroup.append('circle')
+          .attr('cx', 2).attr('cy', sb.y + sb.h / 2)
+          .attr('r', 2.5)
+          .attr('fill', '#ffd700')
+          .attr('opacity', 0.9)
+          .style('pointer-events', 'none');
+      }
+
       // Hover: highlight this queen's ribbons + brighten bar
       srcGroup
         .on('mouseenter', function () {
-          colorBar.attr('opacity', isHidden ? 0.35 : 1.0);
+          colorBar.attr('opacity', 1.0);
           nameText.attr('opacity', 1.0);
           setRibbonOpacity(queen.id);
         })
         .on('mouseleave', function () {
-          colorBar.attr('opacity', isHidden ? 0.15 : 0.8);
+          colorBar.attr('opacity', sel ? 0.8 : 0.15);
           nameText.attr('opacity', 0.9);
           setRibbonOpacity(null);
         })
         .on('click', () => {
-          // Delay single-click to let double-click cancel it
-          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; }
-          clickTimer = setTimeout(() => {
-            clickTimer = null;
-            setHiddenQueens(prev => {
-              const next = new Set(prev);
-              if (next.has(queen.id)) next.delete(queen.id);
-              else next.add(queen.id);
-              return next;
-            });
-          }, 250);
-        })
-        .on('dblclick', () => {
-          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-          // Solo: hide everyone except this queen
-          setHiddenQueens(new Set(
-            season.queens.filter(q => q.id !== queen.id).map(q => q.id)
-          ));
+          setActiveQueenId(queen.id);
         });
     }
 
-  }, [results, season, width, height, hiddenQueens]);
+    // Placement pin overlays — rendered on top of everything
+    const selectedQueen = selId ? queenMap.get(selId) ?? null : null;
+    const selectedQueenIdx = selectedQueen
+      ? season.queens.findIndex(q => q.id === selectedQueen.id)
+      : -1;
+
+    // Build a set of existing pins for selected queen
+    const pinSet = new Set<string>();
+    if (selectedQueen) {
+      for (const c of conditions) {
+        if (c.queenIndex === selectedQueenIdx) {
+          pinSet.add(`${c.episodeIndex}:${c.placement}`);
+        }
+      }
+    }
+
+    const overlayGroup = g.append('g').attr('class', 'pin-overlays');
+
+    for (let ep = 0; ep < numEps; ep++) {
+      for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
+        const node = nodes[ep][pi];
+        if (node.h < 0.5) continue;
+        const placementName = CHART_PLACEMENTS[pi];
+        const placementNum = placementName === 'ELIM'
+          ? ELIM_PLACEMENT
+          : PLACEMENT_INDEX[placementName as Placement];
+        const isPinned = pinSet.has(`${ep}:${placementNum}`);
+
+        if (selectedQueen) {
+          // Clickable overlay
+          const overlay = overlayGroup.append('rect')
+            .attr('x', colX(ep) - NODE_WIDTH / 2).attr('y', node.y)
+            .attr('width', NODE_WIDTH).attr('height', node.h)
+            .attr('fill', isPinned ? PLACEMENT_COLORS[placementName] : 'transparent')
+            .attr('opacity', isPinned ? 0.5 : 0)
+            .attr('rx', 1)
+            .style('cursor', 'pointer');
+
+          overlay
+            .on('mouseenter', function () {
+              if (!isPinned) {
+                d3.select(this).attr('fill', PLACEMENT_COLORS[placementName]).attr('opacity', 0.35);
+              }
+            })
+            .on('mouseleave', function () {
+              if (!isPinned) {
+                d3.select(this).attr('fill', 'transparent').attr('opacity', 0);
+              }
+            })
+            .on('click', () => {
+              if (isPinned) {
+                removeCondition(ep, selectedQueenIdx);
+              } else {
+                addCondition({
+                  episodeIndex: ep,
+                  queenIndex: selectedQueenIdx,
+                  placement: placementNum,
+                });
+              }
+            });
+
+          // Red X indicator for existing pins — centered on the queen's band
+          if (isPinned) {
+            const qBand = bands[ep][pi][selectedQueen.id];
+            const yCenter = qBand
+              ? qBand.y + qBand.h / 2
+              : node.y + node.h / 2;
+            overlayGroup.append('text')
+              .attr('x', colX(ep)).attr('y', yCenter)
+              .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+              .attr('fill', '#e74c3c').attr('font-size', '7px').attr('font-weight', 'bold')
+              .style('pointer-events', 'none')
+              .text('\u2715');
+          }
+        }
+      }
+    }
+
+  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition]);
 
   if (!results) {
     return (
@@ -489,26 +569,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
   return (
     <div ref={containerRef}>
-      <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="text-sm font-medium text-[#888]">
-          Season Flow — click a queen to toggle visibility
-        </h3>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setHiddenQueens(new Set())}
-            className="text-xs text-[#555] hover:text-[#999] transition-colors"
-          >
-            All on
-          </button>
-          <span className="text-xs text-[#333]">|</span>
-          <button
-            onClick={() => setHiddenQueens(new Set(season.queens.map(q => q.id)))}
-            className="text-xs text-[#555] hover:text-[#999] transition-colors"
-          >
-            All off
-          </button>
-        </div>
-      </div>
+      <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
+        Season Flow — click a queen to select, click placements to pin
+      </h3>
       <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
     </div>
   );
