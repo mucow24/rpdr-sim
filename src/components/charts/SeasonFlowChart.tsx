@@ -18,7 +18,7 @@ const MARGIN = { top: 44, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
-const MIN_FLOW = 0.003;
+const MIN_FLOW = 0.0001;
 
 function ribbonPath(
   x0: number, y0top: number, y0bot: number,
@@ -88,7 +88,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
         const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
         elimByEp[q.id][ep] = elim;
-        // Shift eliminated flow from BTM2 to ELIM at this episode
         f['BTM2'] = Math.max(0, f['BTM2'] - elim);
         f['ELIM'] = cumElim + elim;
         flowData[q.id][ep] = f;
@@ -147,7 +146,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         for (const q of queenOrder) {
           const f = flowData[q.id][col][p] ?? 0;
           const h = f * SCALE;
-          if (h >= 0.3) bmap[q.id] = { y: cy, h };
+          bmap[q.id] = { y: cy, h };
           cy += h;
         }
         bands[col][pi] = bmap;
