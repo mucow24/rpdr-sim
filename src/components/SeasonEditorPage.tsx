@@ -37,9 +37,10 @@ function EpisodeCard({
 }) {
   const [editName, setEditName] = useState(episode.challengeName);
   const [editType, setEditType] = useState<ChallengeCategory>(episode.challengeType);
+  const [editSplitPremiere, setEditSplitPremiere] = useState(episode.splitPremiere ?? false);
 
   const handleConfirm = () => {
-    onUpdate({ ...episode, challengeName: editName, challengeType: editType });
+    onUpdate({ ...episode, challengeName: editName, challengeType: editType, splitPremiere: editSplitPremiere || undefined });
     onEdit();
   };
 
@@ -70,6 +71,15 @@ function EpisodeCard({
               </option>
             ))}
           </select>
+          <label className="flex items-center gap-1.5 text-xs text-[#888] shrink-0 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={editSplitPremiere}
+              onChange={(e) => setEditSplitPremiere(e.target.checked)}
+              className="accent-purple-500"
+            />
+            Split
+          </label>
         </div>
       ) : (
         <div className="flex-1 flex items-center gap-3 min-w-0">
@@ -77,6 +87,11 @@ function EpisodeCard({
           <span className="text-xs text-[#666] bg-[#1a1a24] rounded px-2 py-0.5 shrink-0">
             {CATEGORY_DISPLAY[episode.challengeType]}
           </span>
+          {episode.splitPremiere && (
+            <span className="text-xs text-purple-400 bg-purple-500/10 rounded px-2 py-0.5 shrink-0">
+              Split
+            </span>
+          )}
         </div>
       )}
 
