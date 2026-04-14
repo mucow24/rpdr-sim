@@ -1,17 +1,7 @@
 import { useStore } from '../../store/useStore';
 import { isFinale } from '../../engine/types';
+import { CHALLENGE_TYPES } from '../../data/challengeTypes';
 import EpisodeDetail from './EpisodeDetail';
-
-const CHALLENGE_ICONS: Record<string, string> = {
-  comedy: '🎤',
-  design: '✂️',
-  acting: '🎭',
-  dance: '💃',
-  snatchGame: '🎯',
-  improv: '🎪',
-  runway: '👗',
-  singing: '🎵',
-};
 
 export default function Timeline() {
   const { currentSeason: season, conditions, openEpisodeIndex, setOpenEpisodeIndex } =
@@ -48,7 +38,7 @@ export default function Timeline() {
                 `}
               >
                 <span className="text-lg">
-                  {isFinale(episode) ? '👑' : (CHALLENGE_ICONS[episode.challengeType] ?? '❓')}
+                  {isFinale(episode) ? '👑' : (CHALLENGE_TYPES[episode.challengeType]?.icon ?? '❓')}
                 </span>
                 <span className="text-xs text-[#888] font-mono">
                   {isFinale(episode) ? 'Finale' : `Ep ${episode.number}`}

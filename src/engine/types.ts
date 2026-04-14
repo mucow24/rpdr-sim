@@ -1,4 +1,7 @@
-export const CHALLENGE_CATEGORIES = [
+import type { ChallengeTypeId } from '../data/challengeTypes';
+
+/** Base stats a queen has. Challenges test a weighted mixture of these. */
+export const BASE_STATS = [
   'comedy',
   'design',
   'acting',
@@ -9,12 +12,12 @@ export const CHALLENGE_CATEGORIES = [
   'singing',
 ] as const;
 
-export type ChallengeCategory = (typeof CHALLENGE_CATEGORIES)[number];
+export type BaseStat = (typeof BASE_STATS)[number];
 
 export interface Queen {
   id: string;
   name: string;
-  skills: Record<ChallengeCategory, number>; // 1-10
+  skills: Record<BaseStat, number>; // 1-10
   lipSync: number; // 1-10
   color: string; // hex color for charts
 }
@@ -41,7 +44,12 @@ export interface RegularEpisode {
   kind?: 'regular';                        // optional — defaults to regular
   id?: string;
   number: number;
-  challengeType: ChallengeCategory;
+  /** Preset id for display/labeling. Two semantically distinct presets may
+   *  legitimately share weights, so the id is not derivable from weights. */
+  challengeType: ChallengeTypeId;
+  /** Weighted mixture of base stats the challenge tests. Normalized at scoring
+   *  time, so weights do not need to sum to 1. */
+  challengeWeights: Record<BaseStat, number>;
   challengeName: string;
   placements: Record<string, Placement>;   // queenId -> WIN/HIGH/SAFE/LOW/BTM2
   eliminated: string[];                    // queenIds (empty = non-elim)

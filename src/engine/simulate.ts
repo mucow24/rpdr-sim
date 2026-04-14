@@ -1,6 +1,6 @@
 import type {
   Queen,
-  ChallengeCategory,
+  BaseStat,
   EpisodeData,
   FinaleEpisode,
   Placement,
@@ -12,7 +12,7 @@ import type {
   SeasonData,
   RunFromStateOptions,
 } from './types';
-import { PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale } from './types';
+import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale } from './types';
 export type { RunFromStateOptions } from './types';
 
 /** Internal mid-season state for simulateOneSeason. */
@@ -30,8 +30,21 @@ function gaussianRandom(mean = 0, stdev = 1): number {
   return z * stdev + mean;
 }
 
-function scoreQueen(queen: Queen, challengeType: ChallengeCategory, noise: number): number {
-  const skill = queen.skills[challengeType];
+/** Score a queen against a challenge's weighted mixture of base stats.
+ *  Weights are normalized (divided by total) so they don't need to sum to 1.
+ *  If all weights are 0, the skill contribution is 0 and the queen scores only
+ *  the runway bonus + noise — this is a well-defined fallback, not an error. */
+export function scoreQueen(queen: Queen, weights: Record<BaseStat, number>, noise: number): number {
+  let totalWeight = 0;
+  let weightedSkill = 0;
+  for (const stat of BASE_STATS) {
+    const w = weights[stat];
+    if (w > 0) {
+      weightedSkill += queen.skills[stat] * w;
+      totalWeight += w;
+    }
+  }
+  const skill = totalWeight > 0 ? weightedSkill / totalWeight : 0;
   const runwayBonus = queen.skills.runway * 0.15;
   return skill + runwayBonus + gaussianRandom(0, noise);
 }
@@ -146,7 +159,7 @@ function simulateOneSeason(
     const activeQueens = Array.from(remaining.values());
     const scores = activeQueens.map((q) => ({
       queenId: q.id,
-      score: scoreQueen(q, episode.challengeType, noise),
+      score: scoreQueen(q, episode.challengeWeights, noise),
     }));
 
     const placements = assignPlacements(scores);

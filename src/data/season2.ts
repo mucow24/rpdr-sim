@@ -93,6 +93,7 @@ const season2: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Gone with the Window',
       placements: {},
       eliminated: ['shangela'],
@@ -100,6 +101,7 @@ const season2: SeasonData = {
     {
       number: 2,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Starrbootylicious',
       placements: {},
       eliminated: ['nicole'],
@@ -107,6 +109,7 @@ const season2: SeasonData = {
     {
       number: 3,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Country Queens',
       placements: {},
       eliminated: ['mystique'],
@@ -114,6 +117,7 @@ const season2: SeasonData = {
     {
       number: 4,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {},
       eliminated: ['sonique'],
@@ -121,6 +125,7 @@ const season2: SeasonData = {
     {
       number: 5,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Here Comes the Bride',
       placements: {},
       eliminated: ['morgan'],
@@ -128,6 +133,7 @@ const season2: SeasonData = {
     {
       number: 6,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Rocker Chicks',
       placements: {},
       eliminated: ['sahara'],
@@ -135,6 +141,7 @@ const season2: SeasonData = {
     {
       number: 7,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Once Upon a Queen',
       placements: {},
       eliminated: ['jessica'],
@@ -142,6 +149,7 @@ const season2: SeasonData = {
     {
       number: 8,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Golden Gals',
       placements: {},
       eliminated: ['pandora'],
@@ -149,6 +157,7 @@ const season2: SeasonData = {
     {
       number: 9,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Diva Awards',
       placements: {},
       eliminated: ['tatianna'],

@@ -4,17 +4,7 @@ import SmearChart, { type ActiveQueen } from './charts/SmearChart';
 import DivergencePanel from './DivergencePanel';
 import type { FilterCondition } from '../engine/types';
 import { isFinale } from '../engine/types';
-
-const CHALLENGE_ICONS: Record<string, string> = {
-  comedy: '🎤',
-  design: '✂️',
-  acting: '🎭',
-  dance: '💃',
-  snatchGame: '🎯',
-  improv: '🎪',
-  runway: '👗',
-  singing: '🎵',
-};
+import { CHALLENGE_TYPES } from '../data/challengeTypes';
 
 const PLACEMENT_KEYS = ['WIN', 'HIGH', 'SAFE', 'LOW', 'BTM2'] as const;
 
@@ -232,7 +222,7 @@ export default function SpreadPage() {
               >
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-xs">
-                    {isFinale(ep) ? '👑' : (CHALLENGE_ICONS[ep.challengeType] ?? '❓')}
+                    {isFinale(ep) ? '👑' : (CHALLENGE_TYPES[ep.challengeType]?.icon ?? '❓')}
                   </span>
                   <span className="text-[10px] font-mono text-[#666]">
                     {isFinale(ep) ? 'Finale' : `Ep ${ep.number}`}

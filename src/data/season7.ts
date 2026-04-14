@@ -234,6 +234,7 @@ const season7: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Born Naked',
       placements: {
         violet: 'WIN',
@@ -249,6 +250,7 @@ const season7: SeasonData = {
     {
       number: 2,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Glamazonian Airways',
       placements: {
         ginger: 'WIN',
@@ -265,6 +267,7 @@ const season7: SeasonData = {
     {
       number: 3,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'ShakesQueer',
       placements: {
         max: 'WIN',
@@ -280,6 +283,7 @@ const season7: SeasonData = {
     {
       number: 4,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Spoof! (There It Is)',
       placements: {
         kennedy: 'WIN',
@@ -294,6 +298,7 @@ const season7: SeasonData = {
     {
       number: 5,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'DESPY Awards',
       placements: {
         max: 'WIN', pearl: 'WIN',
@@ -308,6 +313,7 @@ const season7: SeasonData = {
     {
       number: 6,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'Ru Hollywood Stories',
       placements: {
         katya: 'WIN',
@@ -322,6 +328,7 @@ const season7: SeasonData = {
     {
       number: 7,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {
         ginger: 'WIN', kennedy: 'WIN',
@@ -336,6 +343,7 @@ const season7: SeasonData = {
     {
       number: 8,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Conjoined Queens',
       placements: {
         pearl: 'WIN',
@@ -349,6 +357,7 @@ const season7: SeasonData = {
     {
       number: 9,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Divine Inspiration',
       placements: {
         ginger: 'WIN',
@@ -362,6 +371,7 @@ const season7: SeasonData = {
     {
       number: 10,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Prancing Queens',
       placements: {
         katya: 'WIN', violet: 'WIN',
@@ -374,6 +384,7 @@ const season7: SeasonData = {
     {
       number: 11,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Hello Kitty Ball',
       placements: {
         violet: 'WIN',

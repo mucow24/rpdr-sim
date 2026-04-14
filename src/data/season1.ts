@@ -72,6 +72,7 @@ const season1: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Drag on a Dime',
       placements: {},
       eliminated: ['porkchop'],
@@ -79,6 +80,7 @@ const season1: SeasonData = {
     {
       number: 2,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Girl Groups',
       placements: {},
       eliminated: ['tammie'],
@@ -86,6 +88,7 @@ const season1: SeasonData = {
     {
       number: 3,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'Queens of All Media',
       placements: {},
       eliminated: ['akashia'],
@@ -93,6 +96,7 @@ const season1: SeasonData = {
     {
       number: 4,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'MAC Viva Glam',
       placements: {},
       eliminated: ['jade'],
@@ -100,6 +104,7 @@ const season1: SeasonData = {
     {
       number: 5,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Drag School of Charm',
       placements: {},
       eliminated: ['ongina'],
@@ -107,6 +112,7 @@ const season1: SeasonData = {
     {
       number: 6,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Absolut Ball',
       placements: {},
       eliminated: ['shannel'],

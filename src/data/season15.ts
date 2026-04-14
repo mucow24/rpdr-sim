@@ -121,6 +121,7 @@ const season15: SeasonData = {
     {
       number: 1,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'One Night Only',
       placements: {},
       eliminated: ['irene'],
@@ -128,6 +129,7 @@ const season15: SeasonData = {
     {
       number: 2,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'All Queens Go to Heaven',
       placements: {},
       eliminated: ['poppy'],
@@ -135,6 +137,7 @@ const season15: SeasonData = {
     {
       number: 3,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Supersized Snatch Game',
       placements: {},
       eliminated: ['sugar'],
@@ -142,6 +145,7 @@ const season15: SeasonData = {
     {
       number: 4,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'House of Fashion',
       placements: {},
       eliminated: ['amethyst'],
@@ -149,6 +153,7 @@ const season15: SeasonData = {
     {
       number: 5,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Old Friends Gold',
       placements: {},
       eliminated: ['robin'],
@@ -156,6 +161,7 @@ const season15: SeasonData = {
     {
       number: 6,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Daytona Wind 2',
       placements: {},
       eliminated: ['aura'],
@@ -163,6 +169,7 @@ const season15: SeasonData = {
     {
       number: 7,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Lip Sync LaLaPaRuZa Smackdown',
       placements: {},
       eliminated: ['jax'],
@@ -170,6 +177,7 @@ const season15: SeasonData = {
     {
       number: 8,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Crystal Ball',
       placements: {},
       eliminated: ['spice'],
@@ -177,6 +185,7 @@ const season15: SeasonData = {
     {
       number: 9,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: '50/50\'s Most Gagworthy Stars',
       placements: {},
       eliminated: ['malaysia'],
@@ -184,6 +193,7 @@ const season15: SeasonData = {
     {
       number: 10,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Two Queens, One Joke',
       placements: {},
       eliminated: ['marcia'],
@@ -191,6 +201,7 @@ const season15: SeasonData = {
     {
       number: 11,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Wigloose: The Rusical!',
       placements: {},
       eliminated: ['salina'],
@@ -198,6 +209,7 @@ const season15: SeasonData = {
     {
       number: 12,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Teacher Makeovers',
       placements: {},
       eliminated: ['loosey'],

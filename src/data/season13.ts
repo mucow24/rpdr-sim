@@ -100,6 +100,7 @@ const season13: SeasonData = {
     {
       number: 1,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Pork Chop',
       placements: {},
       eliminated: [],
@@ -108,6 +109,7 @@ const season13: SeasonData = {
     {
       number: 2,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Condragulations',
       placements: {},
       eliminated: [],
@@ -116,6 +118,7 @@ const season13: SeasonData = {
     {
       number: 3,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Phenomenon',
       placements: {},
       eliminated: [],
@@ -124,6 +127,7 @@ const season13: SeasonData = {
     {
       number: 4,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'RuPaulmark Channel',
       placements: {},
       eliminated: ['kahmora'],
@@ -131,6 +135,7 @@ const season13: SeasonData = {
     {
       number: 5,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Bag Ball',
       placements: {},
       eliminated: ['joey'],
@@ -138,6 +143,7 @@ const season13: SeasonData = {
     {
       number: 6,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Disco-mentary',
       placements: {},
       eliminated: ['tamisha'],
@@ -145,6 +151,7 @@ const season13: SeasonData = {
     {
       number: 7,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'Bossy Rossy: The RuBoot',
       placements: {},
       eliminated: ['lala'],
@@ -152,6 +159,7 @@ const season13: SeasonData = {
     {
       number: 8,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Social Media: The Unverified Rusical',
       placements: {},
       eliminated: [],
@@ -159,6 +167,7 @@ const season13: SeasonData = {
     {
       number: 9,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {},
       eliminated: ['elliott'],
@@ -166,6 +175,7 @@ const season13: SeasonData = {
     {
       number: 10,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Freaky Friday Queens',
       placements: {},
       eliminated: ['denali'],
@@ -173,6 +183,7 @@ const season13: SeasonData = {
     {
       number: 11,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Pop! Goes the Queens',
       placements: {},
       eliminated: ['tina'],
@@ -180,6 +191,7 @@ const season13: SeasonData = {
     {
       number: 12,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Nice Girls Roast',
       placements: {},
       eliminated: ['utica'],
@@ -187,6 +199,7 @@ const season13: SeasonData = {
     {
       number: 13,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Henny, I Shrunk the Drag Queens!',
       placements: {},
       eliminated: ['olivia'],
