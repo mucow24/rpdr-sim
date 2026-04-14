@@ -383,6 +383,15 @@ const season7: SeasonData = {
       },
       eliminated: ['katya'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 12,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

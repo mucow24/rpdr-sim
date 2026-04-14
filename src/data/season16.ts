@@ -204,6 +204,15 @@ const season16: SeasonData = {
       placements: {},
       eliminated: ['q16'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 15,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

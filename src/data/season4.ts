@@ -175,8 +175,9 @@ const season4: SeasonData = {
       eliminated: ['latrice'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 12,
-      challengeType: 'dance',
       challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],

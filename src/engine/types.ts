@@ -33,15 +33,36 @@ export const INDEX_PLACEMENT: Record<number, Placement> = {
   0: 'WIN', 1: 'HIGH', 2: 'SAFE', 3: 'LOW', 4: 'BTM2',
 };
 
-/** An episode with challenge metadata and outcomes */
-export interface EpisodeData {
+export const FINALE_TYPES = ['default'] as const;
+export type FinaleType = (typeof FINALE_TYPES)[number];
+
+/** A regular competition episode with a challenge and outcomes */
+export interface RegularEpisode {
+  kind?: 'regular';                        // optional — defaults to regular
   id?: string;
   number: number;
   challengeType: ChallengeCategory;
   challengeName: string;
-  placements: Record<string, Placement>;  // queenId -> WIN/HIGH/SAFE/LOW/BTM2
+  placements: Record<string, Placement>;   // queenId -> WIN/HIGH/SAFE/LOW/BTM2
   eliminated: string[];                    // queenIds (empty = non-elim)
   splitPremiere?: boolean;                 // true if part of a split premiere format
+}
+
+/** A finale episode. Its simulation mechanics are determined by finaleType. */
+export interface FinaleEpisode {
+  kind: 'finale';                          // required discriminant
+  id?: string;
+  number: number;
+  finaleType: FinaleType;
+  challengeName: string;                   // e.g. 'Grand Finale'
+  placements: Record<string, Placement>;   // sim-populated: {winnerId: 'WIN'}
+  eliminated: string[];                    // sim-populated: non-winners
+}
+
+export type EpisodeData = RegularEpisode | FinaleEpisode;
+
+export function isFinale(ep: EpisodeData): ep is FinaleEpisode {
+  return ep.kind === 'finale';
 }
 
 /** A complete season: queens, episodes (with outcomes), loadable for any season */
@@ -63,7 +84,7 @@ export interface EpisodeResult {
 
 export interface SimulationRun {
   episodeResults: EpisodeResult[];
-  finalPlacements: Map<string, number>; // queenId -> final place (1 = winner)
+  finalRanks: Map<string, number>; // queenId -> final rank (1 = winner)
 }
 
 /** A filter condition for what-if analysis */
@@ -76,20 +97,19 @@ export interface FilterCondition {
 /** Aggregated results across simulation runs */
 export interface SimulationResults {
   numSimulations: number;
-  /** winProbByEpisode[episodeIdx][queenId] = P(win | alive at start of this episode) */
+  /** winProbByEpisode[episodeIdx][queenId] = P(win | alive at start of this episode).
+   *  At the finale index, equals P(wins | reached finale). */
   winProbByEpisode: Record<string, number>[];
-  /** aliveProbByEpisode[episodeIdx][queenId] = P(alive at start of this episode) */
+  /** aliveProbByEpisode[episodeIdx][queenId] = P(alive at start of this episode).
+   *  At the finale index, equals P(reached finale). */
   aliveProbByEpisode: Record<string, number>[];
-  /** P(queen reaches the finale / is a final-2 finalist) */
-  finaleAliveProb: Record<string, number>;
-  /** P(queen wins crown | queen reaches the finale) */
-  finaleWinProb: Record<string, number>;
   /** elimProbByEpisode[episodeIdx][queenId] = P(eliminated this episode) */
   elimProbByEpisode: Record<string, number>[];
   /** placementDist[queenId][place] = P(finishing in that place) */
   placementDist: Record<string, number[]>;
-  /** top4Prob[queenId] = P(making top 4) */
-  top4Prob: Record<string, number>;
+  /** reachedFinaleProb[queenId] = P(alive at the start of the finale episode).
+   *  Correct for any finale cohort size (top 3, top 4, top 5, …). */
+  reachedFinaleProb: Record<string, number>;
   /** winProb[queenId] = P(winning) */
   winProb: Record<string, number>;
   /** episodePlacements[epIdx][queenId] = { WIN: 0.3, HIGH: 0.4, ... } */

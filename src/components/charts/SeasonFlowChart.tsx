@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, CHALLENGE_CATEGORIES, type Placement, type ChallengeCategory } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, CHALLENGE_CATEGORIES, isFinale, type Placement, type ChallengeCategory } from '../../engine/types';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -97,7 +97,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     );
     const queenMap = new Map(season.queens.map((q) => [q.id, q]));
 
-    // -- Flow data (cumulative ELIM graveyard + virtual outcome column) --
+    // -- Flow data (cumulative ELIM graveyard) --
     const survival: Record<string, number[]> = {};
     const flowData: Record<string, Record<string, number>[]> = {};
     const elimByEp: Record<string, number[]> = {};
@@ -113,7 +113,12 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         const dist = results.episodePlacements[ep]?.[q.id] ?? {};
         const f: Record<string, number> = {};
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
-        const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
+        // Finale: every non-winning queen that reached the finale "lost it" —
+        // the simulator records only the winner in the finale's eliminated byte
+        // (one byte / ep limit), so derive the elim flow as surv - WIN here.
+        const elim = isFinale(season.episodes[ep])
+          ? Math.max(0, surv - f['WIN'])
+          : (results.elimProbByEpisode[ep]?.[q.id] ?? 0);
         elimByEp[q.id][ep] = elim;
         f['BTM2'] = Math.max(0, f['BTM2'] - elim);
         f['ELIM'] = cumElim + elim;
@@ -121,18 +126,10 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         surv = Math.max(0, surv - elim);
         cumElim += elim;
       }
-      // Virtual outcome column: WIN = winProb, ELIM = 1 - winProb
-      const wp = results.winProb[q.id] ?? 0;
-      survival[q.id][numEps] = surv;
-      elimByEp[q.id][numEps] = 0;
-      const outcomeF: Record<string, number> = {};
-      for (const p of PLACEMENTS) outcomeF[p] = p === 'WIN' ? wp : 0;
-      outcomeF['ELIM'] = 1 - wp;
-      flowData[q.id][numEps] = outcomeF;
     }
 
     // -- Horizontal layout --
-    const numCols = numEps + 1; // episodes + outcome
+    const numCols = numEps;
     const epAreaW = innerW - SOURCE_COL_WIDTH;
     const epSpacing = epAreaW / numCols;
     const colX = (col: number) => SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
@@ -260,11 +257,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
 
       // Ep → ep+1: placement splits + ELIM carry-forward (graveyard)
-      // Includes last episode → outcome column
       for (let ep = 0; ep < numCols - 1; ep++) {
         const survNext = survival[qid][ep + 1];
-        const isToOutcome = ep + 1 === numCols - 1;
-        const wp = results.winProb[qid] ?? 0;
 
         // Surviving flow ribbons (only if queen still alive)
         if (survNext >= 0.001) {
@@ -322,30 +316,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               }
             }
 
-            // Surviving flow → outcome ELIM ("lost the finale")
-            if (isToOutcome) {
-              const loseFrac = Math.max(0, survNext - wp) / survNext;
-              const weight = continuing * loseFrac;
-              if (weight >= MIN_FLOW) {
-                const h = weight * SCALE;
-
-                const sY = outCursor[ep][pi][qid];
-                if (sY === undefined) continue;
-                outCursor[ep][pi][qid] += h;
-
-                const tY = inCursor[ep + 1][elimIdx][qid];
-                if (tY !== undefined) {
-                  inCursor[ep + 1][elimIdx][qid] += h;
-
-                  allRibbons.push({
-                    queenId: qid, color: queen.color,
-                    srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-                    tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-                    h,
-                  });
-                }
-              }
-            }
           }
         }
 
@@ -385,7 +355,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     // Column labels
     for (let col = 0; col < numCols; col++) {
-      const label = col < numEps ? `Ep ${season.episodes[col].number}` : 'Result';
+      const ep = season.episodes[col];
+      const label = isFinale(ep) ? 'Finale' : `Ep ${ep.number}`;
       g.append('text')
         .attr('x', colX(col)).attr('y', -8)
         .attr('text-anchor', 'middle')
@@ -583,15 +554,12 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const overlayGroup = g.append('g').attr('class', 'pin-overlays');
 
     for (let col = 0; col < numCols; col++) {
-      const isOutcome = col === numCols - 1;
-      const condEpIdx = isOutcome ? OUTCOME_EPISODE_INDEX : col;
+      const condEpIdx = col;
 
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         const node = nodes[col][pi];
         if (node.h < 0.5) continue;
         const placementName = CHART_PLACEMENTS[pi];
-        // Outcome column only has WIN and ELIM
-        if (isOutcome && placementName !== 'WIN' && placementName !== 'ELIM') continue;
         const placementNum = placementName === 'ELIM'
           ? ELIM_PLACEMENT
           : PLACEMENT_INDEX[placementName as Placement];
@@ -621,7 +589,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               const elimProb = elimByEp[qid]?.[col] ?? 0;
               const surv = survival[qid]?.[col] ?? 0;
               const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
-              const noRoutes = !isPinned && !isOutcome && rawProb < 0.001;
+              const noRoutes = !isPinned && rawProb < 0.001;
 
               const ttW = 110;
               const lineH = 12;
@@ -642,12 +610,12 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               tt.append('text').attr('class', 'tt-title')
                 .attr('x', 6).attr('y', 11)
                 .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
-                .text(isOutcome ? `Result / ${placementName}` : `Ep ${season.episodes[col].number} / ${placementName}`);
+                .text(`${isFinale(season.episodes[col]) ? 'Finale' : `Ep ${season.episodes[col].number}`} / ${placementName}`);
 
               CHART_PLACEMENTS.forEach((p, idx) => {
                 const prob = p === 'ELIM' ? elimProb : surv * (dist[p] ?? 0);
                 const rowRaw = p === 'ELIM' ? elimProb : (dist[p] ?? 0);
-                const rowDead = !isOutcome && rowRaw < 0.001;
+                const rowDead = rowRaw < 0.001;
                 const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
                 tt.append('text')
                   .attr('x', 6).attr('y', 24 + idx * lineH)
@@ -692,13 +660,11 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               } else {
                 // Don't pin if queen has ~0 probability for this placement
                 const qid = selectedQueen!.id;
-                if (!isOutcome) {
-                  const dist = results.episodePlacements[col]?.[qid] ?? {};
-                  const prob = placementName === 'ELIM'
-                    ? (elimByEp[qid]?.[col] ?? 0)
-                    : (dist[placementName] ?? 0);
-                  if (prob < 0.001) return;
-                }
+                const dist = results.episodePlacements[col]?.[qid] ?? {};
+                const prob = placementName === 'ELIM'
+                  ? (elimByEp[qid]?.[col] ?? 0)
+                  : (dist[placementName] ?? 0);
+                if (prob < 0.001) return;
                 addCondition({
                   episodeIndex: condEpIdx,
                   queenIndex: selectedQueenIdx,
@@ -736,7 +702,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
   // Column positions for dropdown alignment (same math as D3 effect)
   const numEps = season.episodes.length;
-  const numCols = numEps + 1;
+  const numCols = numEps;
   const innerW = width - MARGIN.left - MARGIN.right;
   const epAreaW = innerW - SOURCE_COL_WIDTH;
   const epSpacing = epAreaW / numCols;
@@ -748,33 +714,35 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         Season Flow — click a queen to select, click placements to pin
       </h3>
       <div style={{ position: 'relative', height: 20, marginBottom: 4 }}>
-        {season.episodes.map((ep, i) => (
-          <select
-            key={i}
-            value={ep.challengeType}
-            onChange={(e) => updateEpisodeChallengeType(i, e.target.value as ChallengeCategory)}
-            style={{
-              position: 'absolute',
-              left: dropdownX(i),
-              transform: 'translateX(-50%)',
-              fontSize: 9,
-              padding: '1px 2px',
-              background: '#0a0a10',
-              color: '#888',
-              border: '1px solid #2a2a3a',
-              borderRadius: 3,
-              cursor: 'pointer',
-              fontFamily: 'monospace',
-              maxWidth: Math.max(epSpacing - 4, 48),
-            }}
-          >
-            {CHALLENGE_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {CHALLENGE_LABELS[cat]}
-              </option>
-            ))}
-          </select>
-        ))}
+        {season.episodes.map((ep, i) =>
+          isFinale(ep) ? null : (
+            <select
+              key={i}
+              value={ep.challengeType}
+              onChange={(e) => updateEpisodeChallengeType(i, e.target.value as ChallengeCategory)}
+              style={{
+                position: 'absolute',
+                left: dropdownX(i),
+                transform: 'translateX(-50%)',
+                fontSize: 9,
+                padding: '1px 2px',
+                background: '#0a0a10',
+                color: '#888',
+                border: '1px solid #2a2a3a',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontFamily: 'monospace',
+                maxWidth: Math.max(epSpacing - 4, 48),
+              }}
+            >
+              {CHALLENGE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {CHALLENGE_LABELS[cat]}
+                </option>
+              ))}
+            </select>
+          ),
+        )}
       </div>
       <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
     </div>

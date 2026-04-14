@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import SmearChart, { type ActiveQueen } from './charts/SmearChart';
 import DivergencePanel from './DivergencePanel';
 import type { FilterCondition } from '../engine/types';
+import { isFinale } from '../engine/types';
 
 const CHALLENGE_ICONS: Record<string, string> = {
   comedy: '🎤',
@@ -231,10 +232,10 @@ export default function SpreadPage() {
               >
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-xs">
-                    {CHALLENGE_ICONS[ep.challengeType] ?? '❓'}
+                    {isFinale(ep) ? '👑' : (CHALLENGE_ICONS[ep.challengeType] ?? '❓')}
                   </span>
                   <span className="text-[10px] font-mono text-[#666]">
-                    Ep {ep.number}
+                    {isFinale(ep) ? 'Finale' : `Ep ${ep.number}`}
                   </span>
                   {hasCondition && (
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ml-auto" />

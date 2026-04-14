@@ -153,7 +153,7 @@ describe('runFromState', () => {
 
     expect(result.buffer).toBeInstanceOf(Uint8Array);
     expect(result.numQueens).toBe(14);
-    expect(result.numEpisodes).toBe(11);
+    expect(result.numEpisodes).toBe(12);
     expect(result.queenIds).toHaveLength(14);
     expect(result.queenIds[0]).toBe('jinkx');
   });
@@ -369,16 +369,16 @@ describe('non-elimination episodes', () => {
     expect(maxElimEp0).toBe(0);
   });
 
-  test('Season 9: top 4 finale — all 12 episodes have placement data', () => {
+  test('Season 9: top 4 finale — all episodes have placement data', () => {
     const { results } = runBaseline({
       season: season9,
       numSimulations: 500,
     });
 
-    // All 12 episodes should have data
-    expect(results.episodePlacements).toHaveLength(12);
+    // 12 maxi-challenge episodes + 1 finale = 13
+    expect(results.episodePlacements).toHaveLength(13);
 
-    // Episode 12 (index 11, non-elim) must have non-empty placement data
+    // Episode 12 (index 11, non-elim top-4 showcase) must have non-empty placement data
     const activeEp12 = Object.entries(results.episodePlacements[11])
       .filter(([, probs]) => Object.values(probs).some((p) => p > 0));
     expect(activeEp12.length).toBeGreaterThan(0);
@@ -386,5 +386,70 @@ describe('non-elimination episodes', () => {
     // Episode 12 is non-elim: no queen should be eliminated there
     const maxElimEp12 = Math.max(...Object.values(results.elimProbByEpisode[11]));
     expect(maxElimEp12).toBe(0);
+  });
+});
+
+// ── Finale episode ───────────────────────────────────────────
+
+describe('finale episode', () => {
+  test('Season 9: reachedFinaleProb equals aliveProbByEpisode at finale index', () => {
+    const { results } = runBaseline({
+      season: season9,
+      numSimulations: 1000,
+    });
+
+    const finaleIdx = season9.episodes.length - 1;
+    for (const q of season9.queens) {
+      const reached = results.reachedFinaleProb[q.id] ?? 0;
+      const alive = results.aliveProbByEpisode[finaleIdx][q.id] ?? 0;
+      expect(reached).toBeCloseTo(alive, 10);
+    }
+  });
+
+  test('Season 9: winProbByEpisode at finale index = P(wins | reached finale)', () => {
+    const { results } = runBaseline({
+      season: season9,
+      numSimulations: 1000,
+    });
+
+    const finaleIdx = season9.episodes.length - 1;
+    for (const q of season9.queens) {
+      const winAtFinale = results.winProbByEpisode[finaleIdx][q.id] ?? 0;
+      const totalWin = results.winProb[q.id] ?? 0;
+      const reached = results.reachedFinaleProb[q.id] ?? 0;
+      // winProbByEpisode is conditional on presence: winProbByEpisode[finale] × P(reached finale) = P(win)
+      const expected = reached > 0 ? totalWin / reached : 0;
+      expect(winAtFinale).toBeCloseTo(expected, 10);
+    }
+  });
+
+  test('Season 9: all finalists have reachedFinaleProb === 1 when upstream is locked through top 4', () => {
+    // Lock all episodes 0..11 (top-4 showcase is ep index 11) — top 4 are deterministic
+    const { results } = runFromState({
+      season: season9,
+      fromEpisode: season9.episodes.length - 1, // only simulate finale
+      numSimulations: 500,
+    });
+
+    const top4 = ['sasha', 'shea', 'trinity', 'peppermint'];
+    for (const qid of top4) {
+      expect(results.reachedFinaleProb[qid]).toBeCloseTo(1.0, 10);
+    }
+    // Non-finalists: reach finale prob = 0
+    for (const q of season9.queens) {
+      if (!top4.includes(q.id)) {
+        expect(results.reachedFinaleProb[q.id] ?? 0).toBeCloseTo(0, 10);
+      }
+    }
+  });
+
+  test('Season 9: finale winner totals sum to ~1 over finalists', () => {
+    const { results } = runBaseline({
+      season: season9,
+      numSimulations: 2000,
+    });
+
+    const totalWin = Object.values(results.winProb).reduce((a, b) => a + b, 0);
+    expect(totalWin).toBeCloseTo(1.0, 1);
   });
 });

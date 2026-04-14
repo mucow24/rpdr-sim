@@ -182,8 +182,9 @@ const season3: SeasonData = {
       eliminated: ['yara'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 13,
-      challengeType: 'singing',
       challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],

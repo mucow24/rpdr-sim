@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
+import { isFinale } from '../engine/types';
 
 beforeEach(() => {
   // Reset store to initial state before each test
@@ -81,7 +82,11 @@ describe('season state', () => {
 
     const updatedEp = useStore.getState().currentSeason.episodes[0];
     expect(updatedEp.number).toBe(origEp.number);
-    expect(updatedEp.challengeType).toBe(origEp.challengeType);
+    expect(isFinale(updatedEp)).toBe(false);
+    expect(isFinale(origEp)).toBe(false);
+    if (!isFinale(updatedEp) && !isFinale(origEp)) {
+      expect(updatedEp.challengeType).toBe(origEp.challengeType);
+    }
     expect(updatedEp.challengeName).toBe(origEp.challengeName);
   });
 });

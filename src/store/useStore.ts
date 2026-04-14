@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath, ChallengeCategory } from '../engine/types';
+import { isFinale } from '../engine/types';
 import season5 from '../data/season5';
 
 function cloneSeason(s: SeasonData): SeasonData {
@@ -92,11 +93,13 @@ export const useStore = create<AppState>()((set) => ({
 
   updateEpisodeChallengeType: (epIdx, challengeType) =>
     set((s) => {
+      // Finale episodes don't have a challengeType — no-op.
+      if (isFinale(s.realSeason.episodes[epIdx])) return {};
       const realEpisodes = s.realSeason.episodes.map((ep, i) =>
-        i === epIdx ? { ...ep, challengeType } : ep,
+        i === epIdx && !isFinale(ep) ? { ...ep, challengeType } : ep,
       );
       const currentEpisodes = s.currentSeason.episodes.map((ep, i) =>
-        i === epIdx ? { ...ep, challengeType } : ep,
+        i === epIdx && !isFinale(ep) ? { ...ep, challengeType } : ep,
       );
       return {
         realSeason: { ...s.realSeason, episodes: realEpisodes },

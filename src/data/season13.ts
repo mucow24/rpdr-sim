@@ -192,9 +192,10 @@ const season13: SeasonData = {
       eliminated: ['olivia'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 14,
-      challengeType: 'singing',
-      challengeName: 'Gettin\' Lucky',
+      challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],
     },

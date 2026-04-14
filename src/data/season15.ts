@@ -203,9 +203,10 @@ const season15: SeasonData = {
       eliminated: ['loosey'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 13,
-      challengeType: 'singing',
-      challengeName: 'Blame It on the Edit',
+      challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],
     },

@@ -196,9 +196,10 @@ const season18: SeasonData = {
       eliminated: ['juicy'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 14,
-      challengeType: 'comedy',
-      challengeName: 'Morning Talk Show',
+      challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],
     },
