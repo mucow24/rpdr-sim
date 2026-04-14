@@ -170,8 +170,8 @@ const season18: SeasonData = {
     },
     {
       number: 9,
-      challengeType: 'acting',
-      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Fannie: The Rusical',
       placements: {},
       eliminated: ['athena'],

@@ -371,7 +371,7 @@ const season10: SeasonData = {
       number: 10,
       challengeType: 'design',
       challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
-      challengeName: 'Social Media: The Unverified Rusical',
+      challengeName: 'Social Media Kings Into Queens',
       placements: {
         cracker: 'WIN',
         asia: 'HIGH', eureka: 'HIGH',
