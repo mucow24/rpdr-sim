@@ -82,6 +82,9 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       const empty: SimulationResults = {
         numSimulations: 0,
         winProbByEpisode: [],
+        aliveProbByEpisode: [],
+        finaleAliveProb: {},
+        finaleWinProb: {},
         elimProbByEpisode: [],
         placementDist: {},
         top4Prob: {},

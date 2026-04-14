@@ -44,17 +44,23 @@ export default function WinProbChart({ height = 400 }) {
 
     const episodes = season.episodes.map((e) => e.number);
     const queenIds = season.queens.map((q) => q.id);
+    // x position for the synthetic "Finale" tick (one past the last episode)
+    const finaleX = episodes.length + 1;
 
     // Build line data: for each queen, an array of { episode, prob }
     type LinePoint = { episode: number; prob: number };
     const lines: { queenId: string; points: LinePoint[] }[] = queenIds.map(
-      (qid) => ({
-        queenId: qid,
-        points: episodes.map((ep, i) => ({
+      (qid) => {
+        const epPoints = episodes.map((ep, i) => ({
           episode: ep,
           prob: results.winProbByEpisode[i]?.[qid] ?? 0,
-        })),
-      }),
+        }));
+        epPoints.push({
+          episode: finaleX,
+          prob: results.finaleWinProb?.[qid] ?? 0,
+        });
+        return { queenId: qid, points: epPoints };
+      },
     );
 
     // Sort by final win prob (highest on top in legend)
@@ -64,7 +70,7 @@ export default function WinProbChart({ height = 400 }) {
         (a.points[a.points.length - 1]?.prob ?? 0),
     );
 
-    const x = d3.scaleLinear().domain([1, episodes.length]).range([0, innerWidth]);
+    const x = d3.scaleLinear().domain([1, finaleX]).range([0, innerWidth]);
     const y = d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]);
 
     // Grid lines
@@ -80,14 +86,14 @@ export default function WinProbChart({ height = 400 }) {
       .attr('stroke', '#1a1a2a')
       .attr('stroke-dasharray', '2,4');
 
-    // X axis
+    // X axis — episode ticks plus a synthetic "Finale" tick on the right
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
       .call(
         d3
           .axisBottom(x)
-          .ticks(episodes.length)
-          .tickFormat((d) => `Ep ${d}`),
+          .tickValues([...episodes, finaleX])
+          .tickFormat((d) => (+d === finaleX ? 'Finale' : `Ep ${d}`)),
       )
       .call((g) => g.select('.domain').attr('stroke', '#2a2a3a'))
       .call((g) => g.selectAll('.tick line').attr('stroke', '#2a2a3a'))
@@ -116,13 +122,17 @@ export default function WinProbChart({ height = 400 }) {
     // Ghost baseline lines if we have divergent results
     if (filteredResults && baselineResults) {
       const baselineLines: { queenId: string; points: LinePoint[] }[] =
-        queenIds.map((qid) => ({
-          queenId: qid,
-          points: episodes.map((ep, i) => ({
+        queenIds.map((qid) => {
+          const epPoints = episodes.map((ep, i) => ({
             episode: ep,
             prob: baselineResults.winProbByEpisode[i]?.[qid] ?? 0,
-          })),
-        }));
+          }));
+          epPoints.push({
+            episode: finaleX,
+            prob: baselineResults.finaleWinProb?.[qid] ?? 0,
+          });
+          return { queenId: qid, points: epPoints };
+        });
 
       for (const { queenId, points } of baselineLines) {
         const queen = queenMap.get(queenId);
@@ -222,10 +232,7 @@ export default function WinProbChart({ height = 400 }) {
       .attr('stroke', '#2a2a3a')
       .attr('rx', 4);
 
-    const tooltipText = tooltip
-      .append('text')
-      .attr('fill', '#ddd')
-      .attr('font-size', '11px');
+    const tooltipContent = tooltip.append('g');
 
     svg
       .on('mousemove', (event) => {
@@ -235,40 +242,101 @@ export default function WinProbChart({ height = 400 }) {
           return;
         }
         tooltip.style('display', null);
-        const epIdx = Math.round(x.invert(mx)) - 1;
-        const ep = Math.max(0, Math.min(epIdx, episodes.length - 1));
-        const xPos = x(ep + 1);
+        // Snap to nearest x tick (episodes 1..N or finale at finaleX)
+        const snappedX = Math.max(1, Math.min(Math.round(x.invert(mx)), finaleX));
+        const isFinale = snappedX === finaleX;
+        const ep = isFinale ? episodes.length - 1 : snappedX - 1;
+        const xPos = x(snappedX);
         tooltipLine.attr('x1', xPos).attr('x2', xPos);
 
-        // Build tooltip entries
+        // Build tooltip entries (all queens, sorted by crown prob desc)
         const entries = lines
           .map(({ queenId, points }) => ({
             queenId,
-            prob: points[ep]?.prob ?? 0,
+            crownProb: isFinale
+              ? (results.finaleWinProb?.[queenId] ?? 0)
+              : (points[ep]?.prob ?? 0),
+            aliveProb: isFinale
+              ? (results.finaleAliveProb?.[queenId] ?? 0)
+              : (results.aliveProbByEpisode[ep]?.[queenId] ?? 0),
           }))
-          .filter((e) => e.prob > 0.005)
-          .sort((a, b) => b.prob - a.prob)
-          .slice(0, 6);
+          .sort((a, b) => b.crownProb - a.crownProb);
 
-        tooltipText.selectAll('tspan').remove();
+        tooltipContent.selectAll('*').remove();
+
+        const PADDING = 3;
+        const ROW_H = 13;
+        const NAME_COL_W = 46;
+        const COL_GAP = 8;
+        const ALIVE_COL_W = 46;
+        const CROWN_COL_W = 46;
+        const TOOLTIP_W =
+          PADDING + NAME_COL_W + COL_GAP + ALIVE_COL_W + COL_GAP + CROWN_COL_W + PADDING;
+
+        const bgX = xPos + 6;
+        const bgY = 4;
+        const nameColRight = bgX + PADDING + NAME_COL_W;
+        const aliveColLeft = nameColRight + COL_GAP;
+        const crownColLeft = aliveColLeft + ALIVE_COL_W + COL_GAP;
+        const headerLine1Y = bgY + PADDING + 9;
+        const firstRowY = headerLine1Y + 16;
+        const TOOLTIP_H =
+          firstRowY + Math.max(0, entries.length - 1) * ROW_H + 3 + PADDING;
+
+        // Headers (left-aligned over each prob column)
+        tooltipContent
+          .append('text')
+          .attr('x', aliveColLeft)
+          .attr('y', headerLine1Y)
+          .attr('fill', '#888')
+          .attr('font-size', '10px')
+          .text('P(alive)');
+
+        tooltipContent
+          .append('text')
+          .attr('x', crownColLeft)
+          .attr('y', headerLine1Y)
+          .attr('fill', '#888')
+          .attr('font-size', '10px')
+          .text('P(crown)');
+
+        // Rows: queen name (right-justified) + P(alive) + P(crown) (left-justified)
         entries.forEach((entry, i) => {
           const queen = queenMap.get(entry.queenId);
-          tooltipText
-            .append('tspan')
-            .attr('x', xPos + 12)
-            .attr('y', 16 + i * 16)
-            .attr('fill', queen?.color ?? '#aaa')
-            .text(
-              `${queen?.name.split(' ')[0]}: ${(entry.prob * 100).toFixed(1)}%`,
-            );
+          const rowY = firstRowY + i * ROW_H;
+          const color = queen?.color ?? '#aaa';
+
+          tooltipContent
+            .append('text')
+            .attr('x', nameColRight)
+            .attr('y', rowY)
+            .attr('text-anchor', 'end')
+            .attr('fill', color)
+            .attr('font-size', '11px')
+            .text(queen?.name.split(' ')[0] ?? '');
+
+          tooltipContent
+            .append('text')
+            .attr('x', aliveColLeft)
+            .attr('y', rowY)
+            .attr('fill', color)
+            .attr('font-size', '11px')
+            .text(`${(entry.aliveProb * 100).toFixed(1)}%`);
+
+          tooltipContent
+            .append('text')
+            .attr('x', crownColLeft)
+            .attr('y', rowY)
+            .attr('fill', color)
+            .attr('font-size', '11px')
+            .text(`${(entry.crownProb * 100).toFixed(1)}%`);
         });
 
-        const tooltipH = 8 + entries.length * 16 + 4;
         tooltipBg
-          .attr('x', xPos + 6)
-          .attr('y', 4)
-          .attr('width', 120)
-          .attr('height', tooltipH);
+          .attr('x', bgX)
+          .attr('y', bgY)
+          .attr('width', TOOLTIP_W)
+          .attr('height', TOOLTIP_H);
       })
       .on('mouseleave', () => tooltip.style('display', 'none'));
   }, [results, baselineResults, filteredResults, season, width, height, selectedQueenId, setSelectedQueenId]);
@@ -287,7 +355,7 @@ export default function WinProbChart({ height = 400 }) {
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Crown Probability Over Time
+        Crown probability if present in episode
       </h3>
       <svg
         ref={svgRef}
