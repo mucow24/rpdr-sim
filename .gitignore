@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code per-user settings (keep shared config like launch.json tracked)
+.claude/*.local.json
