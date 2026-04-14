@@ -107,6 +107,7 @@ const season17: SeasonData = {
     {
       number: 1,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Squirrel Games',
       placements: {},
       eliminated: [],
@@ -115,6 +116,7 @@ const season17: SeasonData = {
     {
       number: 2,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Drag Queens Got Talent Part 2',
       placements: {},
       eliminated: [],
@@ -123,6 +125,7 @@ const season17: SeasonData = {
     {
       number: 3,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Monopulence!',
       placements: {},
       eliminated: ['lucky'],
@@ -130,6 +133,7 @@ const season17: SeasonData = {
     {
       number: 4,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Bitch, I\'m a Drag Queen!',
       placements: {},
       eliminated: ['joella'],
@@ -137,6 +141,7 @@ const season17: SeasonData = {
     {
       number: 5,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'RDR Live!',
       placements: {},
       eliminated: ['arrietty'],
@@ -144,6 +149,7 @@ const season17: SeasonData = {
     {
       number: 6,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Let\'s Get Sea Sickening Ball',
       placements: {},
       eliminated: ['hormona'],
@@ -151,6 +157,7 @@ const season17: SeasonData = {
     {
       number: 7,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {},
       eliminated: ['crystal17'],
@@ -158,6 +165,7 @@ const season17: SeasonData = {
     {
       number: 8,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'The Wicked Wiz of Oz: The Rusical!',
       placements: {},
       eliminated: ['acacia'],
@@ -165,6 +173,7 @@ const season17: SeasonData = {
     {
       number: 9,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Heavens to Betsey!',
       placements: {},
       eliminated: ['kori'],
@@ -172,6 +181,7 @@ const season17: SeasonData = {
     {
       number: 10,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Villains Roast',
       placements: {},
       eliminated: ['lydia'],
@@ -179,6 +189,7 @@ const season17: SeasonData = {
     {
       number: 11,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Ross Mathews vs. The Ducks',
       placements: {},
       eliminated: ['lana'],
@@ -186,6 +197,7 @@ const season17: SeasonData = {
     {
       number: 12,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'CUNT Monologues',
       placements: {},
       eliminated: ['suzie'],
@@ -193,6 +205,7 @@ const season17: SeasonData = {
     {
       number: 13,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Drag Baby Mamas',
       placements: {},
       eliminated: [],

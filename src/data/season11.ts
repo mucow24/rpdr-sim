@@ -294,6 +294,7 @@ const season11: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Whatcha Unpackin?',
       placements: {
         brookelynn: 'WIN',
@@ -309,6 +310,7 @@ const season11: SeasonData = {
     {
       number: 2,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Good God Girl, Get Out',
       placements: {
         scarlet: 'WIN', yvie: 'WIN',
@@ -323,6 +325,7 @@ const season11: SeasonData = {
     {
       number: 3,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Diva Worship',
       placements: {
         nina: 'WIN',
@@ -338,6 +341,7 @@ const season11: SeasonData = {
     {
       number: 4,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Trump: The Rusical',
       placements: {
         silky: 'WIN',
@@ -353,6 +357,7 @@ const season11: SeasonData = {
     {
       number: 5,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Monster Ball',
       placements: {
         brookelynn: 'WIN',
@@ -367,6 +372,7 @@ const season11: SeasonData = {
     {
       number: 6,
       challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Draglympics',
       placements: {
         akeria: 'WIN',
@@ -381,6 +387,7 @@ const season11: SeasonData = {
     {
       number: 7,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'From Farm to Runway',
       placements: {
         plastique: 'WIN',
@@ -394,6 +401,7 @@ const season11: SeasonData = {
     {
       number: 8,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game at Sea',
       placements: {
         silky: 'WIN',
@@ -407,6 +415,7 @@ const season11: SeasonData = {
     {
       number: 9,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'L.A.D.P.!',
       placements: {
         akeria: 'WIN',
@@ -421,6 +430,7 @@ const season11: SeasonData = {
     {
       number: 10,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Dragracadabra',
       placements: {
         nina: 'WIN',
@@ -435,6 +445,7 @@ const season11: SeasonData = {
     {
       number: 11,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Bring Back My Queens!',
       placements: {
         brookelynn: 'WIN',
@@ -448,6 +459,7 @@ const season11: SeasonData = {
     {
       number: 12,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Queens Everywhere',
       placements: {
         yvie: 'HIGH', akeria: 'HIGH', silky: 'HIGH',

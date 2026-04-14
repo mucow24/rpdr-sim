@@ -1,8 +1,14 @@
 import { describe, test, expect } from 'vitest';
-import { outcomeToEpisodeResult, runFromState, runBaseline } from './simulate';
-import type { SeasonData, Queen, EpisodeData, Placement } from './types';
+import { outcomeToEpisodeResult, runFromState, runBaseline, scoreQueen } from './simulate';
+import type { SeasonData, Queen, EpisodeData, Placement, BaseStat } from './types';
+import { CHALLENGE_TYPES, type ChallengeTypeId } from '../data/challengeTypes';
 import season5 from '../data/season5';
 import season9 from '../data/season9';
+
+// Build a RegularEpisode-compatible `{challengeType, challengeWeights}` pair for the given preset id.
+function ep(type: ChallengeTypeId) {
+  return { challengeType: type, challengeWeights: { ...CHALLENGE_TYPES[type].weights } };
+}
 
 // ── Minimal test fixture ─────────────────────────────────────
 // 6 queens, 4 episodes. Deterministic locked outcomes for clear assertions.
@@ -28,22 +34,22 @@ function makeTestSeason(): SeasonData {
 
   const episodes: EpisodeData[] = [
     {
-      number: 1, challengeType: 'comedy', challengeName: 'Ep1',
+      number: 1, ...ep('comedy'), challengeName: 'Ep1',
       placements: { alice: 'WIN', beth: 'HIGH', carol: 'SAFE', dana: 'SAFE', eve: 'LOW', faye: 'BTM2' } as Record<string, Placement>,
       eliminated: [], // non-elim
     },
     {
-      number: 2, challengeType: 'acting', challengeName: 'Ep2',
+      number: 2, ...ep('acting'), challengeName: 'Ep2',
       placements: { alice: 'WIN', beth: 'HIGH', carol: 'SAFE', dana: 'LOW', eve: 'BTM2', faye: 'BTM2' },
       eliminated: ['faye'],
     },
     {
-      number: 3, challengeType: 'design', challengeName: 'Ep3',
+      number: 3, ...ep('design'), challengeName: 'Ep3',
       placements: { alice: 'HIGH', beth: 'WIN', carol: 'SAFE', dana: 'BTM2', eve: 'BTM2' },
       eliminated: ['eve'],
     },
     {
-      number: 4, challengeType: 'dance', challengeName: 'Ep4',
+      number: 4, ...ep('dance'), challengeName: 'Ep4',
       placements: { alice: 'WIN', beth: 'HIGH', carol: 'BTM2', dana: 'BTM2' },
       eliminated: ['dana'],
     },
@@ -51,6 +57,67 @@ function makeTestSeason(): SeasonData {
 
   return { id: 'test', name: 'Test Season', queens, episodes };
 }
+
+describe('weighted scoreQueen', () => {
+  // Scores are deterministic when noise = 0.
+  // Queen has distinct skill per stat so we can see which stats influenced the score.
+  const queen: Queen = {
+    id: 'q',
+    name: 'Q',
+    color: '#000',
+    lipSync: 5,
+    skills: { comedy: 10, design: 8, acting: 6, dance: 4, snatchGame: 2, improv: 1, runway: 3, singing: 7 },
+  };
+  // runway = 3, so runway bonus = 0.45 on every score.
+  const runwayBonus = queen.skills.runway * 0.15;
+
+  function weights(overrides: Partial<Record<BaseStat, number>>): Record<BaseStat, number> {
+    const base: Record<BaseStat, number> = {
+      comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0,
+    };
+    return { ...base, ...overrides };
+  }
+
+  test('single-stat weight equals that stat plus runway bonus (property test)', () => {
+    const stats: BaseStat[] = ['comedy', 'design', 'acting', 'dance', 'snatchGame', 'improv', 'runway', 'singing'];
+    for (const stat of stats) {
+      const score = scoreQueen(queen, weights({ [stat]: 1 }), 0);
+      expect(score).toBeCloseTo(queen.skills[stat] + runwayBonus, 10);
+    }
+  });
+
+  test('50/50 weights yield the average of the two stats plus runway bonus', () => {
+    // comedy=10, acting=6 → average 8
+    const score = scoreQueen(queen, weights({ comedy: 1, acting: 1 }), 0);
+    expect(score).toBeCloseTo(8 + runwayBonus, 10);
+  });
+
+  test('70/30 weights bias toward the heavier stat', () => {
+    // 0.7 * 10 (comedy) + 0.3 * 6 (acting) = 7 + 1.8 = 8.8
+    const score = scoreQueen(queen, weights({ comedy: 0.7, acting: 0.3 }), 0);
+    expect(score).toBeCloseTo(8.8 + runwayBonus, 10);
+  });
+
+  test('normalization: {a:2,b:2} scores identically to {a:1,b:1} and {a:0.5,b:0.5}', () => {
+    const s1 = scoreQueen(queen, weights({ comedy: 2, acting: 2 }), 0);
+    const s2 = scoreQueen(queen, weights({ comedy: 1, acting: 1 }), 0);
+    const s3 = scoreQueen(queen, weights({ comedy: 0.5, acting: 0.5 }), 0);
+    expect(s1).toBeCloseTo(s2, 10);
+    expect(s2).toBeCloseTo(s3, 10);
+  });
+
+  test('stats with weight 0 contribute nothing', () => {
+    // Adding design: 0 to a pure-comedy weight doesn't change the score.
+    const pure = scoreQueen(queen, weights({ comedy: 1 }), 0);
+    const padded = scoreQueen(queen, weights({ comedy: 1, design: 0, acting: 0, dance: 0 }), 0);
+    expect(pure).toBeCloseTo(padded, 10);
+  });
+
+  test('empty weights → skill contribution is 0, only runway bonus remains', () => {
+    const score = scoreQueen(queen, weights({}), 0);
+    expect(score).toBeCloseTo(runwayBonus, 10);
+  });
+});
 
 describe('outcomeToEpisodeResult', () => {
   test('converts placements Record to Map', () => {

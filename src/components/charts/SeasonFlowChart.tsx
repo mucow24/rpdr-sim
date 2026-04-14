@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, CHALLENGE_CATEGORIES, isFinale, type Placement, type ChallengeCategory } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, isFinale, type Placement } from '../../engine/types';
+import { CHALLENGE_TYPES, CHALLENGE_TYPE_IDS, type ChallengeTypeId } from '../../data/challengeTypes';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -19,17 +20,6 @@ const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
 const MIN_FLOW = 0.0001;
-
-const CHALLENGE_LABELS: Record<ChallengeCategory, string> = {
-  comedy: 'Comedy',
-  design: 'Design',
-  acting: 'Acting',
-  dance: 'Dance',
-  snatchGame: 'Snatch',
-  improv: 'Improv',
-  runway: 'Runway',
-  singing: 'Singing',
-};
 
 function ribbonPath(
   x0: number, y0top: number, y0bot: number,
@@ -714,7 +704,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
             <select
               key={i}
               value={ep.challengeType}
-              onChange={(e) => updateEpisodeChallengeType(i, e.target.value as ChallengeCategory)}
+              onChange={(e) => updateEpisodeChallengeType(i, e.target.value as ChallengeTypeId)}
               style={{
                 position: 'absolute',
                 left: dropdownX(i),
@@ -730,9 +720,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
                 maxWidth: Math.max(epSpacing - 4, 48),
               }}
             >
-              {CHALLENGE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {CHALLENGE_LABELS[cat]}
+              {CHALLENGE_TYPE_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {CHALLENGE_TYPES[id].displayName}
                 </option>
               ))}
             </select>

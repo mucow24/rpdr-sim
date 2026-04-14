@@ -234,6 +234,7 @@ const season6: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: "RuPaul's Big Opening",
       placements: {
         bendelacreme: 'WIN',
@@ -250,6 +251,7 @@ const season6: SeasonData = {
     {
       number: 2,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Glamazon by Colorevolution',
       placements: {
         bianca: 'WIN',
@@ -265,6 +267,7 @@ const season6: SeasonData = {
     {
       number: 3,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Scream Queens',
       placements: {
         darienne: 'WIN',
@@ -280,6 +283,7 @@ const season6: SeasonData = {
     {
       number: 4,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Shade: The Rusical',
       placements: {
         courtney: 'WIN',
@@ -295,6 +299,7 @@ const season6: SeasonData = {
     {
       number: 5,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {
         bendelacreme: 'WIN',
@@ -309,6 +314,7 @@ const season6: SeasonData = {
     {
       number: 6,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Oh No She Betta Don\'t',
       placements: {
         adore: 'WIN',
@@ -323,6 +329,7 @@ const season6: SeasonData = {
     {
       number: 7,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Glamazonian Airways',
       placements: {
         adore: 'WIN', laganja: 'WIN',
@@ -336,6 +343,7 @@ const season6: SeasonData = {
     {
       number: 8,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Comedy Queens',
       placements: {
         bianca: 'WIN',
@@ -350,6 +358,7 @@ const season6: SeasonData = {
     {
       number: 9,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'Drag Queens of Talk',
       placements: {
         courtney: 'WIN',
@@ -363,6 +372,7 @@ const season6: SeasonData = {
     {
       number: 10,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Drag My Wedding',
       placements: {
         bianca: 'WIN',
@@ -376,6 +386,7 @@ const season6: SeasonData = {
     {
       number: 11,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Glitter Ball',
       placements: {
         adore: 'WIN',
@@ -389,6 +400,7 @@ const season6: SeasonData = {
     {
       number: 12,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Sissy That Walk',
       placements: {
         bianca: 'WIN',

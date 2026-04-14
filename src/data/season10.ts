@@ -234,6 +234,7 @@ const season10: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: '10s Across the Board',
       placements: {
         mayhem: 'WIN',
@@ -249,6 +250,7 @@ const season10: SeasonData = {
     {
       number: 2,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'PharmaRusical',
       placements: {
         vixen: 'WIN',
@@ -264,6 +266,7 @@ const season10: SeasonData = {
     {
       number: 3,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Tap That App',
       placements: {
         asia: 'WIN',
@@ -279,6 +282,7 @@ const season10: SeasonData = {
     {
       number: 4,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Last Ball on Earth',
       placements: {
         aquaria: 'WIN',
@@ -293,6 +297,7 @@ const season10: SeasonData = {
     {
       number: 5,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'The Bossy Rossy Show',
       placements: {
         eureka: 'WIN',
@@ -307,6 +312,7 @@ const season10: SeasonData = {
     {
       number: 6,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'DragCon Panels',
       placements: {
         eureka: 'WIN',
@@ -321,6 +327,7 @@ const season10: SeasonData = {
     {
       number: 7,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {
         aquaria: 'WIN',
@@ -335,6 +342,7 @@ const season10: SeasonData = {
     {
       number: 8,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Cher: The Unauthorized Rusical',
       placements: {
         kameron: 'WIN',
@@ -348,6 +356,7 @@ const season10: SeasonData = {
     {
       number: 9,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Breastworld',
       placements: {
         asia: 'WIN',
@@ -361,6 +370,7 @@ const season10: SeasonData = {
     {
       number: 10,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Social Media: The Unverified Rusical',
       placements: {
         cracker: 'WIN',
@@ -374,6 +384,7 @@ const season10: SeasonData = {
     {
       number: 11,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Evil Twins',
       placements: {
         aquaria: 'WIN',

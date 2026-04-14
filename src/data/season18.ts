@@ -107,6 +107,7 @@ const season18: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Recycled Materials Design',
       placements: {},
       eliminated: [],
@@ -114,6 +115,7 @@ const season18: SeasonData = {
     {
       number: 2,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Girl Group Performances',
       placements: {},
       eliminated: ['dd'],
@@ -121,6 +123,7 @@ const season18: SeasonData = {
     {
       number: 3,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Sketch Comedy',
       placements: {},
       eliminated: ['mandy'],
@@ -128,6 +131,7 @@ const season18: SeasonData = {
     {
       number: 4,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Red Carpet Mashup',
       placements: {},
       eliminated: ['briar'],
@@ -135,6 +139,7 @@ const season18: SeasonData = {
     {
       number: 5,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Talent Show',
       placements: {},
       eliminated: [],
@@ -142,6 +147,7 @@ const season18: SeasonData = {
     {
       number: 6,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Talent Show Part 2',
       placements: {},
       eliminated: ['ciara'],
@@ -149,6 +155,7 @@ const season18: SeasonData = {
     {
       number: 7,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'Political Ad Parodies',
       placements: {},
       eliminated: ['vita'],
@@ -156,6 +163,7 @@ const season18: SeasonData = {
     {
       number: 8,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game of Love Island',
       placements: {},
       eliminated: ['mia18'],
@@ -163,6 +171,7 @@ const season18: SeasonData = {
     {
       number: 9,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Fannie: The Rusical',
       placements: {},
       eliminated: ['athena'],
@@ -170,6 +179,7 @@ const season18: SeasonData = {
     {
       number: 10,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Drag in a Bag',
       placements: {},
       eliminated: ['kenya18'],
@@ -177,6 +187,7 @@ const season18: SeasonData = {
     {
       number: 11,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Roast/Toast',
       placements: {},
       eliminated: ['discord'],
@@ -184,6 +195,7 @@ const season18: SeasonData = {
     {
       number: 12,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Drag Family Makeover',
       placements: {},
       eliminated: ['jane'],
@@ -191,6 +203,7 @@ const season18: SeasonData = {
     {
       number: 13,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'Karens Improv',
       placements: {},
       eliminated: ['juicy'],

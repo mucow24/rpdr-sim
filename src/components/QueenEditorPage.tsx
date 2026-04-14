@@ -1,19 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { CHALLENGE_CATEGORIES, type Queen, type ChallengeCategory } from '../engine/types';
+import { BASE_STATS, type Queen, type BaseStat } from '../engine/types';
 import { SEASON_PRESETS } from '../data/presets';
+import { BASE_STAT_DISPLAY } from '../data/challengeTypes';
 import RadarChart from './RadarChart';
-
-const CATEGORY_DISPLAY: Record<ChallengeCategory, string> = {
-  comedy: 'Comedy',
-  design: 'Design',
-  acting: 'Acting',
-  dance: 'Dance',
-  snatchGame: 'Snatch Game',
-  improv: 'Improv',
-  runway: 'Runway',
-  singing: 'Singing',
-};
 
 const DEFAULT_COLORS = [
   '#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6',
@@ -22,8 +12,8 @@ const DEFAULT_COLORS = [
 ];
 
 function makeDefaultQueen(index: number): Queen {
-  const skills = {} as Record<ChallengeCategory, number>;
-  for (const cat of CHALLENGE_CATEGORIES) skills[cat] = 5;
+  const skills = {} as Record<BaseStat, number>;
+  for (const cat of BASE_STATS) skills[cat] = 5;
   return {
     id: crypto.randomUUID(),
     name: 'New Queen',
@@ -59,7 +49,7 @@ function QueenCard({
     setEditing(false);
   };
 
-  const setSkill = (cat: ChallengeCategory, val: number) => {
+  const setSkill = (cat: BaseStat, val: number) => {
     setDraft((d) => ({ ...d, skills: { ...d.skills, [cat]: val } }));
   };
 
@@ -79,9 +69,9 @@ function QueenCard({
             </span>
           </div>
           <div className="grid grid-cols-4 gap-x-4 gap-y-1 text-xs">
-            {CHALLENGE_CATEGORIES.map((cat) => (
+            {BASE_STATS.map((cat) => (
               <div key={cat} className="flex justify-between">
-                <span className="text-[#666]">{CATEGORY_DISPLAY[cat]}</span>
+                <span className="text-[#666]">{BASE_STAT_DISPLAY[cat]}</span>
                 <span className="text-[#aaa] font-mono">{queen.skills[cat]}</span>
               </div>
             ))}
@@ -139,10 +129,10 @@ function QueenCard({
           </div>
 
           <div className="space-y-2">
-            {CHALLENGE_CATEGORIES.map((cat) => (
+            {BASE_STATS.map((cat) => (
               <div key={cat} className="flex items-center gap-3">
                 <span className="text-xs text-[#666] w-20 shrink-0">
-                  {CATEGORY_DISPLAY[cat]}
+                  {BASE_STAT_DISPLAY[cat]}
                 </span>
                 <input
                   type="range"

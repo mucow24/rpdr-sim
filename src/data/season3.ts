@@ -100,6 +100,7 @@ const season3: SeasonData = {
     {
       number: 1,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'The Queen Who Mopped Xmas',
       placements: {},
       eliminated: ['venus'],
@@ -107,6 +108,7 @@ const season3: SeasonData = {
     {
       number: 2,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Queens in Space',
       placements: {},
       eliminated: ['phoenix'],
@@ -114,6 +116,7 @@ const season3: SeasonData = {
     {
       number: 3,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Totally Leotarded',
       placements: {},
       eliminated: ['mimi'],
@@ -121,6 +124,7 @@ const season3: SeasonData = {
     {
       number: 4,
       challengeType: 'improv',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
       challengeName: 'QNN News',
       placements: {},
       eliminated: ['india'],
@@ -128,6 +132,7 @@ const season3: SeasonData = {
     {
       number: 5,
       challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Snatch Game',
       placements: {},
       eliminated: ['mariah'],
@@ -135,6 +140,7 @@ const season3: SeasonData = {
     {
       number: 6,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Face, Face, Face of Cakes',
       placements: {},
       eliminated: ['stacy'],
@@ -142,6 +148,7 @@ const season3: SeasonData = {
     {
       number: 7,
       challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Ru Ha Ha',
       placements: {},
       eliminated: ['delta'],
@@ -149,6 +156,7 @@ const season3: SeasonData = {
     {
       number: 8,
       challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Life, Liberty & the Pursuit of Style',
       placements: {},
       eliminated: [],
@@ -156,6 +164,7 @@ const season3: SeasonData = {
     {
       number: 9,
       challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'RuPaul-a-Palooza',
       placements: {},
       eliminated: ['carmen'],
@@ -163,6 +172,7 @@ const season3: SeasonData = {
     {
       number: 10,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: "RuPaul's Hair Extravaganza",
       placements: {},
       eliminated: ['shangela3'],
@@ -170,6 +180,7 @@ const season3: SeasonData = {
     {
       number: 11,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Jocks in Frocks',
       placements: {},
       eliminated: ['carmen'],
@@ -177,6 +188,7 @@ const season3: SeasonData = {
     {
       number: 12,
       challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Make Dat Money',
       placements: {},
       eliminated: ['yara'],

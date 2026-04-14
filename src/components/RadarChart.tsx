@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { CHALLENGE_CATEGORIES, type Queen } from '../engine/types';
+import { BASE_STATS, type Queen } from '../engine/types';
 
 export const CATEGORY_LABELS: Record<string, string> = {
   comedy: 'COM',
@@ -25,7 +25,7 @@ export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?:
     const cx = size / 2;
     const cy = size / 2;
     const r = size / 2 - 16;
-    const categories = [...CHALLENGE_CATEGORIES];
+    const categories = [...BASE_STATS];
     const n = categories.length;
     const angleSlice = (2 * Math.PI) / n;
 

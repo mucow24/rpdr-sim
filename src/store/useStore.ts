@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath, ChallengeCategory } from '../engine/types';
+import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath } from '../engine/types';
 import { isFinale } from '../engine/types';
+import { CHALLENGE_TYPES, type ChallengeTypeId } from '../data/challengeTypes';
 import season5 from '../data/season5';
 
 function cloneSeason(s: SeasonData): SeasonData {
@@ -38,7 +39,7 @@ interface AppState {
   appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate';
   spreadSelectedEpisode: number;
 
-  updateEpisodeChallengeType: (epIdx: number, challengeType: ChallengeCategory) => void;
+  updateEpisodeChallengeType: (epIdx: number, challengeType: ChallengeTypeId) => void;
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
   resetEpisode: (epIdx: number) => void;
   resetAllEpisodes: () => void;
@@ -95,11 +96,13 @@ export const useStore = create<AppState>()((set) => ({
     set((s) => {
       // Finale episodes don't have a challengeType — no-op.
       if (isFinale(s.realSeason.episodes[epIdx])) return {};
+      // Changing the preset also overwrites weights with the preset's canonical mix.
+      const challengeWeights = { ...CHALLENGE_TYPES[challengeType].weights };
       const realEpisodes = s.realSeason.episodes.map((ep, i) =>
-        i === epIdx && !isFinale(ep) ? { ...ep, challengeType } : ep,
+        i === epIdx && !isFinale(ep) ? { ...ep, challengeType, challengeWeights: { ...challengeWeights } } : ep,
       );
       const currentEpisodes = s.currentSeason.episodes.map((ep, i) =>
-        i === epIdx && !isFinale(ep) ? { ...ep, challengeType } : ep,
+        i === epIdx && !isFinale(ep) ? { ...ep, challengeType, challengeWeights: { ...challengeWeights } } : ep,
       );
       return {
         realSeason: { ...s.realSeason, episodes: realEpisodes },

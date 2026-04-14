@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, type DragEvent } from 'react';
 import { SEASON_PRESETS } from '../data/presets';
-import { CHALLENGE_CATEGORIES, type ChallengeCategory, type Queen } from '../engine/types';
+import { BASE_STATS, type BaseStat, type Queen } from '../engine/types';
 
-type StatKey = ChallengeCategory | 'lipSync';
+type StatKey = BaseStat | 'lipSync';
 
 interface RosterEntry {
   seasonId: string;
@@ -11,7 +11,7 @@ interface RosterEntry {
 }
 
 const STAT_OPTIONS: { value: StatKey; label: string }[] = [
-  ...CHALLENGE_CATEGORIES.map((c) => ({ value: c as StatKey, label: c.charAt(0).toUpperCase() + c.slice(1) })),
+  ...BASE_STATS.map((c) => ({ value: c as StatKey, label: c.charAt(0).toUpperCase() + c.slice(1) })),
   { value: 'lipSync', label: 'Lip Sync' },
 ];
 
@@ -160,7 +160,7 @@ export default function CalibratePage() {
       }
       // Ensure consistent key order in skills
       const orderedSkills: Record<string, number> = {};
-      for (const cat of CHALLENGE_CATEGORIES) {
+      for (const cat of BASE_STATS) {
         orderedSkills[cat] = entry.queen.skills[cat];
       }
       data[entry.seasonId].queens.push({
