@@ -174,15 +174,15 @@ export default function WinProbChart({ height = 400 }) {
 
     // Legend (right side) — only shown at wider viewports
     if (MARGIN.showLegend) {
-      const topQueens = lines.slice(0, 8);
+      const finaleIdx = episodes.length - 1;
       const legend = g
         .append('g')
         .attr('transform', `translate(${innerWidth + 16}, 0)`);
 
-      topQueens.forEach(({ queenId }, i) => {
+      lines.forEach(({ queenId }, i) => {
         const queen = queenMap.get(queenId);
         if (!queen) return;
-        const winPct = results.winProb[queenId] ?? 0;
+        const reachedFinale = results.aliveProbByEpisode[finaleIdx]?.[queenId] ?? 0;
         const isSelected = selectedQueenId === queenId;
         const isFaded = selectedQueenId !== null && !isSelected;
 
@@ -207,7 +207,7 @@ export default function WinProbChart({ height = 400 }) {
           .attr('fill', isFaded ? '#444' : '#aaa')
           .attr('font-size', '11px')
           .attr('font-weight', isSelected ? '600' : '400')
-          .text(`${queen.name.split(' ')[0]} ${(winPct * 100).toFixed(0)}%`);
+          .text(`${queen.name.split(' ')[0]} ${(reachedFinale * 100).toFixed(0)}%`);
       });
     }
 
