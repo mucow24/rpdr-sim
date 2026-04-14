@@ -10,7 +10,7 @@ export default function QueenCard({ queen }: { queen: Queen }) {
   const isSelected = selectedQueenId === queen.id;
 
   const winProb = results?.winProb[queen.id] ?? 0;
-  const top4Prob = results?.top4Prob[queen.id] ?? 0;
+  const reachedFinaleProb = results?.reachedFinaleProb[queen.id] ?? 0;
 
   return (
     <button
@@ -44,9 +44,9 @@ export default function QueenCard({ queen }: { queen: Queen }) {
               </span>
             </span>
             <span>
-              Top 4:{' '}
+              Finale:{' '}
               <span className="text-[#aaa] font-mono">
-                {(top4Prob * 100).toFixed(1)}%
+                {(reachedFinaleProb * 100).toFixed(1)}%
               </span>
             </span>
           </div>

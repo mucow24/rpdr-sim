@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
+import { isFinale } from '../../engine/types';
 
 
 const MARGIN = { top: 24, right: 16, bottom: 40, left: 120 };
@@ -41,6 +42,10 @@ export default function EliminationHeatmap({
       .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
     const episodes = season.episodes.map((e) => e.number);
+    const finaleEpNums = new Set(
+      season.episodes.filter((e) => isFinale(e)).map((e) => e.number),
+    );
+    const epLabel = (n: number) => (finaleEpNums.has(n) ? 'Finale' : `Ep ${n}`);
 
     // Sort queens by win probability (best at top)
     const sortedQueens = [...season.queens].sort(
@@ -59,10 +64,10 @@ export default function EliminationHeatmap({
       .range([0, innerHeight])
       .padding(0.08);
 
-    // Color scale: 0 (safe/green) -> 0.5+ (danger/red)
+    // Color scale: 0 (safe/green) -> 0.7+ (danger/red)
     const colorScale = d3
       .scaleSequential(d3.interpolateRdYlGn)
-      .domain([0.4, 0]); // reversed: high = red
+      .domain([0.7, 0]); // reversed: high = red
 
     // X axis
     g.append('g')
@@ -70,7 +75,7 @@ export default function EliminationHeatmap({
       .call(
         d3
           .axisBottom(x)
-          .tickFormat((d) => `${d}`),
+          .tickFormat((d) => (finaleEpNums.has(+d) ? 'Finale' : `${d}`)),
       )
       .call((g) => g.select('.domain').remove())
       .call((g) => g.selectAll('.tick line').remove())
@@ -119,9 +124,12 @@ export default function EliminationHeatmap({
       .style('pointer-events', 'none')
       .style('z-index', '100');
 
-    // Which episodes are non-elimination?
+    // Which episodes are non-elimination? Finales count as elim episodes
+    // (they eliminate everyone but the winner).
     const nonElimEpisodes = new Set(
-      season.episodes.filter((e) => e.eliminated.length === 0).map((e) => e.number),
+      season.episodes
+        .filter((e) => !isFinale(e) && e.eliminated.length === 0)
+        .map((e) => e.number),
     );
 
     // Non-elim cell colors
@@ -135,7 +143,10 @@ export default function EliminationHeatmap({
 
       for (let epIdx = 0; epIdx < episodes.length; epIdx++) {
         const ep = episodes[epIdx];
-        const prob = results.elimProbByEpisode[epIdx]?.[queen.id] ?? 0;
+        const elim = results.elimProbByEpisode[epIdx]?.[queen.id] ?? 0;
+        const alive = results.aliveProbByEpisode[epIdx]?.[queen.id] ?? 0;
+        // Conditional sashay risk: P(eliminated this ep | alive entering it)
+        const prob = alive > 0 ? elim / alive : 0;
         const isNonElim = nonElimEpisodes.has(ep);
 
         const cx = (x(ep) ?? 0) + x.bandwidth() / 2;
@@ -147,7 +158,7 @@ export default function EliminationHeatmap({
           .attr('width', x.bandwidth())
           .attr('height', y.bandwidth())
           .attr('rx', 2)
-          .attr('fill', isNonElim ? nonElimBg : prob > 0.001 ? colorScale(prob) : '#1a1a24')
+          .attr('fill', isNonElim ? nonElimBg : alive > 0.001 ? colorScale(prob) : '#1a1a24')
           .attr('opacity', isFaded ? 0.3 : 1)
           .attr('stroke', '#0f0f13')
           .attr('stroke-width', 1)
@@ -159,8 +170,8 @@ export default function EliminationHeatmap({
               .style('top', `${event.clientY - 10}px`)
               .html(
                 isNonElim
-                  ? `<strong>${queen.name}</strong><br/>Ep ${ep}: Non-elimination`
-                  : `<strong>${queen.name}</strong><br/>Ep ${ep} Sashay Risk: ${(prob * 100).toFixed(1)}%`,
+                  ? `<strong>${queen.name}</strong><br/>${epLabel(ep)}: Non-elimination`
+                  : `<strong>${queen.name}</strong><br/>${epLabel(ep)} Sashay Risk: ${(prob * 100).toFixed(1)}%`,
               );
           })
           .on('mousemove', (event) => {

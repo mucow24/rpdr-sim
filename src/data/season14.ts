@@ -198,9 +198,10 @@ const season14: SeasonData = {
       eliminated: ['deja', 'jorgeous'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 14,
-      challengeType: 'singing',
-      challengeName: 'Catwalk',
+      challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],
     },

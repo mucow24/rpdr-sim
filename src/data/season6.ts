@@ -397,6 +397,15 @@ const season6: SeasonData = {
       },
       eliminated: ['darienne'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 13,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

@@ -1,6 +1,8 @@
 import type {
   Queen,
+  ChallengeCategory,
   EpisodeData,
+  FinaleEpisode,
   Placement,
   EpisodeResult,
   SimulationRun,
@@ -10,7 +12,7 @@ import type {
   SeasonData,
   RunFromStateOptions,
 } from './types';
-import { PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX } from './types';
+import { PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale } from './types';
 export type { RunFromStateOptions } from './types';
 
 /** Internal mid-season state for simulateOneSeason. */
@@ -28,10 +30,47 @@ function gaussianRandom(mean = 0, stdev = 1): number {
   return z * stdev + mean;
 }
 
-function scoreQueen(queen: Queen, episode: EpisodeData, noise: number): number {
-  const skill = queen.skills[episode.challengeType];
+function scoreQueen(queen: Queen, challengeType: ChallengeCategory, noise: number): number {
+  const skill = queen.skills[challengeType];
   const runwayBonus = queen.skills.runway * 0.15;
   return skill + runwayBonus + gaussianRandom(0, noise);
+}
+
+/** Default finale handler: average-skill + gaussian noise, top score wins. */
+function runFinaleDefault(
+  episode: FinaleEpisode,
+  remaining: Map<string, Queen>,
+  finalRanks: Map<string, number>,
+  episodeResults: EpisodeResult[],
+): void {
+  const finalists = Array.from(remaining.values());
+  const finalistScores = finalists.map((q) => {
+    const avgSkill =
+      Object.values(q.skills).reduce((a, b) => a + b, 0) /
+      Object.values(q.skills).length;
+    return { queenId: q.id, score: avgSkill + gaussianRandom(0, 1.5) };
+  });
+  finalistScores.sort((a, b) => b.score - a.score);
+  for (let i = 0; i < finalistScores.length; i++) {
+    finalRanks.set(finalistScores[i].queenId, i + 1);
+  }
+
+  const winnerId = finalistScores[0]?.queenId ?? '';
+  const losers = finalistScores.slice(1).map((s) => s.queenId);
+
+  const placements = new Map<string, Placement>();
+  if (winnerId) placements.set(winnerId, 'WIN');
+
+  episodeResults.push({
+    episodeNumber: episode.number,
+    placements,
+    lipSyncMatchup: ['', ''],
+    lipSyncWinner: '',
+    eliminated: '',
+  });
+  // Drain remaining — finale is the last episode by convention; safe defensive cleanup.
+  for (const id of losers) remaining.delete(id);
+  if (winnerId) remaining.delete(winnerId);
 }
 
 function assignPlacements(
@@ -88,14 +127,26 @@ function simulateOneSeason(
 
   const startIdx = midSeason?.startEpisodeIndex ?? 0;
 
+  // Final ranks (1 = winner). Built up: ranks N..2 from elimination order, rank 1+ from finale.
+  const finalRanks = new Map<string, number>();
+
   for (let epIdx = startIdx; epIdx < episodes.length; epIdx++) {
     const episode = episodes[epIdx];
-    if (remaining.size <= 2) break;
+
+    if (isFinale(episode)) {
+      // Assign losing ranks from elimination order before finale dispatch.
+      const totalQueens = queens.length;
+      for (let i = 0; i < eliminationOrder.length; i++) {
+        finalRanks.set(eliminationOrder[i], totalQueens - i);
+      }
+      runFinaleDefault(episode, remaining, finalRanks, episodeResults);
+      continue;
+    }
 
     const activeQueens = Array.from(remaining.values());
     const scores = activeQueens.map((q) => ({
       queenId: q.id,
-      score: scoreQueen(q, episode, noise),
+      score: scoreQueen(q, episode.challengeType, noise),
     }));
 
     const placements = assignPlacements(scores);
@@ -143,27 +194,20 @@ function simulateOneSeason(
     });
   }
 
-  // Final placements
-  const totalQueens = queens.length;
-  const finalPlacements = new Map<string, number>();
-
-  for (let i = 0; i < eliminationOrder.length; i++) {
-    finalPlacements.set(eliminationOrder[i], totalQueens - i);
+  // If no finale episode was present, fall back to elimination-order-only ranks.
+  // (Any queens not yet ranked get the lowest non-eliminated ranks in arbitrary order.)
+  if (finalRanks.size === 0) {
+    const totalQueens = queens.length;
+    for (let i = 0; i < eliminationOrder.length; i++) {
+      finalRanks.set(eliminationOrder[i], totalQueens - i);
+    }
+    let nextRank = 1;
+    for (const id of remaining.keys()) {
+      if (!finalRanks.has(id)) finalRanks.set(id, nextRank++);
+    }
   }
 
-  const finalists = Array.from(remaining.values());
-  const finalistScores = finalists.map((q) => {
-    const avgSkill =
-      Object.values(q.skills).reduce((a, b) => a + b, 0) /
-      Object.values(q.skills).length;
-    return { queenId: q.id, score: avgSkill + gaussianRandom(0, 1.5) };
-  });
-  finalistScores.sort((a, b) => b.score - a.score);
-  for (let i = 0; i < finalistScores.length; i++) {
-    finalPlacements.set(finalistScores[i].queenId, i + 1);
-  }
-
-  return { episodeResults, finalPlacements };
+  return { episodeResults, finalRanks };
 }
 
 // ── Compact buffer layout ──────────────────────────────────
@@ -216,7 +260,7 @@ function writeRunToBuffer(
   // Final placements section: numQueens
   const fpBase = elimBase + numEpisodes;
   for (let qi = 0; qi < numQueens; qi++) {
-    const place = run.finalPlacements.get(queenIds[qi]);
+    const place = run.finalRanks.get(queenIds[qi]);
     buf[fpBase + qi] = place ?? 255;
   }
 }
@@ -343,8 +387,6 @@ export function aggregateFromBuffer(
 
   // Final placement counts
   const placementDistCounts = Array.from({ length: numQueens }, () => new Int32Array(numQueens + 1));
-  const top4Counts = new Int32Array(numQueens);
-  const finaleAliveCounts = new Int32Array(numQueens);
   const winCounts = new Int32Array(numQueens);
 
   // Single pass over all runs — run-first for cache locality
@@ -378,6 +420,14 @@ export function aggregateFromBuffer(
       if (elimInEp !== 255) {
         elimCountsPerEp[ep][elimInEp]++;
         eliminated.add(elimInEp);
+      } else if (isFinale(episodes[ep])) {
+        // Finale: every alive non-winner is "eliminated" at the finale.
+        // The buffer's single eliminated byte can't encode N losers, so derive here.
+        for (let qi = 0; qi < numQueens; qi++) {
+          if (!eliminated.has(qi) && buffer[fpBase + qi] !== 1) {
+            elimCountsPerEp[ep][qi]++;
+          }
+        }
       }
     }
 
@@ -385,11 +435,13 @@ export function aggregateFromBuffer(
     for (let qi = 0; qi < numQueens; qi++) {
       const place = buffer[fpBase + qi];
       if (place !== 255 && place <= numQueens) placementDistCounts[qi][place]++;
-      if (place !== 255 && place <= 4) top4Counts[qi]++;
-      if (place === 1 || place === 2) finaleAliveCounts[qi]++;
       if (place === 1) winCounts[qi]++;
     }
   }
+
+  // reachedFinaleProb is alive-at-finale-episode probability.
+  // Finale is the last episode by season-data convention.
+  const finaleEpIdx = numEpisodes - 1;
 
   // Convert counts to probabilities
   const winProbByEpisode: Record<string, number>[] = [];
@@ -409,11 +461,14 @@ export function aggregateFromBuffer(
       aliveProb[id] = aliveCountsPerEp[ep][qi] / n;
       elimProb[id] = elimCountsPerEp[ep][qi] / n;
 
-      const total = placeCountsPerEp[ep][qi * 5] + placeCountsPerEp[ep][qi * 5 + 1] +
-        placeCountsPerEp[ep][qi * 5 + 2] + placeCountsPerEp[ep][qi * 5 + 3] + placeCountsPerEp[ep][qi * 5 + 4];
+      // Normalize per-episode placement distribution by alive count — this is
+      // P(placement=p | alive at ep). For non-finale episodes every alive queen
+      // has a placement, so this equals count/total. For finale episodes only
+      // the winner's placement is recorded, so count/alive is the correct denominator.
+      const aliveCount = aliveCountsPerEp[ep][qi];
       epPlace[id] = {};
       for (let pi = 0; pi < 5; pi++) {
-        epPlace[id][INDEX_PLACEMENT[pi]] = total > 0 ? placeCountsPerEp[ep][qi * 5 + pi] / total : 0;
+        epPlace[id][INDEX_PLACEMENT[pi]] = aliveCount > 0 ? placeCountsPerEp[ep][qi * 5 + pi] / aliveCount : 0;
       }
     }
 
@@ -424,30 +479,23 @@ export function aggregateFromBuffer(
   }
 
   const placementDist: Record<string, number[]> = {};
-  const top4Prob: Record<string, number> = {};
+  const reachedFinaleProb: Record<string, number> = {};
   const winProb: Record<string, number> = {};
-  const finaleAliveProb: Record<string, number> = {};
-  const finaleWinProb: Record<string, number> = {};
 
   for (let qi = 0; qi < numQueens; qi++) {
     const id = queenIds[qi];
     placementDist[id] = Array.from(placementDistCounts[qi]).map((c) => c / n);
-    top4Prob[id] = top4Counts[qi] / n;
+    reachedFinaleProb[id] = numEpisodes > 0 ? aliveCountsPerEp[finaleEpIdx][qi] / n : 0;
     winProb[id] = winCounts[qi] / n;
-    finaleAliveProb[id] = finaleAliveCounts[qi] / n;
-    finaleWinProb[id] =
-      finaleAliveCounts[qi] > 0 ? winCounts[qi] / finaleAliveCounts[qi] : 0;
   }
 
   return {
     numSimulations: n,
     winProbByEpisode,
     aliveProbByEpisode,
-    finaleAliveProb,
-    finaleWinProb,
     elimProbByEpisode,
     placementDist,
-    top4Prob,
+    reachedFinaleProb,
     winProb,
     episodePlacements,
   };
@@ -522,11 +570,9 @@ export function filterAndAggregate(
       numSimulations: 0,
       winProbByEpisode: [],
       aliveProbByEpisode: [],
-      finaleAliveProb: {},
-      finaleWinProb: {},
       elimProbByEpisode: [],
       placementDist: {},
-      top4Prob: {},
+      reachedFinaleProb: {},
       winProb: {},
       episodePlacements: [],
     };
@@ -565,13 +611,13 @@ export function filterAndAggregate(
       });
     }
 
-    const finalPlacements = new Map<string, number>();
+    const finalRanks = new Map<string, number>();
     for (let qi = 0; qi < numQueens; qi++) {
       const place = buffer[fpBase + qi];
-      if (place !== 255) finalPlacements.set(queenIds[qi], place);
+      if (place !== 255) finalRanks.set(queenIds[qi], place);
     }
 
-    runs.push({ episodeResults, finalPlacements });
+    runs.push({ episodeResults, finalRanks });
   }
 
   const results = aggregateResults(runs, queens, episodes);
@@ -616,7 +662,7 @@ function aggregateResults(
       for (const id of queenIds) {
         if (!eliminatedBefore.has(id)) {
           aliveCounts[id]++;
-          const place = run.finalPlacements.get(id);
+          const place = run.finalRanks.get(id);
           if (place === 1) winCounts[id]++;
         }
       }
@@ -626,6 +672,14 @@ function aggregateResults(
         if (epResult.eliminated) elimCounts[epResult.eliminated]++;
         for (const [qid, p] of epResult.placements) {
           if (placeCounts[qid]) placeCounts[qid][p]++;
+        }
+        // Finale: every alive non-winner is "eliminated" at the finale.
+        if (isFinale(episodes[ep])) {
+          for (const id of queenIds) {
+            if (!eliminatedBefore.has(id) && run.finalRanks.get(id) !== 1) {
+              elimCounts[id]++;
+            }
+          }
         }
       }
     }
@@ -640,10 +694,11 @@ function aggregateResults(
       aliveProb[id] = aliveCounts[id] / n;
       elimProb[id] = elimCounts[id] / n;
 
-      const total = Object.values(placeCounts[id]).reduce((a, b) => a + b, 0);
+      // Normalize by alive count (P(placement | alive at ep)) — for finale
+      // episodes only the winner is recorded, so /alive is the correct denominator.
       epPlace[id] = {};
       for (const p of PLACEMENTS) {
-        epPlace[id][p] = total > 0 ? placeCounts[id][p] / total : 0;
+        epPlace[id][p] = aliveCounts[id] > 0 ? placeCounts[id][p] / aliveCounts[id] : 0;
       }
     }
 
@@ -654,50 +709,42 @@ function aggregateResults(
   }
 
   const placementDist: Record<string, number[]> = {};
-  const top4Prob: Record<string, number> = {};
+  const reachedFinaleProb: Record<string, number> = {};
   const winProb: Record<string, number> = {};
-  const finaleAliveCount: Record<string, number> = {};
-  const finaleAliveProb: Record<string, number> = {};
-  const finaleWinProb: Record<string, number> = {};
 
   for (const id of queenIds) {
     placementDist[id] = new Array(queens.length + 1).fill(0);
-    top4Prob[id] = 0;
     winProb[id] = 0;
-    finaleAliveCount[id] = 0;
   }
 
   for (const run of runs) {
-    for (const [queenId, place] of run.finalPlacements) {
+    for (const [queenId, place] of run.finalRanks) {
       if (place <= queens.length) {
         placementDist[queenId][place] = (placementDist[queenId][place] ?? 0) + 1;
       }
-      if (place <= 4) top4Prob[queenId] = (top4Prob[queenId] ?? 0) + 1;
-      if (place === 1 || place === 2) finaleAliveCount[queenId] = (finaleAliveCount[queenId] ?? 0) + 1;
       if (place === 1) winProb[queenId] = (winProb[queenId] ?? 0) + 1;
     }
   }
 
+  // reachedFinaleProb = alive at start of finale episode (last episode by convention)
+  const finaleEpIdx = numEpisodes - 1;
   for (const id of queenIds) {
     for (let p = 0; p < placementDist[id].length; p++) {
       placementDist[id][p] /= n;
     }
-    top4Prob[id] /= n;
     const winCount = winProb[id];
     winProb[id] = n > 0 ? winCount / n : 0;
-    finaleAliveProb[id] = n > 0 ? finaleAliveCount[id] / n : 0;
-    finaleWinProb[id] = finaleAliveCount[id] > 0 ? winCount / finaleAliveCount[id] : 0;
+    reachedFinaleProb[id] =
+      finaleEpIdx >= 0 && aliveProbByEpisode[finaleEpIdx] ? aliveProbByEpisode[finaleEpIdx][id] ?? 0 : 0;
   }
 
   return {
     numSimulations: n,
     winProbByEpisode,
     aliveProbByEpisode,
-    finaleAliveProb,
-    finaleWinProb,
     elimProbByEpisode,
     placementDist,
-    top4Prob,
+    reachedFinaleProb,
     winProb,
     episodePlacements,
   };

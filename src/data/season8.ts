@@ -309,6 +309,15 @@ const season8: SeasonData = {
       },
       eliminated: ['derrick'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 9,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

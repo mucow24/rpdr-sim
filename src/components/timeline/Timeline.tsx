@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore';
+import { isFinale } from '../../engine/types';
 import EpisodeDetail from './EpisodeDetail';
 
 const CHALLENGE_ICONS: Record<string, string> = {
@@ -47,10 +48,10 @@ export default function Timeline() {
                 `}
               >
                 <span className="text-lg">
-                  {CHALLENGE_ICONS[episode.challengeType] ?? '❓'}
+                  {isFinale(episode) ? '👑' : (CHALLENGE_ICONS[episode.challengeType] ?? '❓')}
                 </span>
                 <span className="text-xs text-[#888] font-mono">
-                  Ep {episode.number}
+                  {isFinale(episode) ? 'Finale' : `Ep ${episode.number}`}
                 </span>
                 {hasCondition && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />

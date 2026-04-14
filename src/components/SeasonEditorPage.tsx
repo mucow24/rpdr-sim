@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { CHALLENGE_CATEGORIES, type EpisodeData, type ChallengeCategory } from '../engine/types';
+import { CHALLENGE_CATEGORIES, isFinale, type EpisodeData, type ChallengeCategory } from '../engine/types';
 import { SEASON_PRESETS } from '../data/presets';
 
 const CATEGORY_DISPLAY: Record<ChallengeCategory, string> = {
@@ -35,14 +35,64 @@ function EpisodeCard({
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const finaleEp = isFinale(episode);
   const [editName, setEditName] = useState(episode.challengeName);
-  const [editType, setEditType] = useState<ChallengeCategory>(episode.challengeType);
-  const [editSplitPremiere, setEditSplitPremiere] = useState(episode.splitPremiere ?? false);
+  const [editType, setEditType] = useState<ChallengeCategory>(
+    finaleEp ? 'comedy' : episode.challengeType,
+  );
+  const [editSplitPremiere, setEditSplitPremiere] = useState(
+    finaleEp ? false : (episode.splitPremiere ?? false),
+  );
 
   const handleConfirm = () => {
-    onUpdate({ ...episode, challengeName: editName, challengeType: editType, splitPremiere: editSplitPremiere || undefined });
+    if (finaleEp) {
+      onUpdate({ ...episode, challengeName: editName });
+    } else {
+      onUpdate({ ...episode, challengeName: editName, challengeType: editType, splitPremiere: editSplitPremiere || undefined });
+    }
     onEdit();
   };
+
+  if (finaleEp) {
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-lg border bg-[#121218] border-[#1a1a24]">
+        <span className="text-xs text-[#555] font-mono w-8 shrink-0">
+          {index + 1}.
+        </span>
+        <div className="flex-1 flex items-center gap-3 min-w-0">
+          <span className="text-sm text-[#ddd] truncate">{episode.challengeName}</span>
+          <span className="text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-0.5 shrink-0">
+            Finale
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onMove(-1)}
+            disabled={isFirst}
+            className="p-1.5 rounded text-[#666] hover:text-[#aaa] hover:bg-[#1a1a24] transition-colors disabled:opacity-20 disabled:cursor-default"
+            title="Move up"
+          >
+            &#9650;
+          </button>
+          <button
+            onClick={() => onMove(1)}
+            disabled={isLast}
+            className="p-1.5 rounded text-[#666] hover:text-[#aaa] hover:bg-[#1a1a24] transition-colors disabled:opacity-20 disabled:cursor-default"
+            title="Move down"
+          >
+            &#9660;
+          </button>
+          <button
+            onClick={onRemove}
+            className="p-1.5 rounded text-[#666] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Remove"
+          >
+            &#10005;
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg border bg-[#121218] border-[#1a1a24]">

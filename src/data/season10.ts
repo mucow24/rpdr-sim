@@ -382,6 +382,15 @@ const season10: SeasonData = {
       },
       eliminated: ['cracker'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 12,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

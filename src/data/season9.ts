@@ -447,6 +447,15 @@ const season9: SeasonData = {
       },
       eliminated: [],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 13,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

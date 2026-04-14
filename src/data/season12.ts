@@ -364,6 +364,15 @@ const season12: SeasonData = {
       },
       eliminated: ['jackie'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 13,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

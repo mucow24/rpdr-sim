@@ -112,8 +112,9 @@ const season1: SeasonData = {
       eliminated: ['shannel'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 7,
-      challengeType: 'singing',
       challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],

@@ -455,6 +455,15 @@ const season11: SeasonData = {
       },
       eliminated: ['vanjie'],
     },
+    // Finale
+    {
+      kind: 'finale',
+      finaleType: 'default',
+      number: 13,
+      challengeName: 'Grand Finale',
+      placements: {},
+      eliminated: [],
+    },
   ],
 };
 

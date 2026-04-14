@@ -154,8 +154,9 @@ const season2: SeasonData = {
       eliminated: ['tatianna'],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 10,
-      challengeType: 'acting',
       challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],

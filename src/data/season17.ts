@@ -198,9 +198,10 @@ const season17: SeasonData = {
       eliminated: [],
     },
     {
+      kind: 'finale',
+      finaleType: 'default',
       number: 14,
-      challengeType: 'comedy',
-      challengeName: 'How\'s Your Headliner?',
+      challengeName: 'Grand Finale',
       placements: {},
       eliminated: [],
     },
