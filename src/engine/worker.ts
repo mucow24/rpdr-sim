@@ -83,6 +83,8 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
         numSimulations: 0,
         winProbByEpisode: [],
         aliveProbByEpisode: [],
+        finaleAliveProb: {},
+        finaleWinProb: {},
         elimProbByEpisode: [],
         placementDist: {},
         top4Prob: {},
