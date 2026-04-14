@@ -76,8 +76,10 @@ export interface FilterCondition {
 /** Aggregated results across simulation runs */
 export interface SimulationResults {
   numSimulations: number;
-  /** winProbByEpisode[episodeIdx][queenId] = P(win | alive at this episode) */
+  /** winProbByEpisode[episodeIdx][queenId] = P(win | alive at start of this episode) */
   winProbByEpisode: Record<string, number>[];
+  /** aliveProbByEpisode[episodeIdx][queenId] = P(alive at start of this episode) */
+  aliveProbByEpisode: Record<string, number>[];
   /** elimProbByEpisode[episodeIdx][queenId] = P(eliminated this episode) */
   elimProbByEpisode: Record<string, number>[];
   /** placementDist[queenId][place] = P(finishing in that place) */

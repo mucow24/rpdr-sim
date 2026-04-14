@@ -222,10 +222,7 @@ export default function WinProbChart({ height = 400 }) {
       .attr('stroke', '#2a2a3a')
       .attr('rx', 4);
 
-    const tooltipText = tooltip
-      .append('text')
-      .attr('fill', '#ddd')
-      .attr('font-size', '11px');
+    const tooltipContent = tooltip.append('g');
 
     svg
       .on('mousemove', (event) => {
@@ -240,35 +237,90 @@ export default function WinProbChart({ height = 400 }) {
         const xPos = x(ep + 1);
         tooltipLine.attr('x1', xPos).attr('x2', xPos);
 
-        // Build tooltip entries
+        // Build tooltip entries (all queens, sorted by crown prob desc)
         const entries = lines
           .map(({ queenId, points }) => ({
             queenId,
-            prob: points[ep]?.prob ?? 0,
+            crownProb: points[ep]?.prob ?? 0,
+            aliveProb: results.aliveProbByEpisode[ep]?.[queenId] ?? 0,
           }))
-          .filter((e) => e.prob > 0.005)
-          .sort((a, b) => b.prob - a.prob)
-          .slice(0, 6);
+          .sort((a, b) => b.crownProb - a.crownProb);
 
-        tooltipText.selectAll('tspan').remove();
+        tooltipContent.selectAll('*').remove();
+
+        const PADDING = 3;
+        const ROW_H = 13;
+        const NAME_COL_W = 46;
+        const COL_GAP = 8;
+        const ALIVE_COL_W = 46;
+        const CROWN_COL_W = 46;
+        const TOOLTIP_W =
+          PADDING + NAME_COL_W + COL_GAP + ALIVE_COL_W + COL_GAP + CROWN_COL_W + PADDING;
+
+        const bgX = xPos + 6;
+        const bgY = 4;
+        const nameColRight = bgX + PADDING + NAME_COL_W;
+        const aliveColLeft = nameColRight + COL_GAP;
+        const crownColLeft = aliveColLeft + ALIVE_COL_W + COL_GAP;
+        const headerLine1Y = bgY + PADDING + 9;
+        const firstRowY = headerLine1Y + 16;
+        const TOOLTIP_H =
+          firstRowY + Math.max(0, entries.length - 1) * ROW_H + 3 + PADDING;
+
+        // Headers (left-aligned over each prob column)
+        tooltipContent
+          .append('text')
+          .attr('x', aliveColLeft)
+          .attr('y', headerLine1Y)
+          .attr('fill', '#888')
+          .attr('font-size', '10px')
+          .text('P(alive)');
+
+        tooltipContent
+          .append('text')
+          .attr('x', crownColLeft)
+          .attr('y', headerLine1Y)
+          .attr('fill', '#888')
+          .attr('font-size', '10px')
+          .text('P(crown)');
+
+        // Rows: queen name (right-justified) + P(alive) + P(crown) (left-justified)
         entries.forEach((entry, i) => {
           const queen = queenMap.get(entry.queenId);
-          tooltipText
-            .append('tspan')
-            .attr('x', xPos + 12)
-            .attr('y', 16 + i * 16)
-            .attr('fill', queen?.color ?? '#aaa')
-            .text(
-              `${queen?.name.split(' ')[0]}: ${(entry.prob * 100).toFixed(1)}%`,
-            );
+          const rowY = firstRowY + i * ROW_H;
+          const color = queen?.color ?? '#aaa';
+
+          tooltipContent
+            .append('text')
+            .attr('x', nameColRight)
+            .attr('y', rowY)
+            .attr('text-anchor', 'end')
+            .attr('fill', color)
+            .attr('font-size', '11px')
+            .text(queen?.name.split(' ')[0] ?? '');
+
+          tooltipContent
+            .append('text')
+            .attr('x', aliveColLeft)
+            .attr('y', rowY)
+            .attr('fill', color)
+            .attr('font-size', '11px')
+            .text(`${(entry.aliveProb * 100).toFixed(1)}%`);
+
+          tooltipContent
+            .append('text')
+            .attr('x', crownColLeft)
+            .attr('y', rowY)
+            .attr('fill', color)
+            .attr('font-size', '11px')
+            .text(`${(entry.crownProb * 100).toFixed(1)}%`);
         });
 
-        const tooltipH = 8 + entries.length * 16 + 4;
         tooltipBg
-          .attr('x', xPos + 6)
-          .attr('y', 4)
-          .attr('width', 120)
-          .attr('height', tooltipH);
+          .attr('x', bgX)
+          .attr('y', bgY)
+          .attr('width', TOOLTIP_W)
+          .attr('height', TOOLTIP_H);
       })
       .on('mouseleave', () => tooltip.style('display', 'none'));
   }, [results, baselineResults, filteredResults, season, width, height, selectedQueenId, setSelectedQueenId]);
@@ -287,7 +339,7 @@ export default function WinProbChart({ height = 400 }) {
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Crown Probability Over Time
+        Crown probability if present in episode
       </h3>
       <svg
         ref={svgRef}

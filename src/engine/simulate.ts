@@ -391,17 +391,20 @@ export function aggregateFromBuffer(
 
   // Convert counts to probabilities
   const winProbByEpisode: Record<string, number>[] = [];
+  const aliveProbByEpisode: Record<string, number>[] = [];
   const elimProbByEpisode: Record<string, number>[] = [];
   const episodePlacements: Record<string, Record<string, number>>[] = [];
 
   for (let ep = 0; ep < numEpisodes; ep++) {
     const winProb: Record<string, number> = {};
+    const aliveProb: Record<string, number> = {};
     const elimProb: Record<string, number> = {};
     const epPlace: Record<string, Record<string, number>> = {};
 
     for (let qi = 0; qi < numQueens; qi++) {
       const id = queenIds[qi];
       winProb[id] = aliveCountsPerEp[ep][qi] > 0 ? winCountsPerEp[ep][qi] / aliveCountsPerEp[ep][qi] : 0;
+      aliveProb[id] = aliveCountsPerEp[ep][qi] / n;
       elimProb[id] = elimCountsPerEp[ep][qi] / n;
 
       const total = placeCountsPerEp[ep][qi * 5] + placeCountsPerEp[ep][qi * 5 + 1] +
@@ -413,6 +416,7 @@ export function aggregateFromBuffer(
     }
 
     winProbByEpisode.push(winProb);
+    aliveProbByEpisode.push(aliveProb);
     elimProbByEpisode.push(elimProb);
     episodePlacements.push(epPlace);
   }
@@ -431,6 +435,7 @@ export function aggregateFromBuffer(
   return {
     numSimulations: n,
     winProbByEpisode,
+    aliveProbByEpisode,
     elimProbByEpisode,
     placementDist,
     top4Prob,
@@ -507,6 +512,7 @@ export function filterAndAggregate(
     const empty: SimulationResults = {
       numSimulations: 0,
       winProbByEpisode: [],
+      aliveProbByEpisode: [],
       elimProbByEpisode: [],
       placementDist: {},
       top4Prob: {},
@@ -571,6 +577,7 @@ function aggregateResults(
   const numEpisodes = episodes.length;
 
   const winProbByEpisode: Record<string, number>[] = [];
+  const aliveProbByEpisode: Record<string, number>[] = [];
   const elimProbByEpisode: Record<string, number>[] = [];
   const episodePlacements: Record<string, Record<string, number>>[] = [];
 
@@ -613,11 +620,13 @@ function aggregateResults(
     }
 
     const winProb: Record<string, number> = {};
+    const aliveProb: Record<string, number> = {};
     const elimProb: Record<string, number> = {};
     const epPlace: Record<string, Record<string, number>> = {};
 
     for (const id of queenIds) {
       winProb[id] = aliveCounts[id] > 0 ? winCounts[id] / aliveCounts[id] : 0;
+      aliveProb[id] = aliveCounts[id] / n;
       elimProb[id] = elimCounts[id] / n;
 
       const total = Object.values(placeCounts[id]).reduce((a, b) => a + b, 0);
@@ -628,6 +637,7 @@ function aggregateResults(
     }
 
     winProbByEpisode.push(winProb);
+    aliveProbByEpisode.push(aliveProb);
     elimProbByEpisode.push(elimProb);
     episodePlacements.push(epPlace);
   }
@@ -663,6 +673,7 @@ function aggregateResults(
   return {
     numSimulations: n,
     winProbByEpisode,
+    aliveProbByEpisode,
     elimProbByEpisode,
     placementDist,
     top4Prob,
