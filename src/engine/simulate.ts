@@ -420,6 +420,14 @@ export function aggregateFromBuffer(
       if (elimInEp !== 255) {
         elimCountsPerEp[ep][elimInEp]++;
         eliminated.add(elimInEp);
+      } else if (isFinale(episodes[ep])) {
+        // Finale: every alive non-winner is "eliminated" at the finale.
+        // The buffer's single eliminated byte can't encode N losers, so derive here.
+        for (let qi = 0; qi < numQueens; qi++) {
+          if (!eliminated.has(qi) && buffer[fpBase + qi] !== 1) {
+            elimCountsPerEp[ep][qi]++;
+          }
+        }
       }
     }
 
@@ -664,6 +672,14 @@ function aggregateResults(
         if (epResult.eliminated) elimCounts[epResult.eliminated]++;
         for (const [qid, p] of epResult.placements) {
           if (placeCounts[qid]) placeCounts[qid][p]++;
+        }
+        // Finale: every alive non-winner is "eliminated" at the finale.
+        if (isFinale(episodes[ep])) {
+          for (const id of queenIds) {
+            if (!eliminatedBefore.has(id) && run.finalRanks.get(id) !== 1) {
+              elimCounts[id]++;
+            }
+          }
         }
       }
     }

@@ -113,12 +113,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         const dist = results.episodePlacements[ep]?.[q.id] ?? {};
         const f: Record<string, number> = {};
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
-        // Finale: every non-winning queen that reached the finale "lost it" —
-        // the simulator records only the winner in the finale's eliminated byte
-        // (one byte / ep limit), so derive the elim flow as surv - WIN here.
-        const elim = isFinale(season.episodes[ep])
-          ? Math.max(0, surv - f['WIN'])
-          : (results.elimProbByEpisode[ep]?.[q.id] ?? 0);
+        const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
         elimByEp[q.id][ep] = elim;
         f['BTM2'] = Math.max(0, f['BTM2'] - elim);
         f['ELIM'] = cumElim + elim;
