@@ -47,23 +47,22 @@ export default function WinProbChart({ height = 400 }) {
     const queenIds = season.queens.map((q) => q.id);
     const lastEpNum = episodes[episodes.length - 1];
 
-    // Build line data: for each queen, an array of { episode, prob }
+    // Build line data: each queen's P(alive) trajectory by episode.
     type LinePoint = { episode: number; prob: number };
     const lines: { queenId: string; points: LinePoint[] }[] = queenIds.map(
       (qid) => {
         const epPoints = episodes.map((ep, i) => ({
           episode: ep,
-          prob: results.winProbByEpisode[i]?.[qid] ?? 0,
+          prob: results.aliveProbByEpisode[i]?.[qid] ?? 0,
         }));
         return { queenId: qid, points: epPoints };
       },
     );
 
-    // Sort by final win prob (highest on top in legend)
+    // Sort by overall win prob (strongest on top in legend)
     lines.sort(
       (a, b) =>
-        (b.points[b.points.length - 1]?.prob ?? 0) -
-        (a.points[a.points.length - 1]?.prob ?? 0),
+        (results.winProb[b.queenId] ?? 0) - (results.winProb[a.queenId] ?? 0),
     );
 
     const x = d3.scaleLinear().domain([episodes[0], lastEpNum]).range([0, innerWidth]);
@@ -124,7 +123,7 @@ export default function WinProbChart({ height = 400 }) {
         queenIds.map((qid) => {
           const epPoints = episodes.map((ep, i) => ({
             episode: ep,
-            prob: baselineResults.winProbByEpisode[i]?.[qid] ?? 0,
+            prob: baselineResults.aliveProbByEpisode[i]?.[qid] ?? 0,
           }));
           return { queenId: qid, points: epPoints };
         });
@@ -180,10 +179,10 @@ export default function WinProbChart({ height = 400 }) {
         .append('g')
         .attr('transform', `translate(${innerWidth + 16}, 0)`);
 
-      topQueens.forEach(({ queenId, points }, i) => {
+      topQueens.forEach(({ queenId }, i) => {
         const queen = queenMap.get(queenId);
         if (!queen) return;
-        const finalProb = points[points.length - 1]?.prob ?? 0;
+        const winPct = results.winProb[queenId] ?? 0;
         const isSelected = selectedQueenId === queenId;
         const isFaded = selectedQueenId !== null && !isSelected;
 
@@ -208,7 +207,7 @@ export default function WinProbChart({ height = 400 }) {
           .attr('fill', isFaded ? '#444' : '#aaa')
           .attr('font-size', '11px')
           .attr('font-weight', isSelected ? '600' : '400')
-          .text(`${queen.name.split(' ')[0]} ${(finalProb * 100).toFixed(0)}%`);
+          .text(`${queen.name.split(' ')[0]} ${(winPct * 100).toFixed(0)}%`);
       });
     }
 
@@ -243,14 +242,14 @@ export default function WinProbChart({ height = 400 }) {
         const xPos = x(snappedX);
         tooltipLine.attr('x1', xPos).attr('x2', xPos);
 
-        // Build tooltip entries (all queens, sorted by crown prob desc)
+        // Build tooltip entries (all queens, sorted by P(alive) desc)
         const entries = lines
-          .map(({ queenId, points }) => ({
+          .map(({ queenId }) => ({
             queenId,
-            crownProb: points[ep]?.prob ?? 0,
             aliveProb: results.aliveProbByEpisode[ep]?.[queenId] ?? 0,
+            crownProb: results.winProbByEpisode[ep]?.[queenId] ?? 0,
           }))
-          .sort((a, b) => b.crownProb - a.crownProb);
+          .sort((a, b) => b.aliveProb - a.aliveProb || b.crownProb - a.crownProb);
 
         tooltipContent.selectAll('*').remove();
 
@@ -345,7 +344,7 @@ export default function WinProbChart({ height = 400 }) {
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Crown probability if present in episode
+        Cumulative survival probability by episode
       </h3>
       <svg
         ref={svgRef}
