@@ -98,13 +98,31 @@ export default function CalibratePage() {
   }, []);
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
+  const [enabledSeasons, setEnabledSeasons] = useState<Set<string>>(
+    () => new Set(SEASON_PRESETS.map((p) => p.id)),
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleSeason = (seasonId: string) => {
+    setEnabledSeasons((prev) => {
+      const next = new Set(prev);
+      if (next.has(seasonId)) next.delete(seasonId);
+      else next.add(seasonId);
+      return next;
+    });
+  };
+
+  const allSeasonsEnabled = enabledSeasons.size === SEASON_PRESETS.length;
+  const setAllSeasons = (enabled: boolean) => {
+    setEnabledSeasons(enabled ? new Set(SEASON_PRESETS.map((p) => p.id)) : new Set());
+  };
 
   const scoreRows = Array.from({ length: 10 }, (_, i) => 10 - i); // [10, 9, 8, ..., 1]
 
   const entriesByScore = new Map<number, RosterEntry[]>();
   for (const score of scoreRows) entriesByScore.set(score, []);
   for (const entry of roster) {
+    if (!enabledSeasons.has(entry.seasonId)) continue;
     const val = getStatValue(entry.queen, selectedStat);
     entriesByScore.get(val)?.push(entry);
   }
@@ -230,6 +248,39 @@ export default function CalibratePage() {
             Export JSON
           </button>
         </div>
+      </div>
+
+      {/* Season filter */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 p-2 bg-[#111118] rounded">
+        <button
+          onClick={() => setAllSeasons(!allSeasonsEnabled)}
+          className="text-[10px] uppercase tracking-wide text-[#888] hover:text-[#ccc] px-2 py-0.5 border border-[#2a2a3a] hover:border-[#3a3a4a] rounded transition-colors"
+        >
+          {allSeasonsEnabled ? 'None' : 'All'}
+        </button>
+        {SEASON_PRESETS.map((preset) => {
+          const checked = enabledSeasons.has(preset.id);
+          return (
+            <label
+              key={preset.id}
+              className="flex items-center gap-1 text-xs cursor-pointer select-none"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggleSeason(preset.id)}
+                className="accent-amber-500"
+              />
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: SEASON_COLORS[preset.id] ?? '#888' }}
+              />
+              <span className={checked ? 'text-[#ccc]' : 'text-[#555]'}>
+                {seasonAbbrev(preset.id)}
+              </span>
+            </label>
+          );
+        })}
       </div>
 
       {/* Score rows */}
