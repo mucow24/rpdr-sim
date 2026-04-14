@@ -106,12 +106,12 @@ const season5: SeasonData = {
     },
   ],
   episodes: [
-    // Ep 1: "RuPaullywood or Bust" (singing/performance)
+    // Ep 1: "RuPaullywood or Bust" (design — Hollywood looks from car-wash materials)
     {
       number: 1,
-      challengeType: 'singing',
-      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
-      challengeName: 'RuPaul Roast... I mean, Lip Sync Extravaganza',
+      challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeName: 'RuPaullywood or Bust',
       placements: {
         roxxxy: 'WIN',
         alaska: 'HIGH', ivy: 'HIGH', lineysha: 'HIGH',
@@ -121,12 +121,12 @@ const season5: SeasonData = {
       },
       eliminated: ['penny'],
     },
-    // Ep 2: "Lip Synch Extravaganza Eleganza" (design/unconventional)
+    // Ep 2: "Lip Synch Extravaganza Eleganza" (comedy — team lip-sync performance)
     {
       number: 2,
-      challengeType: 'design',
-      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
-      challengeName: 'Unconventional Materials',
+      challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeName: 'Lip Synch Extravaganza Eleganza',
       placements: {
         lineysha: 'WIN',
         roxxxy: 'HIGH', ivy: 'HIGH',
@@ -136,11 +136,11 @@ const season5: SeasonData = {
       },
       eliminated: ['serena'],
     },
-    // Ep 3: "Draggle Rock" (dance/performance)
+    // Ep 3: "Draggle Rock" (acting — kids' TV show parody)
     {
       number: 3,
-      challengeType: 'dance',
-      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeType: 'acting',
+      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Draggle Rock',
       placements: {
         detox: 'WIN',
@@ -152,11 +152,11 @@ const season5: SeasonData = {
       },
       eliminated: ['monica'],
     },
-    // Ep 4: "Black Swan: Why It Gotta Be Black?" (acting) — DOUBLE ELIMINATION
+    // Ep 4: "Black Swan: Why It Gotta Be Black?" (dance — ballet-inspired piece, which is why Alyssa & Coco shone) — DOUBLE ELIMINATION
     {
       number: 4,
-      challengeType: 'acting',
-      challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeType: 'dance',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 1, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Black Swan: Why It Gotta Be Black?',
       placements: {
         alyssa: 'WIN',
@@ -170,9 +170,9 @@ const season5: SeasonData = {
     // Ep 5: "Snatch Game" (snatchGame)
     {
       number: 5,
-      challengeType: 'improv',
-      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
-      challengeName: 'Telenovela Acting Challenge',
+      challengeType: 'snatchGame',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
+      challengeName: 'Snatch Game',
       placements: {
         jinkx: 'WIN',
         alaska: 'HIGH', roxxxy: 'HIGH',
@@ -182,11 +182,11 @@ const season5: SeasonData = {
       },
       eliminated: ['lineysha'],
     },
-    // Ep 6: "Can I Get an Amen?" (singing/comedy)
+    // Ep 6: "Can I Get an Amen?" (singing — gospel rusical)
     {
       number: 6,
-      challengeType: 'comedy',
-      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeType: 'singing',
+      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 1 },
       challengeName: 'Can I Get an Amen?',
       placements: {
         ivy: 'WIN',
@@ -199,9 +199,9 @@ const season5: SeasonData = {
     // Ep 7: "RuPaul Roast" (comedy) — NON-ELIMINATION
     {
       number: 7,
-      challengeType: 'snatchGame',
-      challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 1, improv: 0, runway: 0, singing: 0 },
-      challengeName: 'Snatch Game',
+      challengeType: 'comedy',
+      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeName: 'RuPaul Roast',
       placements: {
         coco: 'WIN',
         alaska: 'HIGH', jinkx: 'HIGH',
@@ -210,7 +210,7 @@ const season5: SeasonData = {
       },
       eliminated: [],
     },
-    // Ep 8: "Scent of a Drag Queen" (comedy/acting)
+    // Ep 8: "Scent of a Drag Queen" (comedy — queens wrote their own perfume commercial material)
     {
       number: 8,
       challengeType: 'comedy',
@@ -238,7 +238,7 @@ const season5: SeasonData = {
       },
       eliminated: ['alyssa'],
     },
-    // Ep 10: "Super Troopers" (design)
+    // Ep 10: "Super Troopers" (design — makeover of military men)
     {
       number: 10,
       challengeType: 'design',
@@ -252,11 +252,11 @@ const season5: SeasonData = {
       },
       eliminated: ['coco'],
     },
-    // Ep 11: "Sugar Ball" (design)
+    // Ep 11: "Sugar Ball" (design — three-look ball)
     {
       number: 11,
-      challengeType: 'comedy',
-      challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
+      challengeType: 'design',
+      challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
       challengeName: 'Sugar Ball',
       placements: {
         alaska: 'WIN',
