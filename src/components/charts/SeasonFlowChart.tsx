@@ -577,7 +577,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
               const ttW = 110;
               const lineH = 12;
-              const ttH = 16 + CHART_PLACEMENTS.length * lineH;
+              const numRows = CHART_PLACEMENTS.length + 1; // +1 for P.ELIM
+              const ttH = 16 + numRows * lineH;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const initX = flipLeft ? mx - ttW - 12 : rawX;
@@ -606,11 +607,20 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
                   .attr('fill', PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
                   .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-                  .text(`${p.padEnd(4)} ${valStr}`);
+                  .text(`${p.padEnd(6)} ${valStr}`);
               });
 
+              // P.ELIM — probability queen is already eliminated at start of episode
+              const priorElim = Math.max(0, Math.min(1, 1 - surv));
+              tt.append('text')
+                .attr('x', 6).attr('y', 24 + CHART_PLACEMENTS.length * lineH)
+                .attr('fill', '#888')
+                .attr('font-size', '9px').attr('font-family', 'monospace')
+                .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
+                .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
+
               if (isPinned || noRoutes) {
-                const statsH = CHART_PLACEMENTS.length * lineH;
+                const statsH = numRows * lineH;
                 tt.append('text')
                   .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
                   .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
@@ -625,7 +635,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               if (tt.empty()) return;
               const [mx, my] = d3.pointer(event, g.node());
               const ttW = 110;
-              const ttH = 16 + CHART_PLACEMENTS.length * 12;
+              const ttH = 16 + (CHART_PLACEMENTS.length + 1) * 12;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const ttX = flipLeft ? mx - ttW - 12 : rawX;
