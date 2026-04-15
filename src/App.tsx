@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useStore } from './store/useStore';
 import { useSimulation } from './engine/useSimulation';
 import Timeline from './components/timeline/Timeline';
-import QueensList from './components/queens/QueensList';
+import QueenStatsPanel from './components/queens/QueenStatsPanel';
 import WinProbChart from './components/charts/WinProbChart';
 import EliminationHeatmap from './components/charts/EliminationHeatmap';
 import PlacementDistChart from './components/charts/PlacementDistChart';
@@ -187,12 +187,13 @@ export default function App() {
 
           <DivergencePanel />
 
-          <section className="mb-8 bg-[#121218] rounded-lg border border-[#1a1a24] py-2">
-            <QueensList />
-          </section>
-
-          <section className="mb-8">
-            <PlacementGrid height={230} />
+          <section className="mb-8 flex gap-4 items-stretch">
+            <div className="flex-shrink-0">
+              <PlacementGrid height={230} />
+            </div>
+            <div className="w-[440px] flex-shrink-0">
+              <QueenStatsPanel />
+            </div>
           </section>
 
           <section className="mb-8">
