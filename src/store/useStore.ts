@@ -39,6 +39,8 @@ interface AppState {
 
   updateEpisodeArchetype: (epIdx: number, archetype: ArchetypeId) => void;
   updateEpisodeWeights: (epIdx: number, weights: Record<BaseStat, number>) => void;
+  updateQueenSkill: (queenId: string, stat: BaseStat, value: number) => void;
+  updateQueenLipSync: (queenId: string, value: number) => void;
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
   resetEpisode: (epIdx: number) => void;
   resetAllEpisodes: () => void;
@@ -122,6 +124,34 @@ export const useStore = create<AppState>()((set) => ({
       return {
         realSeason: { ...s.realSeason, episodes: realEpisodes },
         currentSeason: { ...s.currentSeason, episodes: currentEpisodes },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  updateQueenSkill: (queenId, stat, value) =>
+    set((s) => {
+      const applyQueen = (q: Queen) =>
+        q.id === queenId ? { ...q, skills: { ...q.skills, [stat]: value } } : q;
+      return {
+        realSeason: { ...s.realSeason, queens: s.realSeason.queens.map(applyQueen) },
+        currentSeason: { ...s.currentSeason, queens: s.currentSeason.queens.map(applyQueen) },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  updateQueenLipSync: (queenId, value) =>
+    set((s) => {
+      const applyQueen = (q: Queen) =>
+        q.id === queenId ? { ...q, lipSync: value } : q;
+      return {
+        realSeason: { ...s.realSeason, queens: s.realSeason.queens.map(applyQueen) },
+        currentSeason: { ...s.currentSeason, queens: s.currentSeason.queens.map(applyQueen) },
         baselineResults: null,
         filteredResults: null,
         filterMatchCount: null,

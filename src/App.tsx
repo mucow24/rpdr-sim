@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useStore } from './store/useStore';
 import { useSimulation } from './engine/useSimulation';
 import Timeline from './components/timeline/Timeline';
+import QueensList from './components/queens/QueensList';
 import WinProbChart from './components/charts/WinProbChart';
 import EliminationHeatmap from './components/charts/EliminationHeatmap';
 import PlacementDistChart from './components/charts/PlacementDistChart';
-import QueenCard from './components/QueenCard';
 import DivergencePanel from './components/DivergencePanel';
 import TrajectoryChart from './components/charts/TrajectoryChart';
 import SeasonEditorPage from './components/SeasonEditorPage';
@@ -66,13 +66,6 @@ export default function App() {
       setIsSimulating(false);
     });
   }, [conditions, runFilter, setFilteredResults, setIsSimulating]);
-
-  const results = useStore(
-    (s) => s.filteredResults ?? s.baselineResults,
-  );
-  const sortedQueens = [...season.queens].sort(
-    (a, b) => (results?.winProb[b.id] ?? 0) - (results?.winProb[a.id] ?? 0),
-  );
 
   const matchCount = useStore((s) => s.filterMatchCount);
   const totalRuns = useStore((s) => s.filterTotalRuns);
@@ -194,21 +187,17 @@ export default function App() {
 
           <DivergencePanel />
 
-          <section className="mb-8 bg-[#121218] rounded-lg border border-[#1a1a24]">
-            <div className="px-4 pt-3 pb-1">
-              <h2 className="text-xs font-medium text-[#555] uppercase tracking-wider">
-                Season Timeline — click an episode to explore & change placements
-              </h2>
-            </div>
+          <section className="mb-8 bg-[#121218] rounded-lg border border-[#1a1a24] py-2">
             <Timeline />
+            <QueensList />
+          </section>
+
+          <section className="mb-8">
+            <PlacementGrid height={230} />
           </section>
 
           <section className="mb-8">
             <SeasonFlowChart height={650} />
-          </section>
-
-          <section className="mb-8">
-            <PlacementGrid height={460} />
           </section>
 
           <section className="mb-8">
@@ -222,17 +211,6 @@ export default function App() {
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <EliminationHeatmap height={460} />
             <PlacementDistChart height={460} />
-          </section>
-
-          <section className="mb-12">
-            <h3 className="text-sm font-medium text-[#888] mb-3">
-              Queen Profiles — ranked by Crown Probability
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {sortedQueens.map((queen) => (
-                <QueenCard key={queen.id} queen={queen} />
-              ))}
-            </div>
           </section>
 
           <footer className="text-center text-[#333] text-xs pb-8">

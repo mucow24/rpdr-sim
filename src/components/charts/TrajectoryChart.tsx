@@ -415,20 +415,22 @@ export default function TrajectoryChart({ height = 350 }) {
 
   }, [results, queen, width, height, season.episodes.length, fadeByElim]);
 
-  if (!queen || !results) return null;
-
   return (
     <div ref={containerRef} className="w-full relative">
-      <label className="absolute top-7 right-14 flex items-center gap-1.5 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={fadeByElim}
-          onChange={() => setFadeByElim((v) => !v)}
-          className="accent-[#e74c3c] w-3 h-3 cursor-pointer"
-        />
-        <span className="text-[10px] text-[#666] font-mono">Shade by survival</span>
-      </label>
-      <svg ref={svgRef} width={width} height={height} />
+      {queen && results && (
+        <>
+          <label className="absolute top-7 right-14 flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={fadeByElim}
+              onChange={() => setFadeByElim((v) => !v)}
+              className="accent-[#e74c3c] w-3 h-3 cursor-pointer"
+            />
+            <span className="text-[10px] text-[#666] font-mono">Shade by survival</span>
+          </label>
+          <svg ref={svgRef} width={width} height={height} />
+        </>
+      )}
     </div>
   );
 }

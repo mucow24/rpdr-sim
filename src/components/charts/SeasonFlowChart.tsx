@@ -686,20 +686,18 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
   }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition, clearConditions]);
 
-  if (!results) {
-    return (
-      <div className="flex items-center justify-center text-[#444]" style={{ height }}>
-        Running simulations...
-      </div>
-    );
-  }
-
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Season Flow — click a queen to select, click placements to pin
       </h3>
-      <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+      {results ? (
+        <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+      ) : (
+        <div className="flex items-center justify-center text-[#444]" style={{ height }}>
+          Running simulations...
+        </div>
+      )}
     </div>
   );
 }

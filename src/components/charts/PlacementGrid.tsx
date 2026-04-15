@@ -1,41 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 
 
 const MARGIN = { top: 32, right: 16, bottom: 16, left: 120 };
+const Y_PADDING = 0.08;
 
 export default function PlacementGrid({
-  height = 460,
+  height = 230,
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(520);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
 
   const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
 
   const results = filteredResults ?? baselineResults;
 
+  // Cells are 2:1 (twice as wide as tall). y step = innerHeight / N, y bandwidth
+  // = step * (1 - Y_PADDING). x bandwidth = innerWidth / N (no padding). Setting
+  // x bandwidth = 2 × y bandwidth → innerWidth = 2 × innerHeight × (1 - Y_PADDING).
+  const innerHeight = height - MARGIN.top - MARGIN.bottom;
+  const innerWidth = Math.round(innerHeight * (1 - Y_PADDING) * 2);
+  const width = MARGIN.left + innerWidth + MARGIN.right;
+
   useEffect(() => {
     if (!svgRef.current || !results) return;
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
-
-    const innerWidth = width - MARGIN.left - MARGIN.right;
-    const innerHeight = height - MARGIN.top - MARGIN.bottom;
 
     const g = svg
       .append('g')
@@ -70,21 +62,17 @@ export default function PlacementGrid({
     // Places 1..N, rendered right-to-left so place 1 is rightmost.
     const placesRightToLeft = d3.range(1, numQueens + 1); // [1, 2, ..., N]
 
-    // Square grid: clamp to whichever inner dimension is smaller so cells stay
-    // square regardless of container width.
-    const gridSize = Math.max(0, Math.min(innerWidth, innerHeight));
-
     const x = d3
       .scaleBand<number>()
       .domain([...placesRightToLeft].reverse()) // leftmost = N, rightmost = 1
-      .range([0, gridSize])
+      .range([0, innerWidth])
       .padding(0); // cells touch for smooth horizontal blending
 
     const y = d3
       .scaleBand<string>()
       .domain(sortedQueens.map((q) => q.id))
-      .range([0, gridSize])
-      .padding(0.08);
+      .range([0, innerHeight])
+      .padding(Y_PADDING);
 
     // Single <defs> for per-row gradients
     const defs = svg.append('defs');
@@ -157,7 +145,7 @@ export default function PlacementGrid({
       g.append('rect')
         .attr('x', 0)
         .attr('y', rowY)
-        .attr('width', gridSize)
+        .attr('width', innerWidth)
         .attr('height', rowH)
         .attr('rx', 2)
         .attr('fill', cellBg);
@@ -193,7 +181,7 @@ export default function PlacementGrid({
         .attr('gradientUnits', 'userSpaceOnUse')
         .attr('x1', 0)
         .attr('y1', 0)
-        .attr('x2', gridSize)
+        .attr('x2', innerWidth)
         .attr('y2', 0);
 
       // Iterate places left-to-right (ascending offset).
@@ -212,19 +200,19 @@ export default function PlacementGrid({
         if (cx < argmaxX) {
           // cell left of argmax
           const center = cx + cellW / 2;
-          addStop((center / gridSize) * 100, brightnessAt(p) * fadeMul);
+          addStop((center / innerWidth) * 100, brightnessAt(p) * fadeMul);
         } else if (cx >= argmaxRight) {
           // cell right of argmax — first insert the plateau-end stop
           if (!rightPlateauAdded) {
-            addStop((argmaxRight / gridSize) * 100, fadeMul);
+            addStop((argmaxRight / innerWidth) * 100, fadeMul);
             rightPlateauAdded = true;
           }
           const center = cx + cellW / 2;
-          addStop((center / gridSize) * 100, brightnessAt(p) * fadeMul);
+          addStop((center / innerWidth) * 100, brightnessAt(p) * fadeMul);
         } else {
           // this is the argmax cell — open the plateau
           if (!leftPlateauAdded) {
-            addStop((argmaxX / gridSize) * 100, fadeMul);
+            addStop((argmaxX / innerWidth) * 100, fadeMul);
             leftPlateauAdded = true;
           }
         }
@@ -232,13 +220,13 @@ export default function PlacementGrid({
       // If argmax is the rightmost cell, right plateau-end still needs to
       // close at the right edge at full brightness.
       if (!rightPlateauAdded) {
-        addStop((argmaxRight / gridSize) * 100, fadeMul);
+        addStop((argmaxRight / innerWidth) * 100, fadeMul);
       }
 
       g.append('rect')
         .attr('x', 0)
         .attr('y', rowY)
-        .attr('width', gridSize)
+        .attr('width', innerWidth)
         .attr('height', rowH)
         .attr('rx', 2)
         .attr('fill', `url(#${gradId})`)
@@ -291,14 +279,12 @@ export default function PlacementGrid({
     };
   }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
 
-  if (!results) return null;
-
   return (
-    <div ref={containerRef}>
+    <div>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Placement Probability Grid
       </h3>
-      <svg ref={svgRef} width={width} height={height} />
+      {results && <svg ref={svgRef} width={width} height={height} />}
     </div>
   );
 }

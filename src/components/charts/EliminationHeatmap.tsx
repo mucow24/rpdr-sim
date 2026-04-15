@@ -1,28 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { isFinale } from '../../engine/types';
 
 
 const MARGIN = { top: 24, right: 16, bottom: 40, left: 120 };
+const WIDTH = 520;
 
 export default function EliminationHeatmap({
   height = 460,
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(520);
+  const width = WIDTH;
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
   const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
 
@@ -210,14 +200,12 @@ export default function EliminationHeatmap({
     };
   }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
 
-  if (!results) return null;
-
   return (
-    <div ref={containerRef}>
+    <div>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Sashay Risk by Episode
       </h3>
-      <svg ref={svgRef} width={width} height={height} />
+      {results && <svg ref={svgRef} width={width} height={height} />}
     </div>
   );
 }
