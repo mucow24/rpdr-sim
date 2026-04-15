@@ -13,6 +13,7 @@ export default function StatInput({
   max = 100,
   colorScale,
   gold = false,
+  disabled = false,
 }: {
   value: number;
   onCommit: (v: number) => void;
@@ -20,6 +21,7 @@ export default function StatInput({
   max?: number;
   colorScale?: 'skill';
   gold?: boolean;
+  disabled?: boolean;
 }) {
   const [local, setLocal] = useState(String(value));
 
@@ -58,6 +60,17 @@ export default function StatInput({
   const borderCls = gold
     ? 'border border-amber-400/60 shadow-[0_0_6px_rgba(251,191,36,0.45)]'
     : 'border border-[#2a2a3a] focus:border-amber-500/50';
+
+  if (disabled) {
+    return (
+      <input
+        type="text"
+        value="--"
+        disabled
+        className="w-full px-1 py-0.5 bg-[#121218] border border-[#2a2a3a] rounded text-xs text-[#444] text-center focus:outline-none cursor-not-allowed"
+      />
+    );
+  }
 
   return (
     <input

@@ -15,8 +15,8 @@ const STAT_CODE: Record<BaseStat, string> = {
 };
 
 /** Persistent stats editor for the currently-selected queen. Sits beside the
- *  PlacementGrid; mirrors what the queen popover used to show. Defaults to
- *  the first queen when nothing is selected so the panel never sits empty. */
+ *  PlacementGrid; mirrors what the queen popover used to show. When no queen
+ *  is selected, renders the same layout in a disabled state. */
 export default function QueenStatsPanel() {
   const {
     currentSeason: season,
@@ -29,29 +29,41 @@ export default function QueenStatsPanel() {
 
   const results = filteredResults ?? baselineResults;
   const queen = selectedQueenId
-    ? season.queens.find((q) => q.id === selectedQueenId) ?? season.queens[0]
-    : season.queens[0];
+    ? season.queens.find((q) => q.id === selectedQueenId) ?? null
+    : null;
 
-  if (!queen) return null;
-
-  const winProb = results?.winProb[queen.id] ?? null;
-  const reachedFinaleProb = results?.reachedFinaleProb[queen.id] ?? null;
-  const maxSkill = Math.max(...BASE_STATS.map((s) => queen.skills[s] ?? 0));
-  const area =
-    BASE_STATS.reduce((sum, s, i) => {
-      const r = (queen.skills[s] ?? 0) / 10;
-      const rNext = (queen.skills[BASE_STATS[(i + 1) % BASE_STATS.length]] ?? 0) / 10;
-      return sum + r * rNext;
-    }, 0) / BASE_STATS.length;
+  const winProb = queen ? results?.winProb[queen.id] ?? null : null;
+  const reachedFinaleProb = queen
+    ? results?.reachedFinaleProb[queen.id] ?? null
+    : null;
+  const maxSkill = queen
+    ? Math.max(...BASE_STATS.map((s) => queen.skills[s] ?? 0))
+    : 0;
+  const area = queen
+    ? BASE_STATS.reduce((sum, s, i) => {
+        const r = (queen.skills[s] ?? 0) / 10;
+        const rNext =
+          (queen.skills[BASE_STATS[(i + 1) % BASE_STATS.length]] ?? 0) / 10;
+        return sum + r * rNext;
+      }, 0) / BASE_STATS.length
+    : 0;
 
   return (
     <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: queen.color }}
-        />
-        <h3 className="text-sm font-medium text-[#ddd] truncate">{queen.name}</h3>
+        {queen && (
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: queen.color }}
+          />
+        )}
+        <h3
+          className={`text-sm font-medium truncate ${
+            queen ? 'text-[#ddd]' : 'text-[#666] italic'
+          }`}
+        >
+          {queen ? queen.name : 'No queen selected'}
+        </h3>
       </div>
 
       <div className="flex items-center gap-3 mb-3">
@@ -59,25 +71,25 @@ export default function QueenStatsPanel() {
           <RadarChart queen={queen} size={110} />
         </div>
         <div className="flex-1 min-w-0 text-xs text-[#666] space-y-1">
-          {winProb !== null && (
-            <div>
-              Crown:{' '}
-              <span className="text-[#aaa] font-mono">
-                {(winProb * 100).toFixed(1)}%
-              </span>
-            </div>
-          )}
-          {reachedFinaleProb !== null && (
-            <div>
-              Finale:{' '}
-              <span className="text-[#aaa] font-mono">
-                {(reachedFinaleProb * 100).toFixed(1)}%
-              </span>
-            </div>
-          )}
+          <div>
+            Crown:{' '}
+            <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
+              {winProb !== null ? `${(winProb * 100).toFixed(1)}%` : '--'}
+            </span>
+          </div>
+          <div>
+            Finale:{' '}
+            <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
+              {reachedFinaleProb !== null
+                ? `${(reachedFinaleProb * 100).toFixed(1)}%`
+                : '--'}
+            </span>
+          </div>
           <div>
             Area:{' '}
-            <span className="text-[#aaa] font-mono">{area.toFixed(2)}</span>
+            <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
+              {queen ? area.toFixed(2) : '--'}
+            </span>
           </div>
         </div>
       </div>
@@ -92,12 +104,14 @@ export default function QueenStatsPanel() {
               {STAT_CODE[stat]}
             </span>
             <StatInput
-              value={queen.skills[stat] ?? 0}
+              value={queen?.skills[stat] ?? 0}
               min={0}
               max={10}
               colorScale="skill"
-              gold={(queen.skills[stat] ?? 0) === maxSkill}
+              gold={!!queen && (queen.skills[stat] ?? 0) === maxSkill}
+              disabled={!queen}
               onCommit={(v) => {
+                if (!queen) return;
                 if (v === (queen.skills[stat] ?? 0)) return;
                 updateQueenSkill(queen.id, stat, v);
               }}
@@ -107,12 +121,14 @@ export default function QueenStatsPanel() {
         <div className="flex flex-col items-center gap-1 p-1.5 bg-[#0a0a10] border border-[#2a2a3a] rounded">
           <span className="text-[10px] font-mono text-[#888]">LS</span>
           <StatInput
-            value={queen.lipSync}
+            value={queen?.lipSync ?? 0}
             min={0}
             max={10}
             colorScale="skill"
-            gold={queen.lipSync === 10}
+            gold={!!queen && queen.lipSync === 10}
+            disabled={!queen}
             onCommit={(v) => {
+              if (!queen) return;
               if (v === queen.lipSync) return;
               updateQueenLipSync(queen.id, v);
             }}

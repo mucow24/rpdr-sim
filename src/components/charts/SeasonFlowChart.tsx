@@ -333,7 +333,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     // Display fallback: if nothing globally selected, highlight the first
     // queen so the chart isn't completely undifferentiated. Don't write this
     // back to the store — it would auto-select a queen page-wide on first load.
-    const selId = selectedQueenId ?? queenOrder[0]?.id ?? null;
+    const selId = selectedQueenId;
 
     const isSelected = (qid: string) => qid === selId;
 

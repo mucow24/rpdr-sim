@@ -13,7 +13,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   charisma: 'CHA',
 };
 
-export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?: number }) {
+export default function RadarChart({ queen, size = 100 }: { queen: Queen | null; size?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -56,19 +56,21 @@ export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?:
         .attr('stroke-width', 0.5);
     });
 
-    // Data polygon
-    const dataPoints = categories.map((cat, i) => {
-      const val = queen.skills[cat] / 10;
-      const angle = angleSlice * i - Math.PI / 2;
-      return [Math.cos(angle) * r * val, Math.sin(angle) * r * val];
-    });
+    // Data polygon (skipped when no queen — leaves the rings/axes background)
+    if (queen) {
+      const dataPoints = categories.map((cat, i) => {
+        const val = queen.skills[cat] / 10;
+        const angle = angleSlice * i - Math.PI / 2;
+        return [Math.cos(angle) * r * val, Math.sin(angle) * r * val];
+      });
 
-    g.append('polygon')
-      .attr('points', dataPoints.map((p) => p.join(',')).join(' '))
-      .attr('fill', queen.color)
-      .attr('fill-opacity', 0.2)
-      .attr('stroke', queen.color)
-      .attr('stroke-width', 1.5);
+      g.append('polygon')
+        .attr('points', dataPoints.map((p) => p.join(',')).join(' '))
+        .attr('fill', queen.color)
+        .attr('fill-opacity', 0.2)
+        .attr('stroke', queen.color)
+        .attr('stroke-width', 1.5);
+    }
 
     // Labels
     categories.forEach((cat, i) => {
