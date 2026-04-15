@@ -32,9 +32,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -331,9 +330,10 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     // ============ RENDER ============
 
-    // Auto-select first queen if nothing selected
-    const selId = activeQueenId ?? queenOrder[0]?.id ?? null;
-    if (selId && !activeQueenId) setActiveQueenId(selId);
+    // Display fallback: if nothing globally selected, highlight the first
+    // queen so the chart isn't completely undifferentiated. Don't write this
+    // back to the store — it would auto-select a queen page-wide on first load.
+    const selId = selectedQueenId ?? queenOrder[0]?.id ?? null;
 
     const isSelected = (qid: string) => qid === selId;
 
@@ -515,7 +515,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           setRibbonOpacity(null);
         })
         .on('click', () => {
-          setActiveQueenId(queen.id);
+          setSelectedQueenId(queen.id);
         });
     }
 
@@ -684,7 +684,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
-  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition, clearConditions]);
+  }, [results, season, width, height, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions]);
 
   return (
     <div ref={containerRef}>
