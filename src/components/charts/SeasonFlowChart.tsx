@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, isFinale, type Placement } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, type Placement } from '../../engine/types';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -333,7 +333,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     // Display fallback: if nothing globally selected, highlight the first
     // queen so the chart isn't completely undifferentiated. Don't write this
     // back to the store — it would auto-select a queen page-wide on first load.
-    const selId = selectedQueenId ?? queenOrder[0]?.id ?? null;
+    const selId = selectedQueenId;
 
     const isSelected = (qid: string) => qid === selId;
 
@@ -527,7 +527,12 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const overlayGroup = g.append('g').attr('class', 'pin-overlays');
 
     for (let col = 0; col < numCols; col++) {
-      const condEpIdx = col;
+      // Finale ELIM means "didn't win the season" — route through the
+      // OUTCOME_EPISODE_INDEX sentinel so the filter's outcome path handles it.
+      // The finale episode itself never writes a single eliminated queen byte
+      // (multiple losers don't fit), so a regular ELIM-byte filter would
+      // produce zero matches.
+      const isFinaleCol = isFinale(season.episodes[col]);
 
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         const node = nodes[col][pi];
@@ -536,6 +541,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         const placementNum = placementName === 'ELIM'
           ? ELIM_PLACEMENT
           : PLACEMENT_INDEX[placementName as Placement];
+        const condEpIdx = isFinaleCol && placementName === 'ELIM' ? OUTCOME_EPISODE_INDEX : col;
         const isPinned = pinSet.has(`${condEpIdx}:${placementNum}`);
 
         if (selectedQueen) {

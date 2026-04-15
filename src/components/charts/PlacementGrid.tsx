@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
+import { isFinale } from '../../engine/types';
 
 
 const MARGIN = { top: 32, right: 16, bottom: 16, left: 120 };
@@ -76,6 +77,14 @@ export default function PlacementGrid({
 
     // Single <defs> for per-row gradients
     const defs = svg.append('defs');
+
+    // Finale cohort size: queens that reach the finale = numQueens minus those
+    // eliminated in the regular episodes. Used to draw a divider between
+    // "last place in the finale" and "first eliminated before the finale".
+    const elimsBeforeFinale = season.episodes
+      .filter((ep) => !isFinale(ep))
+      .reduce((sum, ep) => sum + ep.eliminated.length, 0);
+    const finaleCohortSize = numQueens - elimsBeforeFinale;
 
     // Column labels (above grid): "👑" at rightmost (place 1), then 2, 3, ..., N
     g.append('g')
@@ -272,6 +281,22 @@ export default function PlacementGrid({
           })
           .on('click', () => setSelectedQueenId(queen.id));
       }
+    }
+
+    // Divider between "last place in the finale" and "first eliminated before
+    // the finale". The boundary lives at the left edge of place `finaleCohortSize`
+    // (since places are rendered right-to-left, that edge separates finale
+    // placements from pre-finale eliminations).
+    if (finaleCohortSize > 0 && finaleCohortSize < numQueens) {
+      const dividerX = x(finaleCohortSize) ?? 0;
+      g.append('line')
+        .attr('x1', dividerX)
+        .attr('x2', dividerX)
+        .attr('y1', -8)
+        .attr('y2', innerHeight)
+        .attr('stroke', '#666')
+        .attr('stroke-width', 1)
+        .style('pointer-events', 'none');
     }
 
     return () => {

@@ -192,6 +192,25 @@ function simulateOneSeason(
       continue;
     }
 
+    // Honor the season's recorded number of eliminations: 1 = normal lipsync,
+    // 2 = double elimination (both BTM2 go home — no lipsync). Without this,
+    // a double-elim episode leaves an extra queen alive at finale, throwing
+    // every subsequent placement off by one.
+    if (episode.eliminated.length >= 2) {
+      const [a, b] = bottom2;
+      remaining.delete(a);
+      remaining.delete(b);
+      eliminationOrder.push(a, b);
+      episodeResults.push({
+        episodeNumber: episode.number,
+        placements,
+        lipSyncMatchup: [a, b],
+        lipSyncWinner: '',
+        eliminated: a, // buffer can only encode one — the other is reconstructed at finale aggregation if needed
+      });
+      continue;
+    }
+
     const queenA = remaining.get(bottom2[0])!;
     const queenB = remaining.get(bottom2[1])!;
     const lipSyncWinner = resolveLipSync(queenA, queenB);
@@ -434,6 +453,19 @@ export function aggregateFromBuffer(
       if (elimInEp !== 255) {
         elimCountsPerEp[ep][elimInEp]++;
         eliminated.add(elimInEp);
+        // Double elim: the second eliminated queen isn't in the elim byte
+        // (which only fits one). She's the OTHER queen with BTM2 placement
+        // this episode.
+        const seasonEp = episodes[ep];
+        if (!isFinale(seasonEp) && seasonEp.eliminated.length >= 2) {
+          for (let qi = 0; qi < numQueens; qi++) {
+            if (qi !== elimInEp && buffer[base + ep * numQueens + qi] === 4) {
+              elimCountsPerEp[ep][qi]++;
+              eliminated.add(qi);
+              break;
+            }
+          }
+        }
       } else if (isFinale(episodes[ep])) {
         // Finale: every alive non-winner is "eliminated" at the finale.
         // The buffer's single eliminated byte can't encode N losers, so derive here.
@@ -522,9 +554,16 @@ export function getMatchingIndices(
   conditions: FilterCondition[],
   numQueens: number,
   numEpisodes: number,
+  episodes?: EpisodeData[],
 ): number[] {
   const stride = bytesPerRun(numQueens, numEpisodes);
   const matchingIndices: number[] = [];
+  // Precompute which episodes are double-elims so the ELIM filter can match
+  // either of the two queens that went home (the buffer's single elim byte
+  // can only encode one).
+  const isDoubleElim = episodes
+    ? episodes.map((ep) => !isFinale(ep) && ep.eliminated.length >= 2)
+    : null;
   for (let r = 0; r < totalRuns; r++) {
     const base = r * stride;
     const elimBase = base + numEpisodes * numQueens;
@@ -541,7 +580,18 @@ export function getMatchingIndices(
           if (finalPlace === 1) { matches = false; break; }
         }
       } else if (cond.placement === ELIM_PLACEMENT) {
-        if (buffer[elimBase + cond.episodeIndex] !== cond.queenIndex) {
+        const elimByte = buffer[elimBase + cond.episodeIndex];
+        const isPrimary = elimByte === cond.queenIndex;
+        // For double-elim episodes, the second eliminated queen isn't in the
+        // elim byte but does have a BTM2 placement byte and an elim byte that
+        // *isn't* her own (i.e. the episode had some elimination at all).
+        const isSecondary =
+          !isPrimary &&
+          isDoubleElim !== null &&
+          isDoubleElim[cond.episodeIndex] &&
+          elimByte !== 255 &&
+          buffer[base + cond.episodeIndex * numQueens + cond.queenIndex] === 4;
+        if (!isPrimary && !isSecondary) {
           matches = false;
           break;
         }
@@ -576,7 +626,7 @@ export function filterAndAggregate(
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
 
-  const matchingIndices = getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes);
+  const matchingIndices = getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes, episodes);
 
   if (matchingIndices.length === 0) {
     // Return empty results
@@ -668,8 +718,21 @@ function aggregateResults(
     for (const run of runs) {
       const eliminatedBefore = new Set<string>();
       for (let e = 0; e < ep && e < run.episodeResults.length; e++) {
-        if (run.episodeResults[e].eliminated) {
-          eliminatedBefore.add(run.episodeResults[e].eliminated);
+        const er = run.episodeResults[e];
+        if (er.eliminated) {
+          eliminatedBefore.add(er.eliminated);
+          // Double elim: also count the other BTM2 queen as eliminated this
+          // prior episode (the EpisodeResult only carries one `eliminated`
+          // string, so we recover the second from the placements map).
+          const seasonEp = episodes[e];
+          if (seasonEp && !isFinale(seasonEp) && seasonEp.eliminated.length >= 2) {
+            for (const [qid, p] of er.placements) {
+              if (p === 'BTM2' && qid !== er.eliminated) {
+                eliminatedBefore.add(qid);
+                break;
+              }
+            }
+          }
         }
       }
 
@@ -686,6 +749,21 @@ function aggregateResults(
         if (epResult.eliminated) elimCounts[epResult.eliminated]++;
         for (const [qid, p] of epResult.placements) {
           if (placeCounts[qid]) placeCounts[qid][p]++;
+        }
+        // Double elim: count the second BTM2 queen for this episode too.
+        const seasonEp = episodes[ep];
+        if (
+          seasonEp &&
+          !isFinale(seasonEp) &&
+          seasonEp.eliminated.length >= 2 &&
+          epResult.eliminated
+        ) {
+          for (const [qid, p] of epResult.placements) {
+            if (p === 'BTM2' && qid !== epResult.eliminated) {
+              elimCounts[qid]++;
+              break;
+            }
+          }
         }
         // Finale: every alive non-winner is "eliminated" at the finale.
         if (isFinale(episodes[ep])) {
@@ -772,10 +850,11 @@ export function extractTrajectories(
   numQueens: number,
   numEpisodes: number,
   conditions: FilterCondition[],
+  episodes?: EpisodeData[],
 ): { paths: TrajectoryPath[]; scannedRuns: number } {
   const stride = bytesPerRun(numQueens, numEpisodes);
   const runIndices = conditions.length > 0
-    ? getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes)
+    ? getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes, episodes)
     : null; // null = scan all runs
 
   const pathCounts = new Map<string, number>();
