@@ -1,18 +1,30 @@
-import type { ChallengeTypeId } from '../data/challengeTypes';
+import type { ArchetypeId } from '../data/archetypes';
 
-/** Base stats a queen has. Challenges test a weighted mixture of these. */
+/** Base stats a queen has. Challenges test a weighted mixture of these via archetypes. */
 export const BASE_STATS = [
   'comedy',
-  'design',
+  'improv',
   'acting',
   'dance',
-  'snatchGame',
-  'improv',
+  'music',
+  'design',
   'runway',
-  'singing',
+  'charisma',
 ] as const;
 
 export type BaseStat = (typeof BASE_STATS)[number];
+
+/** Display metadata keyed by base stat — used by the queen editor, radar chart, etc. */
+export const BASE_STAT_DISPLAY: Record<BaseStat, string> = {
+  comedy: 'Comedy',
+  improv: 'Improv',
+  acting: 'Acting',
+  dance: 'Dance',
+  music: 'Music',
+  design: 'Design',
+  runway: 'Runway',
+  charisma: 'Charisma',
+};
 
 export interface Queen {
   id: string;
@@ -39,17 +51,14 @@ export const INDEX_PLACEMENT: Record<number, Placement> = {
 export const FINALE_TYPES = ['default'] as const;
 export type FinaleType = (typeof FINALE_TYPES)[number];
 
-/** A regular competition episode with a challenge and outcomes */
+/** A regular competition episode with a challenge and outcomes. The archetype
+ *  determines the weighted mixture of base stats the challenge tests; weights
+ *  are resolved via `ARCHETYPES[archetype].weights` at scoring time. */
 export interface RegularEpisode {
   kind?: 'regular';                        // optional — defaults to regular
   id?: string;
   number: number;
-  /** Preset id for display/labeling. Two semantically distinct presets may
-   *  legitimately share weights, so the id is not derivable from weights. */
-  challengeType: ChallengeTypeId;
-  /** Weighted mixture of base stats the challenge tests. Normalized at scoring
-   *  time, so weights do not need to sum to 1. */
-  challengeWeights: Record<BaseStat, number>;
+  archetype: ArchetypeId;                  // id into ARCHETYPES catalog
   challengeName: string;
   placements: Record<string, Placement>;   // queenId -> WIN/HIGH/SAFE/LOW/BTM2
   eliminated: string[];                    // queenIds (empty = non-elim)

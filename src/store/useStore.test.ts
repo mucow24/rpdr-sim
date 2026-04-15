@@ -85,7 +85,7 @@ describe('season state', () => {
     expect(isFinale(updatedEp)).toBe(false);
     expect(isFinale(origEp)).toBe(false);
     if (!isFinale(updatedEp) && !isFinale(origEp)) {
-      expect(updatedEp.challengeType).toBe(origEp.challengeType);
+      expect(updatedEp.archetype).toBe(origEp.archetype);
     }
     expect(updatedEp.challengeName).toBe(origEp.challengeName);
   });

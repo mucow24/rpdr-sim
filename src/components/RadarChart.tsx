@@ -4,13 +4,13 @@ import { BASE_STATS, type Queen } from '../engine/types';
 
 export const CATEGORY_LABELS: Record<string, string> = {
   comedy: 'COM',
-  design: 'DES',
+  improv: 'IMP',
   acting: 'ACT',
   dance: 'DAN',
-  snatchGame: 'SNG',
-  improv: 'IMP',
+  music: 'MUS',
+  design: 'DES',
   runway: 'RUN',
-  singing: 'VOC',
+  charisma: 'CHA',
 };
 
 export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?: number }) {

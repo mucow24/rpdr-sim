@@ -30,7 +30,6 @@ export default function App() {
   const numSimulations = useStore((s) => s.numSimulations);
   const setNumSimulations = useStore((s) => s.setNumSimulations);
 
-  const selectedQueenId = useStore((s) => s.selectedQueenId);
   const appMode = useStore((s) => s.appMode);
   const setAppMode = useStore((s) => s.setAppMode);
 
@@ -255,11 +254,9 @@ export default function App() {
             <WinProbChart height={400} />
           </section>
 
-          {selectedQueenId && (
-            <section className="mb-8">
-              <TrajectoryChart height={350} />
-            </section>
-          )}
+          <section className="mb-8">
+            <TrajectoryChart height={350} />
+          </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <EliminationHeatmap height={460} />

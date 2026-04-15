@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, isFinale, type Placement } from '../../engine/types';
-import { CHALLENGE_TYPES, CHALLENGE_TYPE_IDS, type ChallengeTypeId } from '../../data/challengeTypes';
+import { ARCHETYPES, ARCHETYPE_IDS, type ArchetypeId } from '../../data/archetypes';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -35,7 +35,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const [width, setWidth] = useState(1000);
   const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, updateEpisodeChallengeType } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, updateEpisodeArchetype } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -703,8 +703,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           isFinale(ep) ? null : (
             <select
               key={i}
-              value={ep.challengeType}
-              onChange={(e) => updateEpisodeChallengeType(i, e.target.value as ChallengeTypeId)}
+              value={ep.archetype}
+              onChange={(e) => updateEpisodeArchetype(i, e.target.value as ArchetypeId)}
               style={{
                 position: 'absolute',
                 left: dropdownX(i),
@@ -720,9 +720,9 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
                 maxWidth: Math.max(epSpacing - 4, 48),
               }}
             >
-              {CHALLENGE_TYPE_IDS.map((id) => (
+              {ARCHETYPE_IDS.map((id) => (
                 <option key={id} value={id}>
-                  {CHALLENGE_TYPES[id].displayName}
+                  {ARCHETYPES[id].displayName}
                 </option>
               ))}
             </select>

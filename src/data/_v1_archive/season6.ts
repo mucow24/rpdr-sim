@@ -252,7 +252,7 @@ const season6: SeasonData = {
       number: 2,
       challengeType: 'design',
       challengeWeights: { comedy: 0, design: 1, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
-      challengeName: 'Glamazon by Colorevolution',
+      challengeName: "RuPaul's Big Opening, Part 2",
       placements: {
         bianca: 'WIN',
         bendelacreme: 'HIGH', april: 'HIGH',
@@ -330,7 +330,7 @@ const season6: SeasonData = {
       number: 7,
       challengeType: 'acting',
       challengeWeights: { comedy: 0, design: 0, acting: 1, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
-      challengeName: 'Glamazonian Airways',
+      challengeName: 'Glamazon by Colorevolution',
       placements: {
         adore: 'WIN', laganja: 'WIN',
         bianca: 'HIGH', courtney: 'HIGH',
@@ -344,7 +344,7 @@ const season6: SeasonData = {
       number: 8,
       challengeType: 'comedy',
       challengeWeights: { comedy: 1, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 0, runway: 0, singing: 0 },
-      challengeName: 'Comedy Queens',
+      challengeName: 'Drag Queens of Comedy',
       placements: {
         bianca: 'WIN',
         adore: 'HIGH', courtney: 'HIGH',
@@ -359,7 +359,7 @@ const season6: SeasonData = {
       number: 9,
       challengeType: 'improv',
       challengeWeights: { comedy: 0, design: 0, acting: 0, dance: 0, snatchGame: 0, improv: 1, runway: 0, singing: 0 },
-      challengeName: 'Drag Queens of Talk',
+      challengeName: 'Queens of Talk',
       placements: {
         courtney: 'WIN',
         bianca: 'HIGH', adore: 'HIGH',
