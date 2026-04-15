@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, isFinale, type Placement } from '../../engine/types';
-import { ARCHETYPES, ARCHETYPE_IDS, type ArchetypeId } from '../../data/archetypes';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -15,7 +14,7 @@ const PLACEMENT_COLORS: Record<string, string> = {
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
-const MARGIN = { top: 44, right: 16, bottom: 24, left: 16 };
+const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
@@ -33,9 +32,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, updateEpisodeArchetype } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -332,22 +330,12 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     // ============ RENDER ============
 
-    // Auto-select first queen if nothing selected
-    const selId = activeQueenId ?? queenOrder[0]?.id ?? null;
-    if (selId && !activeQueenId) setActiveQueenId(selId);
+    // Display fallback: if nothing globally selected, highlight the first
+    // queen so the chart isn't completely undifferentiated. Don't write this
+    // back to the store — it would auto-select a queen page-wide on first load.
+    const selId = selectedQueenId ?? queenOrder[0]?.id ?? null;
 
     const isSelected = (qid: string) => qid === selId;
-
-    // Column labels
-    for (let col = 0; col < numCols; col++) {
-      const ep = season.episodes[col];
-      const label = isFinale(ep) ? 'Finale' : `Ep ${ep.number}`;
-      g.append('text')
-        .attr('x', colX(col)).attr('y', -8)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#555').attr('font-size', '10px').attr('font-family', 'monospace')
-        .text(label);
-    }
 
     // Placement labels (left of first episode column)
     for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
@@ -516,7 +504,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           setRibbonOpacity(null);
         })
         .on('click', () => {
-          setActiveQueenId(queen.id);
+          setSelectedQueenId(queen.id);
         });
     }
 
@@ -578,7 +566,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
               const ttW = 110;
               const lineH = 12;
-              const ttH = 16 + CHART_PLACEMENTS.length * lineH;
+              const numRows = CHART_PLACEMENTS.length + 1; // +1 for P.ELIM
+              const ttH = 16 + numRows * lineH;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const initX = flipLeft ? mx - ttW - 12 : rawX;
@@ -607,11 +596,20 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
                   .attr('fill', PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
                   .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-                  .text(`${p.padEnd(4)} ${valStr}`);
+                  .text(`${p.padEnd(6)} ${valStr}`);
               });
 
+              // P.ELIM — probability queen is already eliminated at start of episode
+              const priorElim = Math.max(0, Math.min(1, 1 - surv));
+              tt.append('text')
+                .attr('x', 6).attr('y', 24 + CHART_PLACEMENTS.length * lineH)
+                .attr('fill', '#888')
+                .attr('font-size', '9px').attr('font-family', 'monospace')
+                .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
+                .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
+
               if (isPinned || noRoutes) {
-                const statsH = CHART_PLACEMENTS.length * lineH;
+                const statsH = numRows * lineH;
                 tt.append('text')
                   .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
                   .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
@@ -626,7 +624,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
               if (tt.empty()) return;
               const [mx, my] = d3.pointer(event, g.node());
               const ttW = 110;
-              const ttH = 16 + CHART_PLACEMENTS.length * 12;
+              const ttH = 16 + (CHART_PLACEMENTS.length + 1) * 12;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const ttX = flipLeft ? mx - ttW - 12 : rawX;
@@ -675,61 +673,17 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
-  }, [results, season, width, height, activeQueenId, conditions, addCondition, removeCondition, clearConditions]);
-
-  if (!results) {
-    return (
-      <div className="flex items-center justify-center text-[#444]" style={{ height }}>
-        Running simulations...
-      </div>
-    );
-  }
-
-  // Column positions for dropdown alignment (same math as D3 effect)
-  const numEps = season.episodes.length;
-  const numCols = numEps;
-  const innerW = width - MARGIN.left - MARGIN.right;
-  const epAreaW = innerW - SOURCE_COL_WIDTH;
-  const epSpacing = epAreaW / numCols;
-  const dropdownX = (col: number) => MARGIN.left + SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
+  }, [results, season, width, height, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions]);
 
   return (
     <div ref={containerRef}>
-      <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Season Flow — click a queen to select, click placements to pin
-      </h3>
-      <div style={{ position: 'relative', height: 20, marginBottom: 4 }}>
-        {season.episodes.map((ep, i) =>
-          isFinale(ep) ? null : (
-            <select
-              key={i}
-              value={ep.archetype}
-              onChange={(e) => updateEpisodeArchetype(i, e.target.value as ArchetypeId)}
-              style={{
-                position: 'absolute',
-                left: dropdownX(i),
-                transform: 'translateX(-50%)',
-                fontSize: 9,
-                padding: '1px 2px',
-                background: '#0a0a10',
-                color: '#888',
-                border: '1px solid #2a2a3a',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'monospace',
-                maxWidth: Math.max(epSpacing - 4, 48),
-              }}
-            >
-              {ARCHETYPE_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {ARCHETYPES[id].displayName}
-                </option>
-              ))}
-            </select>
-          ),
-        )}
-      </div>
-      <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+      {results ? (
+        <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+      ) : (
+        <div className="flex items-center justify-center text-[#444]" style={{ height }}>
+          Running simulations...
+        </div>
+      )}
     </div>
   );
 }

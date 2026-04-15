@@ -330,28 +330,26 @@ export default function WinProbChart({ height = 400 }) {
       .on('mouseleave', () => tooltip.style('display', 'none'));
   }, [results, baselineResults, filteredResults, season, width, height, selectedQueenId, setSelectedQueenId]);
 
-  if (!results) {
-    return (
-      <div
-        className="flex items-center justify-center text-[#444]"
-        style={{ width, height }}
-      >
-        Running simulations...
-      </div>
-    );
-  }
-
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Cumulative survival probability by episode
       </h3>
-      <svg
-        ref={svgRef}
-        width={width}
-        height={height}
-        className="overflow-visible"
-      />
+      {results ? (
+        <svg
+          ref={svgRef}
+          width={width}
+          height={height}
+          className="overflow-visible"
+        />
+      ) : (
+        <div
+          className="flex items-center justify-center text-[#444]"
+          style={{ height }}
+        >
+          Running simulations...
+        </div>
+      )}
     </div>
   );
 }

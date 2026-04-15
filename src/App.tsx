@@ -2,20 +2,16 @@ import { useEffect, useState, useCallback } from 'react';
 import { useStore } from './store/useStore';
 import { useSimulation } from './engine/useSimulation';
 import Timeline from './components/timeline/Timeline';
+import QueenStatsPanel from './components/queens/QueenStatsPanel';
 import WinProbChart from './components/charts/WinProbChart';
 import EliminationHeatmap from './components/charts/EliminationHeatmap';
 import PlacementDistChart from './components/charts/PlacementDistChart';
-import QueenCard from './components/QueenCard';
 import DivergencePanel from './components/DivergencePanel';
 import TrajectoryChart from './components/charts/TrajectoryChart';
-import DivergencePage from './components/DivergencePage';
-import SpreadPage from './components/SpreadPage';
 import SeasonEditorPage from './components/SeasonEditorPage';
 import QueenEditorPage from './components/QueenEditorPage';
 import CalibratePage from './components/CalibratePage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
-import QueenMiniChart from './components/charts/QueenMiniChart';
-import QueenFlowChart from './components/charts/QueenFlowChart';
 import PlacementGrid from './components/charts/PlacementGrid';
 
 export default function App() {
@@ -53,9 +49,8 @@ export default function App() {
   }, [realSeason, runBaseline, setBaselineResults, setIsSimulating, setSimulationProgress]);
 
   // Run baseline on mount and when season changes — but only in simulation mode.
-  // In divergence mode, DivergencePage owns simulation via runFromState.
   useEffect(() => {
-    if (appMode !== 'simulation' && appMode !== 'spread') return;
+    if (appMode !== 'simulation') return;
     triggerSimulation(numSimulations);
   }, [realSeason, appMode]);
 
@@ -71,13 +66,6 @@ export default function App() {
       setIsSimulating(false);
     });
   }, [conditions, runFilter, setFilteredResults, setIsSimulating]);
-
-  const results = useStore(
-    (s) => s.filteredResults ?? s.baselineResults,
-  );
-  const sortedQueens = [...season.queens].sort(
-    (a, b) => (results?.winProb[b.id] ?? 0) - (results?.winProb[a.id] ?? 0),
-  );
 
   const matchCount = useStore((s) => s.filterMatchCount);
   const totalRuns = useStore((s) => s.filterTotalRuns);
@@ -99,26 +87,6 @@ export default function App() {
             }`}
           >
             Simulation
-          </button>
-          <button
-            onClick={() => setAppMode('spread')}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              appMode === 'spread'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'text-[#666] hover:text-[#999] border border-transparent'
-            }`}
-          >
-            Spread
-          </button>
-          <button
-            onClick={() => setAppMode('divergence')}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              appMode === 'divergence'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'text-[#666] hover:text-[#999] border border-transparent'
-            }`}
-          >
-            What If?
           </button>
           <span className="text-[#333]">|</span>
           <button
@@ -160,9 +128,7 @@ export default function App() {
         <QueenEditorPage />
       ) : appMode === 'calibrate' ? (
         <CalibratePage />
-      ) : appMode === 'spread' ? (
-        <SpreadPage />
-      ) : appMode === 'simulation' ? (
+      ) : (
         <>
           <div className="flex items-center gap-4 mb-6 text-[#666]">
             <span>
@@ -221,33 +187,21 @@ export default function App() {
 
           <DivergencePanel />
 
-          <section className="mb-8 bg-[#121218] rounded-lg border border-[#1a1a24]">
-            <div className="px-4 pt-3 pb-1">
-              <h2 className="text-xs font-medium text-[#555] uppercase tracking-wider">
-                Season Timeline — click an episode to explore & change placements
-              </h2>
+          <section className="mb-8 flex gap-4 items-stretch">
+            <div className="flex-shrink-0">
+              <PlacementGrid height={230} />
             </div>
+            <div className="w-[440px] flex-shrink-0">
+              <QueenStatsPanel />
+            </div>
+          </section>
+
+          <section className="mb-8">
+            <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
+              Season Flow — click a queen to select, click placements to pin
+            </h3>
             <Timeline />
-          </section>
-
-          <section className="mb-4 grid grid-cols-4 gap-2">
-            {season.queens.map((q) => (
-              <QueenMiniChart key={q.id} queenId={q.id} />
-            ))}
-          </section>
-
-          <section className="mb-4 grid grid-cols-2 gap-2">
-            {season.queens.map((q) => (
-              <QueenFlowChart key={q.id} queenId={q.id} height={80} />
-            ))}
-          </section>
-
-          <section className="mb-8">
             <SeasonFlowChart height={650} />
-          </section>
-
-          <section className="mb-8">
-            <PlacementGrid height={460} />
           </section>
 
           <section className="mb-8">
@@ -263,23 +217,33 @@ export default function App() {
             <PlacementDistChart height={460} />
           </section>
 
-          <section className="mb-12">
-            <h3 className="text-sm font-medium text-[#888] mb-3">
-              Queen Profiles — ranked by Crown Probability
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {sortedQueens.map((queen) => (
-                <QueenCard key={queen.id} queen={queen} />
-              ))}
-            </div>
-          </section>
-
           <footer className="text-center text-[#333] text-xs pb-8">
             Powered by {numSimulations.toLocaleString()} Monte Carlo simulations. May the best woman win.
           </footer>
+
+          {(() => {
+            const shown = matchCount ?? numSimulations;
+            const total = totalRuns ?? numSimulations;
+            return (
+              <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-1 pointer-events-none">
+                {isSimulating && (
+                  <div className="px-3 py-1.5 rounded-md bg-black/40 backdrop-blur-sm text-xs font-mono text-amber-400">
+                    {simulationProgress !== null
+                      ? `Simulating... ${simulationProgress}%`
+                      : 'Filtering...'}
+                  </div>
+                )}
+                <div
+                  className={`px-3 py-1.5 rounded-md bg-black/40 backdrop-blur-sm text-xs font-mono ${
+                    shown < 50 ? 'text-red-400' : 'text-white'
+                  }`}
+                >
+                  {shown.toLocaleString()}/{total.toLocaleString()}
+                </div>
+              </div>
+            );
+          })()}
         </>
-      ) : (
-        <DivergencePage />
       )}
     </div>
   );

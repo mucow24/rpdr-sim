@@ -200,14 +200,12 @@ export default function PlacementDistChart({
     };
   }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
 
-  if (!results) return null;
-
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Placement Distribution
       </h3>
-      <svg ref={svgRef} width={width} height={height} />
+      {results && <svg ref={svgRef} width={width} height={height} />}
     </div>
   );
 }

@@ -157,7 +157,7 @@ function simulateOneSeason(
     }
 
     const activeQueens = Array.from(remaining.values());
-    const weights = ARCHETYPES[episode.archetype].weights;
+    const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
     const scores = activeQueens.map((q) => ({
       queenId: q.id,
       score: scoreQueen(q, weights, noise),

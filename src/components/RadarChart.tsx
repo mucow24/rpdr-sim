@@ -32,7 +32,7 @@ export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?:
     const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
 
     // Background rings
-    for (const level of [0.25, 0.5, 0.75, 1]) {
+    for (const level of [0.2, 0.4, 0.6, 0.8, 1]) {
       const points = categories.map((_, i) => {
         const angle = angleSlice * i - Math.PI / 2;
         return [Math.cos(angle) * r * level, Math.sin(angle) * r * level];
@@ -40,7 +40,7 @@ export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?:
       g.append('polygon')
         .attr('points', points.map((p) => p.join(',')).join(' '))
         .attr('fill', 'none')
-        .attr('stroke', '#1a1a2a')
+        .attr('stroke', '#666')
         .attr('stroke-width', 0.5);
     }
 
@@ -52,7 +52,7 @@ export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?:
         .attr('y1', 0)
         .attr('x2', Math.cos(angle) * r)
         .attr('y2', Math.sin(angle) * r)
-        .attr('stroke', '#1a1a2a')
+        .attr('stroke', '#666')
         .attr('stroke-width', 0.5);
     });
 
@@ -79,7 +79,7 @@ export default function RadarChart({ queen, size = 100 }: { queen: Queen; size?:
         .attr('y', Math.sin(angle) * labelR)
         .attr('text-anchor', 'middle')
         .attr('dominant-baseline', 'middle')
-        .attr('fill', '#555')
+        .attr('fill', '#aaa')
         .attr('font-size', `${Math.max(7, size * 0.07)}px`)
         .text(CATEGORY_LABELS[cat] ?? cat);
     });
