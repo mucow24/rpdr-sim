@@ -25,3 +25,4 @@ dist-ssr
 
 # Claude Code per-user settings (keep shared config like launch.json tracked)
 .claude/*.local.json
+.claude/scheduled_tasks.lock
