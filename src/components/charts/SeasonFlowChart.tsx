@@ -14,7 +14,7 @@ const PLACEMENT_COLORS: Record<string, string> = {
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
-const MARGIN = { top: 44, right: 16, bottom: 24, left: 16 };
+const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
@@ -336,17 +336,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const selId = selectedQueenId ?? queenOrder[0]?.id ?? null;
 
     const isSelected = (qid: string) => qid === selId;
-
-    // Column labels
-    for (let col = 0; col < numCols; col++) {
-      const ep = season.episodes[col];
-      const label = isFinale(ep) ? 'Finale' : `Ep ${ep.number}`;
-      g.append('text')
-        .attr('x', colX(col)).attr('y', -8)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#555').attr('font-size', '10px').attr('font-family', 'monospace')
-        .text(label);
-    }
 
     // Placement labels (left of first episode column)
     for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
@@ -688,9 +677,6 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
   return (
     <div ref={containerRef}>
-      <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Season Flow — click a queen to select, click placements to pin
-      </h3>
       {results ? (
         <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
       ) : (

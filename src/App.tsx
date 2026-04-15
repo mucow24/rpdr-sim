@@ -188,7 +188,6 @@ export default function App() {
           <DivergencePanel />
 
           <section className="mb-8 bg-[#121218] rounded-lg border border-[#1a1a24] py-2">
-            <Timeline />
             <QueensList />
           </section>
 
@@ -197,6 +196,10 @@ export default function App() {
           </section>
 
           <section className="mb-8">
+            <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
+              Season Flow — click a queen to select, click placements to pin
+            </h3>
+            <Timeline />
             <SeasonFlowChart height={650} />
           </section>
 

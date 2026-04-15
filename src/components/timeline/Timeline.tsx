@@ -31,15 +31,23 @@ function formatArchetypeOption(id: ArchetypeId): string {
   return `${arc.displayName} (${parts.join(', ')})`;
 }
 
+// Match SeasonFlowChart's geometry so episode boxes line up with the flow
+// chart's columns. Sum of the chart's MARGIN.left (16) + SOURCE_COL_WIDTH (72).
+const FLOW_LEFT_OFFSET_PX = 88;
+// MARGIN.left + MARGIN.right + SOURCE_COL_WIDTH on the chart.
+const FLOW_HORIZ_RESERVED_PX = 104;
+const BOX_PX = 48;
+
 export default function Timeline() {
   const { currentSeason: season, conditions, updateEpisodeArchetype, updateEpisodeWeights } =
     useStore();
 
   const conditionEpisodes = new Set(conditions.map((c) => c.episodeIndex));
+  const N = season.episodes.length;
 
   return (
     <div className="w-full pt-4 pb-[5px] overflow-visible">
-      <div className="flex items-center gap-0 px-6 justify-center flex-wrap">
+      <div className="relative w-full" style={{ height: BOX_PX }}>
         {season.episodes.map((episode, idx) => {
           const hasCondition = conditionEpisodes.has(idx);
           const finale = isFinale(episode);
@@ -47,15 +55,24 @@ export default function Timeline() {
             ? ({} as Record<BaseStat, number>)
             : episode.weights ?? ARCHETYPES[episode.archetype].weights;
 
+          // Center on the flow chart's column for episode `idx`:
+          //   center_x = 88 + (W - 104) * (i + 0.5) / N
+          // Box left = center - BOX_PX/2 = (88 - 24) + (W - 104) * (i + 0.5) / N.
+          const t = (idx + 0.5) / N;
+          const leftCalc = `calc(${FLOW_LEFT_OFFSET_PX - BOX_PX / 2}px + (100% - ${FLOW_HORIZ_RESERVED_PX}px) * ${t})`;
+
           return (
-            <div key={episode.number} className="flex items-center">
+            <div
+              key={episode.number}
+              className="absolute top-0"
+              style={{ left: leftCalc, width: BOX_PX, height: BOX_PX }}
+            >
               <PopoverBox
                 renderTrigger={({ isOpen, toggle }) => (
                   <button
                     onClick={toggle}
                     className={`
                       relative flex flex-col items-center justify-center gap-2.5 w-12 h-12 transition-all
-                      ${idx > 0 ? '-ml-px' : ''}
                       ${
                         hasCondition
                           ? 'bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50'
