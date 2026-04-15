@@ -17,7 +17,6 @@ import SeasonFlowChart from './components/charts/SeasonFlowChart';
 import QueenMiniChart from './components/charts/QueenMiniChart';
 import QueenFlowChart from './components/charts/QueenFlowChart';
 import PlacementGrid from './components/charts/PlacementGrid';
-import PlacementBitmap from './components/charts/PlacementBitmap';
 
 export default function App() {
   const realSeason = useStore((s) => s.realSeason);
@@ -248,11 +247,8 @@ export default function App() {
             <SeasonFlowChart height={650} />
           </section>
 
-          <section className="mb-8 flex gap-6 items-start">
-            <div className="flex-1 min-w-0">
-              <PlacementGrid height={460} />
-            </div>
-            <PlacementBitmap />
+          <section className="mb-8">
+            <PlacementGrid height={460} />
           </section>
 
           <section className="mb-8">
