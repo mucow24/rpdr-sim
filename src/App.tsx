@@ -238,6 +238,20 @@ export default function App() {
           <footer className="text-center text-[#333] text-xs pb-8">
             Powered by {numSimulations.toLocaleString()} Monte Carlo simulations. May the best woman win.
           </footer>
+
+          {(() => {
+            const shown = matchCount ?? numSimulations;
+            const total = totalRuns ?? numSimulations;
+            return (
+              <div
+                className={`fixed bottom-4 right-4 z-40 px-3 py-1.5 rounded-md bg-black/40 backdrop-blur-sm text-xs font-mono pointer-events-none ${
+                  shown < 50 ? 'text-red-400' : 'text-white'
+                }`}
+              >
+                {shown.toLocaleString()}/{total.toLocaleString()}
+              </div>
+            );
+          })()}
         </>
       )}
     </div>

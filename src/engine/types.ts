@@ -63,6 +63,7 @@ export interface RegularEpisode {
   placements: Record<string, Placement>;   // queenId -> WIN/HIGH/SAFE/LOW/BTM2
   eliminated: string[];                    // queenIds (empty = non-elim)
   splitPremiere?: boolean;                 // true if part of a split premiere format
+  weights?: Record<BaseStat, number>;      // per-episode override; falls back to archetype weights
 }
 
 /** A finale episode. Its simulation mechanics are determined by finaleType. */

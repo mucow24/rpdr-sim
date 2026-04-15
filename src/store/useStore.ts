@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath } from '../engine/types';
+import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath, BaseStat } from '../engine/types';
 import { isFinale } from '../engine/types';
 import { type ArchetypeId } from '../data/archetypes';
 import season5 from '../data/season5';
@@ -27,7 +27,6 @@ interface AppState {
   isSimulating: boolean;
   simulationProgress: number | null;
   selectedQueenId: string | null;
-  openEpisodeIndex: number | null;
   trajectoryPaths: TrajectoryPath[] | null;
   trajectoryTotalRuns: number | null;
 
@@ -39,6 +38,7 @@ interface AppState {
   appMode: 'simulation' | 'seasonEditor' | 'queenEditor' | 'calibrate';
 
   updateEpisodeArchetype: (epIdx: number, archetype: ArchetypeId) => void;
+  updateEpisodeWeights: (epIdx: number, weights: Record<BaseStat, number>) => void;
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
   resetEpisode: (epIdx: number) => void;
   resetAllEpisodes: () => void;
@@ -52,7 +52,6 @@ interface AppState {
   ) => void;
   setIsSimulating: (isSimulating: boolean) => void;
   setSelectedQueenId: (queenId: string | null) => void;
-  setOpenEpisodeIndex: (idx: number | null) => void;
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
 
   setEditorEpisodes: (episodes: EpisodeData[]) => void;
@@ -78,7 +77,6 @@ export const useStore = create<AppState>()((set) => ({
   isSimulating: false,
   simulationProgress: null,
   selectedQueenId: null,
-  openEpisodeIndex: null,
   trajectoryPaths: null,
   trajectoryTotalRuns: null,
 
@@ -93,12 +91,34 @@ export const useStore = create<AppState>()((set) => ({
     set((s) => {
       // Finale episodes don't have an archetype — no-op.
       if (isFinale(s.realSeason.episodes[epIdx])) return {};
-      const realEpisodes = s.realSeason.episodes.map((ep, i) =>
-        i === epIdx && !isFinale(ep) ? { ...ep, archetype } : ep,
-      );
-      const currentEpisodes = s.currentSeason.episodes.map((ep, i) =>
-        i === epIdx && !isFinale(ep) ? { ...ep, archetype } : ep,
-      );
+      // Changing archetype clears any per-episode weight override so the
+      // dropdown acts as a clean preset swap.
+      const applyArchetype = (ep: EpisodeData, i: number) => {
+        if (i !== epIdx || isFinale(ep)) return ep;
+        const { weights: _drop, ...rest } = ep;
+        void _drop;
+        return { ...rest, archetype };
+      };
+      const realEpisodes = s.realSeason.episodes.map(applyArchetype);
+      const currentEpisodes = s.currentSeason.episodes.map(applyArchetype);
+      return {
+        realSeason: { ...s.realSeason, episodes: realEpisodes },
+        currentSeason: { ...s.currentSeason, episodes: currentEpisodes },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  updateEpisodeWeights: (epIdx, weights) =>
+    set((s) => {
+      // Finale episodes don't have weights — no-op.
+      if (isFinale(s.realSeason.episodes[epIdx])) return {};
+      const applyWeights = (ep: EpisodeData, i: number) =>
+        i === epIdx && !isFinale(ep) ? { ...ep, weights: { ...weights } } : ep;
+      const realEpisodes = s.realSeason.episodes.map(applyWeights);
+      const currentEpisodes = s.currentSeason.episodes.map(applyWeights);
       return {
         realSeason: { ...s.realSeason, episodes: realEpisodes },
         currentSeason: { ...s.currentSeason, episodes: currentEpisodes },
@@ -145,10 +165,6 @@ export const useStore = create<AppState>()((set) => ({
   setSelectedQueenId: (queenId) =>
     set((s) => ({
       selectedQueenId: s.selectedQueenId === queenId ? null : queenId,
-    })),
-  setOpenEpisodeIndex: (idx) =>
-    set((s) => ({
-      openEpisodeIndex: s.openEpisodeIndex === idx ? null : idx,
     })),
   setTrajectoryPaths: (paths, totalRuns) =>
     set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),

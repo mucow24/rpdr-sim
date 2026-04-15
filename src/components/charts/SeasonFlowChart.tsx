@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, isFinale, type Placement } from '../../engine/types';
-import { ARCHETYPES, ARCHETYPE_IDS, type ArchetypeId } from '../../data/archetypes';
 
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
@@ -35,7 +34,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
   const [width, setWidth] = useState(1000);
   const [activeQueenId, setActiveQueenId] = useState<string | null>(null);
 
-  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, updateEpisodeArchetype } =
+  const { currentSeason: season, baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions } =
     useStore();
   const results = filteredResults ?? baselineResults;
 
@@ -685,50 +684,11 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     );
   }
 
-  // Column positions for dropdown alignment (same math as D3 effect)
-  const numEps = season.episodes.length;
-  const numCols = numEps;
-  const innerW = width - MARGIN.left - MARGIN.right;
-  const epAreaW = innerW - SOURCE_COL_WIDTH;
-  const epSpacing = epAreaW / numCols;
-  const dropdownX = (col: number) => MARGIN.left + SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
-
   return (
     <div ref={containerRef}>
       <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
         Season Flow — click a queen to select, click placements to pin
       </h3>
-      <div style={{ position: 'relative', height: 20, marginBottom: 4 }}>
-        {season.episodes.map((ep, i) =>
-          isFinale(ep) ? null : (
-            <select
-              key={i}
-              value={ep.archetype}
-              onChange={(e) => updateEpisodeArchetype(i, e.target.value as ArchetypeId)}
-              style={{
-                position: 'absolute',
-                left: dropdownX(i),
-                transform: 'translateX(-50%)',
-                fontSize: 9,
-                padding: '1px 2px',
-                background: '#0a0a10',
-                color: '#888',
-                border: '1px solid #2a2a3a',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'monospace',
-                maxWidth: Math.max(epSpacing - 4, 48),
-              }}
-            >
-              {ARCHETYPE_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {ARCHETYPES[id].displayName}
-                </option>
-              ))}
-            </select>
-          ),
-        )}
-      </div>
       <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
     </div>
   );
