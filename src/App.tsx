@@ -12,6 +12,7 @@ import SeasonEditorPage from './components/SeasonEditorPage';
 import QueenEditorPage from './components/QueenEditorPage';
 import CalibratePage from './components/CalibratePage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
+import PlacementGrid from './components/charts/PlacementGrid';
 
 export default function App() {
   const realSeason = useStore((s) => s.realSeason);
@@ -204,6 +205,10 @@ export default function App() {
 
           <section className="mb-8">
             <SeasonFlowChart height={650} />
+          </section>
+
+          <section className="mb-8">
+            <PlacementGrid height={460} />
           </section>
 
           <section className="mb-8">
