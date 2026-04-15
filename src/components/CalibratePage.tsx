@@ -72,12 +72,25 @@ function compositeKey(entry: RosterEntry): string {
 
 const STORAGE_KEY = 'rpdr-calibrate-roster';
 
+function migrateEntry(entry: RosterEntry): RosterEntry {
+  // Backfill any base stats added after the roster was saved (e.g. charisma).
+  let patched = false;
+  const skills = { ...entry.queen.skills };
+  for (const stat of BASE_STATS) {
+    if (skills[stat] === undefined) {
+      skills[stat] = 5; // neutral default
+      patched = true;
+    }
+  }
+  return patched ? { ...entry, queen: { ...entry.queen, skills } } : entry;
+}
+
 function loadRoster(): RosterEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const data = JSON.parse(raw) as RosterEntry[];
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (Array.isArray(data) && data.length > 0) return data.map(migrateEntry);
     }
   } catch { /* ignore corrupt data */ }
   return buildInitialRoster();
