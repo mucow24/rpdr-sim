@@ -225,12 +225,21 @@ export default function App() {
             const shown = matchCount ?? numSimulations;
             const total = totalRuns ?? numSimulations;
             return (
-              <div
-                className={`fixed bottom-4 right-4 z-40 px-3 py-1.5 rounded-md bg-black/40 backdrop-blur-sm text-xs font-mono pointer-events-none ${
-                  shown < 50 ? 'text-red-400' : 'text-white'
-                }`}
-              >
-                {shown.toLocaleString()}/{total.toLocaleString()}
+              <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-1 pointer-events-none">
+                {isSimulating && (
+                  <div className="px-3 py-1.5 rounded-md bg-black/40 backdrop-blur-sm text-xs font-mono text-amber-400">
+                    {simulationProgress !== null
+                      ? `Simulating... ${simulationProgress}%`
+                      : 'Filtering...'}
+                  </div>
+                )}
+                <div
+                  className={`px-3 py-1.5 rounded-md bg-black/40 backdrop-blur-sm text-xs font-mono ${
+                    shown < 50 ? 'text-red-400' : 'text-white'
+                  }`}
+                >
+                  {shown.toLocaleString()}/{total.toLocaleString()}
+                </div>
               </div>
             );
           })()}
