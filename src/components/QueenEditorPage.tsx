@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { BASE_STATS, type Queen, type BaseStat } from '../engine/types';
+import { BASE_STATS, BASE_STAT_DISPLAY, type Queen, type BaseStat } from '../engine/types';
 import { SEASON_PRESETS } from '../data/presets';
-import { BASE_STAT_DISPLAY } from '../data/challengeTypes';
 import RadarChart from './RadarChart';
 
 const DEFAULT_COLORS = [

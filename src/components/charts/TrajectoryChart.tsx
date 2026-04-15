@@ -69,8 +69,16 @@ export default function TrajectoryChart({ height = 350 }) {
   const { currentSeason: season, selectedQueenId, baselineResults, filteredResults } = useStore();
   const results = filteredResults ?? baselineResults;
 
-  const queen = selectedQueenId
-    ? season.queens.find((q) => q.id === selectedQueenId)
+  // Fall back to top-ranked queen (by crown probability) when no selection exists,
+  // so the chart always renders something useful.
+  const fallbackQueenId = results
+    ? season.queens
+        .map((q) => ({ id: q.id, p: results.winProb[q.id] ?? 0 }))
+        .sort((a, b) => b.p - a.p)[0]?.id ?? null
+    : null;
+  const effectiveQueenId = selectedQueenId ?? fallbackQueenId;
+  const queen = effectiveQueenId
+    ? season.queens.find((q) => q.id === effectiveQueenId)
     : null;
 
   useEffect(() => {
@@ -407,7 +415,7 @@ export default function TrajectoryChart({ height = 350 }) {
 
   }, [results, queen, width, height, season.episodes.length, fadeByElim]);
 
-  if (!selectedQueenId || !results) return null;
+  if (!queen || !results) return null;
 
   return (
     <div ref={containerRef} className="w-full relative">

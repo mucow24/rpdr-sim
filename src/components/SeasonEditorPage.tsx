@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { BASE_STATS, isFinale, type EpisodeData, type BaseStat, type RegularEpisode } from '../engine/types';
+import { isFinale, type EpisodeData } from '../engine/types';
 import { SEASON_PRESETS } from '../data/presets';
-import { CHALLENGE_TYPES, CHALLENGE_TYPE_IDS, BASE_STAT_DISPLAY, type ChallengeTypeId } from '../data/challengeTypes';
+import { ARCHETYPES, ARCHETYPE_IDS, type ArchetypeId } from '../data/archetypes';
 
 function EpisodeCard({
   episode,
@@ -27,26 +27,12 @@ function EpisodeCard({
 }) {
   const finaleEp = isFinale(episode);
   const [editName, setEditName] = useState(episode.challengeName);
-  const [editType, setEditType] = useState<ChallengeTypeId>(
-    finaleEp ? 'comedy' : episode.challengeType,
-  );
-  const [editWeights, setEditWeights] = useState<Record<BaseStat, number>>(
-    finaleEp ? { ...CHALLENGE_TYPES.comedy.weights } : { ...(episode as RegularEpisode).challengeWeights },
+  const [editArchetype, setEditArchetype] = useState<ArchetypeId>(
+    finaleEp ? 'actingSketch' : episode.archetype,
   );
   const [editSplitPremiere, setEditSplitPremiere] = useState(
     finaleEp ? false : (episode.splitPremiere ?? false),
   );
-  const [weightsOpen, setWeightsOpen] = useState(false);
-
-  const handleSelectType = (id: ChallengeTypeId) => {
-    setEditType(id);
-    // Selecting a preset overwrites the working weights with the preset's canonical mix.
-    setEditWeights({ ...CHALLENGE_TYPES[id].weights });
-  };
-
-  const handleWeightChange = (stat: BaseStat, value: number) => {
-    setEditWeights((w) => ({ ...w, [stat]: value }));
-  };
 
   const handleConfirm = () => {
     if (finaleEp) {
@@ -55,8 +41,7 @@ function EpisodeCard({
       onUpdate({
         ...episode,
         challengeName: editName,
-        challengeType: editType,
-        challengeWeights: { ...editWeights },
+        archetype: editArchetype,
         splitPremiere: editSplitPremiere || undefined,
       });
     }
@@ -122,24 +107,16 @@ function EpisodeCard({
               autoFocus
             />
             <select
-              value={editType}
-              onChange={(e) => handleSelectType(e.target.value as ChallengeTypeId)}
+              value={editArchetype}
+              onChange={(e) => setEditArchetype(e.target.value as ArchetypeId)}
               className="bg-[#0f0f13] border border-[#2a2a3a] rounded px-2 py-1 text-sm text-[#ddd] outline-none focus:border-amber-500/50"
             >
-              {CHALLENGE_TYPE_IDS.map((id) => (
+              {ARCHETYPE_IDS.map((id) => (
                 <option key={id} value={id}>
-                  {CHALLENGE_TYPES[id].displayName}
+                  {ARCHETYPES[id].icon} {ARCHETYPES[id].displayName}
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={() => setWeightsOpen((o) => !o)}
-              className="text-xs text-[#888] hover:text-[#ddd] bg-[#1a1a24] hover:bg-[#2a2a3a] rounded px-2 py-1 transition-colors shrink-0"
-              title="Edit stat weights"
-            >
-              Weights {weightsOpen ? '▲' : '▼'}
-            </button>
             <label className="flex items-center gap-1.5 text-xs text-[#888] shrink-0 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -154,7 +131,7 @@ function EpisodeCard({
           <div className="flex-1 flex items-center gap-3 min-w-0">
             <span className="text-sm text-[#ddd] truncate">{episode.challengeName}</span>
             <span className="text-xs text-[#666] bg-[#1a1a24] rounded px-2 py-0.5 shrink-0">
-              {CHALLENGE_TYPES[episode.challengeType]?.displayName ?? episode.challengeType}
+              {ARCHETYPES[episode.archetype]?.displayName ?? episode.archetype}
             </span>
             {episode.splitPremiere && (
               <span className="text-xs text-purple-400 bg-purple-500/10 rounded px-2 py-0.5 shrink-0">
@@ -208,33 +185,6 @@ function EpisodeCard({
         </div>
       </div>
 
-      {isEditing && weightsOpen && (
-        <div className="border-t border-[#1a1a24] px-3 py-3">
-          <div className="flex items-baseline justify-between mb-2">
-            <span className="text-xs font-medium text-[#aaa]">Stat weights</span>
-            <span className="text-[11px] text-[#555]">
-              Relative — any scale works, normalized at scoring time
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            {BASE_STATS.map((stat) => (
-              <label key={stat} className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-[#888]">
-                  {BASE_STAT_DISPLAY[stat]}
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={editWeights[stat]}
-                  onChange={(e) => handleWeightChange(stat, Number(e.target.value))}
-                  className="w-full bg-[#0f0f13] border border-[#2a2a3a] rounded px-2 py-1 text-sm text-[#ddd] font-mono outline-none focus:border-amber-500/50"
-                />
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -270,8 +220,7 @@ export default function SeasonEditorPage() {
       {
         id: crypto.randomUUID(),
         number: episodes.length + 1,
-        challengeType: 'comedy',
-        challengeWeights: { ...CHALLENGE_TYPES.comedy.weights },
+        archetype: 'actingSketch',
         challengeName: 'New Challenge',
         placements: {},
         eliminated: [],
