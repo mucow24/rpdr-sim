@@ -8,14 +8,10 @@ import PlacementDistChart from './components/charts/PlacementDistChart';
 import QueenCard from './components/QueenCard';
 import DivergencePanel from './components/DivergencePanel';
 import TrajectoryChart from './components/charts/TrajectoryChart';
-import DivergencePage from './components/DivergencePage';
-import SpreadPage from './components/SpreadPage';
 import SeasonEditorPage from './components/SeasonEditorPage';
 import QueenEditorPage from './components/QueenEditorPage';
 import CalibratePage from './components/CalibratePage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
-import QueenMiniChart from './components/charts/QueenMiniChart';
-import QueenFlowChart from './components/charts/QueenFlowChart';
 
 export default function App() {
   const realSeason = useStore((s) => s.realSeason);
@@ -52,9 +48,8 @@ export default function App() {
   }, [realSeason, runBaseline, setBaselineResults, setIsSimulating, setSimulationProgress]);
 
   // Run baseline on mount and when season changes — but only in simulation mode.
-  // In divergence mode, DivergencePage owns simulation via runFromState.
   useEffect(() => {
-    if (appMode !== 'simulation' && appMode !== 'spread') return;
+    if (appMode !== 'simulation') return;
     triggerSimulation(numSimulations);
   }, [realSeason, appMode]);
 
@@ -99,26 +94,6 @@ export default function App() {
           >
             Simulation
           </button>
-          <button
-            onClick={() => setAppMode('spread')}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              appMode === 'spread'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'text-[#666] hover:text-[#999] border border-transparent'
-            }`}
-          >
-            Spread
-          </button>
-          <button
-            onClick={() => setAppMode('divergence')}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              appMode === 'divergence'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'text-[#666] hover:text-[#999] border border-transparent'
-            }`}
-          >
-            What If?
-          </button>
           <span className="text-[#333]">|</span>
           <button
             onClick={() => setAppMode('seasonEditor')}
@@ -159,9 +134,7 @@ export default function App() {
         <QueenEditorPage />
       ) : appMode === 'calibrate' ? (
         <CalibratePage />
-      ) : appMode === 'spread' ? (
-        <SpreadPage />
-      ) : appMode === 'simulation' ? (
+      ) : (
         <>
           <div className="flex items-center gap-4 mb-6 text-[#666]">
             <span>
@@ -229,18 +202,6 @@ export default function App() {
             <Timeline />
           </section>
 
-          <section className="mb-4 grid grid-cols-4 gap-2">
-            {season.queens.map((q) => (
-              <QueenMiniChart key={q.id} queenId={q.id} />
-            ))}
-          </section>
-
-          <section className="mb-4 grid grid-cols-2 gap-2">
-            {season.queens.map((q) => (
-              <QueenFlowChart key={q.id} queenId={q.id} height={80} />
-            ))}
-          </section>
-
           <section className="mb-8">
             <SeasonFlowChart height={650} />
           </section>
@@ -273,8 +234,6 @@ export default function App() {
             Powered by {numSimulations.toLocaleString()} Monte Carlo simulations. May the best woman win.
           </footer>
         </>
-      ) : (
-        <DivergencePage />
       )}
     </div>
   );

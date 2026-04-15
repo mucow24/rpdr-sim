@@ -36,8 +36,7 @@ interface AppState {
 
   numSimulations: number;
 
-  appMode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate';
-  spreadSelectedEpisode: number;
+  appMode: 'simulation' | 'seasonEditor' | 'queenEditor' | 'calibrate';
 
   updateEpisodeArchetype: (epIdx: number, archetype: ArchetypeId) => void;
   updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
@@ -61,8 +60,7 @@ interface AppState {
 
   setNumSimulations: (n: number) => void;
 
-  setAppMode: (mode: 'simulation' | 'divergence' | 'spread' | 'seasonEditor' | 'queenEditor' | 'calibrate') => void;
-  setSpreadSelectedEpisode: (idx: number) => void;
+  setAppMode: (mode: 'simulation' | 'seasonEditor' | 'queenEditor' | 'calibrate') => void;
 
   addCondition: (c: FilterCondition) => void;
   removeCondition: (episodeIndex: number, queenIndex: number) => void;
@@ -84,13 +82,12 @@ export const useStore = create<AppState>()((set) => ({
   trajectoryPaths: null,
   trajectoryTotalRuns: null,
 
-  editorEpisodes: [],
-  editorQueens: [],
+  editorEpisodes: cloneSeason(season5).episodes,
+  editorQueens: [...season5.queens],
 
   numSimulations: 100_000,
 
   appMode: 'simulation',
-  spreadSelectedEpisode: 0,
 
   updateEpisodeArchetype: (epIdx, archetype) =>
     set((s) => {
@@ -162,7 +159,6 @@ export const useStore = create<AppState>()((set) => ({
   setNumSimulations: (n) => set({ numSimulations: n }),
 
   setAppMode: (mode) => set({ appMode: mode }),
-  setSpreadSelectedEpisode: (idx) => set({ spreadSelectedEpisode: idx }),
 
   addCondition: (c) =>
     set((s) => {
