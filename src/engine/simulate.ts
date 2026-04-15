@@ -13,6 +13,7 @@ import type {
   RunFromStateOptions,
 } from './types';
 import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale } from './types';
+import { ARCHETYPES } from '../data/archetypes';
 export type { RunFromStateOptions } from './types';
 
 /** Internal mid-season state for simulateOneSeason. */
@@ -32,8 +33,8 @@ function gaussianRandom(mean = 0, stdev = 1): number {
 
 /** Score a queen against a challenge's weighted mixture of base stats.
  *  Weights are normalized (divided by total) so they don't need to sum to 1.
- *  If all weights are 0, the skill contribution is 0 and the queen scores only
- *  the runway bonus + noise — this is a well-defined fallback, not an error. */
+ *  If all weights are 0 the skill contribution is 0 and the queen scores only
+ *  noise — a well-defined fallback, not an error. */
 export function scoreQueen(queen: Queen, weights: Record<BaseStat, number>, noise: number): number {
   let totalWeight = 0;
   let weightedSkill = 0;
@@ -45,8 +46,7 @@ export function scoreQueen(queen: Queen, weights: Record<BaseStat, number>, nois
     }
   }
   const skill = totalWeight > 0 ? weightedSkill / totalWeight : 0;
-  const runwayBonus = queen.skills.runway * 0.15;
-  return skill + runwayBonus + gaussianRandom(0, noise);
+  return skill + gaussianRandom(0, noise);
 }
 
 /** Default finale handler: average-skill + gaussian noise, top score wins. */
@@ -157,9 +157,10 @@ function simulateOneSeason(
     }
 
     const activeQueens = Array.from(remaining.values());
+    const weights = ARCHETYPES[episode.archetype].weights;
     const scores = activeQueens.map((q) => ({
       queenId: q.id,
-      score: scoreQueen(q, episode.challengeWeights, noise),
+      score: scoreQueen(q, weights, noise),
     }));
 
     const placements = assignPlacements(scores);

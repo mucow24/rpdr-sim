@@ -1,6 +1,6 @@
 import { useStore } from '../../store/useStore';
 import { isFinale } from '../../engine/types';
-import { CHALLENGE_TYPES } from '../../data/challengeTypes';
+import { ARCHETYPES } from '../../data/archetypes';
 import EpisodeDetail from './EpisodeDetail';
 
 export default function Timeline() {
@@ -38,7 +38,7 @@ export default function Timeline() {
                 `}
               >
                 <span className="text-lg">
-                  {isFinale(episode) ? '👑' : (CHALLENGE_TYPES[episode.challengeType]?.icon ?? '❓')}
+                  {isFinale(episode) ? '👑' : (ARCHETYPES[episode.archetype]?.icon ?? '❓')}
                 </span>
                 <span className="text-xs text-[#888] font-mono">
                   {isFinale(episode) ? 'Finale' : `Ep ${episode.number}`}

@@ -69,7 +69,6 @@ export default function DivergencePage() {
   const setSimulationProgress = useStore((s) => s.setSimulationProgress);
   const isSimulating = useStore((s) => s.isSimulating);
   const simulationProgress = useStore((s) => s.simulationProgress);
-  const selectedQueenId = useStore((s) => s.selectedQueenId);
   const baselineResults = useStore((s) => s.baselineResults);
   const numSimulations = useStore((s) => s.numSimulations);
 
@@ -215,11 +214,9 @@ export default function DivergencePage() {
             <WinProbChart height={400} />
           </section>
 
-          {selectedQueenId && (
-            <section className="mb-8">
-              <TrajectoryChart height={350} />
-            </section>
-          )}
+          <section className="mb-8">
+            <TrajectoryChart height={350} />
+          </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <EliminationHeatmap height={460} />

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, type DragEvent } from 'react';
 import { SEASON_PRESETS } from '../data/presets';
-import { BASE_STATS, type BaseStat, type Queen } from '../engine/types';
+import { BASE_STATS, BASE_STAT_DISPLAY, type BaseStat, type Queen } from '../engine/types';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -11,7 +11,7 @@ interface RosterEntry {
 }
 
 const STAT_OPTIONS: { value: StatKey; label: string }[] = [
-  ...BASE_STATS.map((c) => ({ value: c as StatKey, label: c.charAt(0).toUpperCase() + c.slice(1) })),
+  ...BASE_STATS.map((c) => ({ value: c as StatKey, label: BASE_STAT_DISPLAY[c] })),
   { value: 'lipSync', label: 'Lip Sync' },
 ];
 
