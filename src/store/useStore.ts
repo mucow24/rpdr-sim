@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath, BaseStat } from '../engine/types';
 import { isFinale } from '../engine/types';
 import { type ArchetypeId } from '../data/archetypes';
@@ -68,7 +69,7 @@ interface AppState {
   clearConditions: () => void;
 }
 
-export const useStore = create<AppState>()((set) => ({
+export const useStore = create<AppState>()(persist((set) => ({
   realSeason: season5,
   currentSeason: cloneSeason(season5),
   conditions: [],
@@ -228,4 +229,19 @@ export const useStore = create<AppState>()((set) => ({
 
   clearConditions: () =>
     set({ conditions: [], filteredResults: null, filterMatchCount: null, filterTotalRuns: null }),
+}), {
+  name: 'rpdr-sim-store',
+  version: 1,
+  storage: createJSONStorage(() => localStorage),
+  // Only persist user-edited config + the # of sims + selected queen.
+  // Sim results, in-flight flags, and ephemeral exploration state (filter
+  // conditions, app mode) are intentionally excluded so they reset on reload.
+  partialize: (s) => ({
+    numSimulations: s.numSimulations,
+    realSeason: s.realSeason,
+    currentSeason: s.currentSeason,
+    editorEpisodes: s.editorEpisodes,
+    editorQueens: s.editorQueens,
+    selectedQueenId: s.selectedQueenId,
+  }),
 }));
