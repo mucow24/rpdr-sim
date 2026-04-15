@@ -83,6 +83,9 @@ export default function StatInput({
       onKeyDown={(e) => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
       }}
+      // Prevent the scroll wheel from silently mutating values when the
+      // input happens to be focused while the page is scrolled.
+      onWheel={(e) => (e.target as HTMLInputElement).blur()}
       className={`w-full px-1 py-0.5 bg-[#121218] ${borderCls} rounded text-xs ${textCls} text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0`}
     />
   );

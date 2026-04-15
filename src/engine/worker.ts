@@ -128,6 +128,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       storedSeason.queens.length,
       storedSeason.episodes.length,
       msg.conditions,
+      storedSeason.episodes,
     );
     self.postMessage({
       type: 'trajectories',
