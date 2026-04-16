@@ -156,6 +156,20 @@ function simulateOneSeason(
       continue;
     }
 
+    // Pass-through episodes (reunions, recaps, lip-sync smackdowns) have no
+    // maxi challenge and no elimination — skip scoring entirely and record
+    // an empty result so downstream aggregation sees no placements.
+    if (episode.archetype === 'pass') {
+      episodeResults.push({
+        episodeNumber: episode.number,
+        placements: new Map(),
+        lipSyncMatchup: ['', ''],
+        lipSyncWinner: '',
+        eliminated: '',
+      });
+      continue;
+    }
+
     const activeQueens = Array.from(remaining.values());
     const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
     const scores = activeQueens.map((q) => ({
