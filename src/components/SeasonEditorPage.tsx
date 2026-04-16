@@ -28,7 +28,7 @@ function EpisodeCard({
   const finaleEp = isFinale(episode);
   const [editName, setEditName] = useState(episode.challengeName);
   const [editArchetype, setEditArchetype] = useState<ArchetypeId>(
-    finaleEp ? 'actingSketch' : episode.archetype,
+    finaleEp ? 'acting' : episode.archetype,
   );
   const [editSplitPremiere, setEditSplitPremiere] = useState(
     finaleEp ? false : (episode.splitPremiere ?? false),
@@ -220,7 +220,7 @@ export default function SeasonEditorPage() {
       {
         id: crypto.randomUUID(),
         number: episodes.length + 1,
-        archetype: 'actingSketch',
+        archetype: 'acting',
         challengeName: 'New Challenge',
         placements: {},
         eliminated: [],
