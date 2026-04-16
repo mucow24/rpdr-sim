@@ -1,25 +1,28 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { SeasonData, EpisodeData, Queen, Placement, SimulationResults, FilterCondition, TrajectoryPath, BaseStat } from '../engine/types';
+import type {
+  SeasonData, EpisodeData, Queen, Placement, SimulationResults,
+  FilterCondition, TrajectoryPath, BaseStat,
+} from '../engine/types';
 import { isFinale } from '../engine/types';
 import { type ArchetypeId } from '../data/archetypes';
-import season5 from '../data/season5';
+import { SEASON_PRESETS } from '../data/presets';
+import { migrateToV2 } from './migrate';
 
-function cloneSeason(s: SeasonData): SeasonData {
-  return {
-    ...s,
-    queens: s.queens, // queens are immutable, no need to deep clone
-    episodes: s.episodes.map((ep) => ({
-      ...ep,
-      placements: { ...ep.placements },
-      eliminated: [...ep.eliminated],
-    })),
-  };
+export interface EpisodeOverride {
+  placements: Record<string, Placement>;
+  eliminated: string[];
 }
 
-interface AppState {
-  realSeason: SeasonData;
-  currentSeason: SeasonData;
+export interface AppState {
+  // Multi-season master data (mutable; edited by Calibrate + sim-side actions)
+  seasonsById: Record<string, SeasonData>;
+
+  // Active simulation
+  activeSeasonId: string;
+  currentEpisodeOverrides: Record<number, EpisodeOverride>;
+
+  // Sim run state
   conditions: FilterCondition[];
   baselineResults: SimulationResults | null;
   filteredResults: SimulationResults | null;
@@ -31,47 +34,77 @@ interface AppState {
   trajectoryPaths: TrajectoryPath[] | null;
   trajectoryTotalRuns: number | null;
 
-  editorEpisodes: EpisodeData[];
-  editorQueens: Queen[];
-
   numSimulations: number;
 
-  appMode: 'simulation' | 'seasonEditor' | 'queenEditor' | 'calibrate';
+  // UI preferences
+  appMode: 'simulation' | 'calibrate' | 'data';
+  enabledCalibrateSeasons: string[];
 
+  // Season / queen data actions
+  loadSeason: (seasonId: string) => void;
+  updateQueenSkill: (seasonId: string, queenId: string, stat: BaseStat, value: number) => void;
+  updateQueenLipSync: (seasonId: string, queenId: string, value: number) => void;
   updateEpisodeArchetype: (epIdx: number, archetype: ArchetypeId) => void;
   updateEpisodeWeights: (epIdx: number, weights: Record<BaseStat, number>) => void;
-  updateQueenSkill: (queenId: string, stat: BaseStat, value: number) => void;
-  updateQueenLipSync: (queenId: string, value: number) => void;
-  updateEpisodeOutcome: (epIdx: number, outcome: { placements: Record<string, Placement>; eliminated: string[] }) => void;
+  updateEpisodeOutcome: (epIdx: number, outcome: EpisodeOverride) => void;
   resetEpisode: (epIdx: number) => void;
   resetAllEpisodes: () => void;
 
+  // Data tab actions
+  reloadQueensFromSource: () => void;
+  reloadSeasonsFromSource: () => void;
+  importQueensJson: (parsed: unknown) => boolean;
+  exportQueensJson: () => string;
+  importSeasonsJson: (parsed: unknown) => boolean;
+  exportSeasonsJson: () => string;
+
+  // Sim control
   setBaselineResults: (results: SimulationResults) => void;
   setSimulationProgress: (pct: number | null) => void;
-  setFilteredResults: (
-    results: SimulationResults | null,
-    matchCount: number | null,
-    totalRuns: number | null,
-  ) => void;
+  setFilteredResults: (results: SimulationResults | null, matchCount: number | null, totalRuns: number | null) => void;
   setIsSimulating: (isSimulating: boolean) => void;
   setSelectedQueenId: (queenId: string | null) => void;
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
-
-  setEditorEpisodes: (episodes: EpisodeData[]) => void;
-  setEditorQueens: (queens: Queen[]) => void;
-
   setNumSimulations: (n: number) => void;
 
-  setAppMode: (mode: 'simulation' | 'seasonEditor' | 'queenEditor' | 'calibrate') => void;
+  // UI
+  setAppMode: (mode: 'simulation' | 'calibrate' | 'data') => void;
+  toggleCalibrateSeason: (seasonId: string) => void;
+  setEnabledCalibrateSeasons: (seasonIds: string[]) => void;
 
+  // Filters
   addCondition: (c: FilterCondition) => void;
   removeCondition: (episodeIndex: number, queenIndex: number) => void;
   clearConditions: () => void;
 }
 
-export const useStore = create<AppState>()(persist((set) => ({
-  realSeason: season5,
-  currentSeason: cloneSeason(season5),
+function cloneSeason(s: SeasonData): SeasonData {
+  return {
+    ...s,
+    queens: s.queens.map((q) => ({ ...q, skills: { ...q.skills } })),
+    episodes: s.episodes.map((ep) => ({
+      ...ep,
+      placements: { ...ep.placements },
+      eliminated: [...ep.eliminated],
+    })),
+  };
+}
+
+function buildInitialSeasonsById(): Record<string, SeasonData> {
+  const out: Record<string, SeasonData> = {};
+  for (const preset of SEASON_PRESETS) {
+    out[preset.id] = cloneSeason(preset.season);
+  }
+  return out;
+}
+
+const DEFAULT_ACTIVE_SEASON_ID = 'season5';
+
+export const useStore = create<AppState>()(persist((set, get) => ({
+  seasonsById: buildInitialSeasonsById(),
+  activeSeasonId: DEFAULT_ACTIVE_SEASON_ID,
+  currentEpisodeOverrides: {},
+
   conditions: [],
   baselineResults: null,
   filteredResults: null,
@@ -83,30 +116,74 @@ export const useStore = create<AppState>()(persist((set) => ({
   trajectoryPaths: null,
   trajectoryTotalRuns: null,
 
-  editorEpisodes: cloneSeason(season5).episodes,
-  editorQueens: [...season5.queens],
-
   numSimulations: 100_000,
 
   appMode: 'simulation',
+  enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
+
+  loadSeason: (seasonId) =>
+    set((s) => {
+      if (!s.seasonsById[seasonId]) return {};
+      return {
+        activeSeasonId: seasonId,
+        currentEpisodeOverrides: {},
+        selectedQueenId: null,
+        conditions: [],
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+        trajectoryPaths: null,
+        trajectoryTotalRuns: null,
+      };
+    }),
+
+  updateQueenSkill: (seasonId, queenId, stat, value) =>
+    set((s) => {
+      const season = s.seasonsById[seasonId];
+      if (!season) return {};
+      const queens = season.queens.map((q) =>
+        q.id === queenId ? { ...q, skills: { ...q.skills, [stat]: value } } : q,
+      );
+      return {
+        seasonsById: { ...s.seasonsById, [seasonId]: { ...season, queens } },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  updateQueenLipSync: (seasonId, queenId, value) =>
+    set((s) => {
+      const season = s.seasonsById[seasonId];
+      if (!season) return {};
+      const queens = season.queens.map((q) =>
+        q.id === queenId ? { ...q, lipSync: value } : q,
+      );
+      return {
+        seasonsById: { ...s.seasonsById, [seasonId]: { ...season, queens } },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
 
   updateEpisodeArchetype: (epIdx, archetype) =>
     set((s) => {
-      // Finale episodes don't have an archetype — no-op.
-      if (isFinale(s.realSeason.episodes[epIdx])) return {};
-      // Changing archetype clears any per-episode weight override so the
-      // dropdown acts as a clean preset swap.
-      const applyArchetype = (ep: EpisodeData, i: number) => {
+      const season = s.seasonsById[s.activeSeasonId];
+      if (!season) return {};
+      if (isFinale(season.episodes[epIdx])) return {};
+      const episodes = season.episodes.map((ep, i) => {
         if (i !== epIdx || isFinale(ep)) return ep;
+        // Changing archetype clears any per-episode weight override.
         const { weights: _drop, ...rest } = ep;
         void _drop;
         return { ...rest, archetype };
-      };
-      const realEpisodes = s.realSeason.episodes.map(applyArchetype);
-      const currentEpisodes = s.currentSeason.episodes.map(applyArchetype);
+      });
       return {
-        realSeason: { ...s.realSeason, episodes: realEpisodes },
-        currentSeason: { ...s.currentSeason, episodes: currentEpisodes },
+        seasonsById: { ...s.seasonsById, [s.activeSeasonId]: { ...season, episodes } },
         baselineResults: null,
         filteredResults: null,
         filterMatchCount: null,
@@ -116,43 +193,14 @@ export const useStore = create<AppState>()(persist((set) => ({
 
   updateEpisodeWeights: (epIdx, weights) =>
     set((s) => {
-      // Finale episodes don't have weights — no-op.
-      if (isFinale(s.realSeason.episodes[epIdx])) return {};
-      const applyWeights = (ep: EpisodeData, i: number) =>
-        i === epIdx && !isFinale(ep) ? { ...ep, weights: { ...weights } } : ep;
-      const realEpisodes = s.realSeason.episodes.map(applyWeights);
-      const currentEpisodes = s.currentSeason.episodes.map(applyWeights);
+      const season = s.seasonsById[s.activeSeasonId];
+      if (!season) return {};
+      if (isFinale(season.episodes[epIdx])) return {};
+      const episodes = season.episodes.map((ep, i) =>
+        i === epIdx && !isFinale(ep) ? { ...ep, weights: { ...weights } } : ep,
+      );
       return {
-        realSeason: { ...s.realSeason, episodes: realEpisodes },
-        currentSeason: { ...s.currentSeason, episodes: currentEpisodes },
-        baselineResults: null,
-        filteredResults: null,
-        filterMatchCount: null,
-        filterTotalRuns: null,
-      };
-    }),
-
-  updateQueenSkill: (queenId, stat, value) =>
-    set((s) => {
-      const applyQueen = (q: Queen) =>
-        q.id === queenId ? { ...q, skills: { ...q.skills, [stat]: value } } : q;
-      return {
-        realSeason: { ...s.realSeason, queens: s.realSeason.queens.map(applyQueen) },
-        currentSeason: { ...s.currentSeason, queens: s.currentSeason.queens.map(applyQueen) },
-        baselineResults: null,
-        filteredResults: null,
-        filterMatchCount: null,
-        filterTotalRuns: null,
-      };
-    }),
-
-  updateQueenLipSync: (queenId, value) =>
-    set((s) => {
-      const applyQueen = (q: Queen) =>
-        q.id === queenId ? { ...q, lipSync: value } : q;
-      return {
-        realSeason: { ...s.realSeason, queens: s.realSeason.queens.map(applyQueen) },
-        currentSeason: { ...s.currentSeason, queens: s.currentSeason.queens.map(applyQueen) },
+        seasonsById: { ...s.seasonsById, [s.activeSeasonId]: { ...season, episodes } },
         baselineResults: null,
         filteredResults: null,
         filterMatchCount: null,
@@ -161,60 +209,196 @@ export const useStore = create<AppState>()(persist((set) => ({
     }),
 
   updateEpisodeOutcome: (epIdx, outcome) =>
-    set((s) => {
-      const episodes = s.currentSeason.episodes.map((ep, i) =>
-        i === epIdx
-          ? { ...ep, placements: { ...outcome.placements }, eliminated: [...outcome.eliminated] }
-          : ep,
-      );
-      return { currentSeason: { ...s.currentSeason, episodes } };
-    }),
+    set((s) => ({
+      currentEpisodeOverrides: {
+        ...s.currentEpisodeOverrides,
+        [epIdx]: {
+          placements: { ...outcome.placements },
+          eliminated: [...outcome.eliminated],
+        },
+      },
+      filteredResults: null,
+      filterMatchCount: null,
+      filterTotalRuns: null,
+    })),
 
   resetEpisode: (epIdx) =>
     set((s) => {
-      const realEp = s.realSeason.episodes[epIdx];
-      const episodes = s.currentSeason.episodes.map((ep, i) =>
-        i === epIdx
-          ? { ...ep, placements: { ...realEp.placements }, eliminated: [...realEp.eliminated] }
-          : ep,
-      );
-      return { currentSeason: { ...s.currentSeason, episodes } };
+      if (!(epIdx in s.currentEpisodeOverrides)) return {};
+      const next = { ...s.currentEpisodeOverrides };
+      delete next[epIdx];
+      return {
+        currentEpisodeOverrides: next,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
     }),
 
   resetAllEpisodes: () =>
-    set((s) => ({ currentSeason: cloneSeason(s.realSeason), baselineResults: null })),
+    set(() => ({
+      currentEpisodeOverrides: {},
+      filteredResults: null,
+      filterMatchCount: null,
+      filterTotalRuns: null,
+    })),
+
+  reloadQueensFromSource: () =>
+    set((s) => {
+      const next: Record<string, SeasonData> = {};
+      for (const preset of SEASON_PRESETS) {
+        const existing = s.seasonsById[preset.id];
+        next[preset.id] = existing
+          ? { ...existing, queens: preset.season.queens.map((q) => ({ ...q, skills: { ...q.skills } })) }
+          : cloneSeason(preset.season);
+      }
+      return {
+        seasonsById: next,
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  reloadSeasonsFromSource: () =>
+    set((s) => {
+      const next: Record<string, SeasonData> = {};
+      for (const preset of SEASON_PRESETS) {
+        const existing = s.seasonsById[preset.id];
+        next[preset.id] = existing
+          ? {
+              ...existing,
+              name: preset.season.name,
+              episodes: preset.season.episodes.map((ep) => ({
+                ...ep,
+                placements: { ...ep.placements },
+                eliminated: [...ep.eliminated],
+              })),
+            }
+          : cloneSeason(preset.season);
+      }
+      return {
+        seasonsById: next,
+        currentEpisodeOverrides: {},
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  importQueensJson: (parsed) => {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    const entries = parsed as Record<string, { queens?: Queen[] }>;
+    // Validate shape before mutating.
+    for (const [, season] of Object.entries(entries)) {
+      if (!season || typeof season !== 'object' || !Array.isArray(season.queens)) return false;
+    }
+    set((s) => {
+      const next = { ...s.seasonsById };
+      for (const [seasonId, season] of Object.entries(entries)) {
+        const existing = next[seasonId];
+        if (!existing) continue;
+        const queens = (season.queens ?? []).map((q) => ({
+          ...q,
+          skills: { ...q.skills },
+        }));
+        next[seasonId] = { ...existing, queens };
+      }
+      return {
+        seasonsById: next,
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    });
+    return true;
+  },
+
+  exportQueensJson: () => {
+    const { seasonsById } = get();
+    const out: Record<string, { name: string; queens: Queen[] }> = {};
+    for (const [seasonId, season] of Object.entries(seasonsById)) {
+      out[seasonId] = {
+        name: season.name,
+        queens: season.queens.map((q) => ({
+          id: q.id,
+          name: q.name,
+          skills: { ...q.skills },
+          lipSync: q.lipSync,
+          color: q.color,
+        })),
+      };
+    }
+    return JSON.stringify(out, null, 2);
+  },
+
+  importSeasonsJson: (parsed) => {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    const entries = parsed as Record<string, SeasonData>;
+    for (const [, season] of Object.entries(entries)) {
+      if (
+        !season ||
+        typeof season !== 'object' ||
+        !Array.isArray(season.queens) ||
+        !Array.isArray(season.episodes)
+      ) return false;
+    }
+    set((s) => {
+      const next = { ...s.seasonsById };
+      for (const [seasonId, season] of Object.entries(entries)) {
+        next[seasonId] = cloneSeason(season);
+      }
+      return {
+        seasonsById: next,
+        currentEpisodeOverrides: {},
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    });
+    return true;
+  },
+
+  exportSeasonsJson: () => {
+    const { seasonsById } = get();
+    return JSON.stringify(seasonsById, null, 2);
+  },
 
   setBaselineResults: (results) => set({ baselineResults: results }),
   setFilteredResults: (results, matchCount, totalRuns) =>
-    set({
-      filteredResults: results,
-      filterMatchCount: matchCount,
-      filterTotalRuns: totalRuns,
-    }),
+    set({ filteredResults: results, filterMatchCount: matchCount, filterTotalRuns: totalRuns }),
   setIsSimulating: (isSimulating) => set({ isSimulating }),
   setSimulationProgress: (pct) => set({ simulationProgress: pct }),
   setSelectedQueenId: (queenId) =>
-    set((s) => ({
-      selectedQueenId: s.selectedQueenId === queenId ? null : queenId,
-    })),
+    set((s) => ({ selectedQueenId: s.selectedQueenId === queenId ? null : queenId })),
   setTrajectoryPaths: (paths, totalRuns) =>
     set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),
-
-  setEditorEpisodes: (episodes) => set({ editorEpisodes: episodes }),
-  setEditorQueens: (queens) => set({ editorQueens: queens }),
 
   setNumSimulations: (n) => set({ numSimulations: n }),
 
   setAppMode: (mode) => set({ appMode: mode }),
 
+  toggleCalibrateSeason: (seasonId) =>
+    set((s) => {
+      const has = s.enabledCalibrateSeasons.includes(seasonId);
+      return {
+        enabledCalibrateSeasons: has
+          ? s.enabledCalibrateSeasons.filter((id) => id !== seasonId)
+          : [...s.enabledCalibrateSeasons, seasonId],
+      };
+    }),
+
+  setEnabledCalibrateSeasons: (seasonIds) => set({ enabledCalibrateSeasons: seasonIds }),
+
   addCondition: (c) =>
     set((s) => {
       const filtered = s.conditions.filter(
         (existing) =>
-          !(
-            existing.episodeIndex === c.episodeIndex &&
-            existing.queenIndex === c.queenIndex
-          ),
+          !(existing.episodeIndex === c.episodeIndex && existing.queenIndex === c.queenIndex),
       );
       return { conditions: [...filtered, c] };
     }),
@@ -222,8 +406,7 @@ export const useStore = create<AppState>()(persist((set) => ({
   removeCondition: (episodeIndex, queenIndex) =>
     set((s) => ({
       conditions: s.conditions.filter(
-        (c) =>
-          !(c.episodeIndex === episodeIndex && c.queenIndex === queenIndex),
+        (c) => !(c.episodeIndex === episodeIndex && c.queenIndex === queenIndex),
       ),
     })),
 
@@ -231,17 +414,18 @@ export const useStore = create<AppState>()(persist((set) => ({
     set({ conditions: [], filteredResults: null, filterMatchCount: null, filterTotalRuns: null }),
 }), {
   name: 'rpdr-sim-store',
-  version: 1,
+  version: 2,
   storage: createJSONStorage(() => localStorage),
-  // Only persist user-edited config + the # of sims + selected queen.
-  // Sim results, in-flight flags, and ephemeral exploration state (filter
-  // conditions, app mode) are intentionally excluded so they reset on reload.
+  migrate: migrateToV2,
   partialize: (s) => ({
-    numSimulations: s.numSimulations,
-    realSeason: s.realSeason,
-    currentSeason: s.currentSeason,
-    editorEpisodes: s.editorEpisodes,
-    editorQueens: s.editorQueens,
+    seasonsById: s.seasonsById,
+    activeSeasonId: s.activeSeasonId,
+    currentEpisodeOverrides: s.currentEpisodeOverrides,
     selectedQueenId: s.selectedQueenId,
+    enabledCalibrateSeasons: s.enabledCalibrateSeasons,
+    numSimulations: s.numSimulations,
   }),
 }));
+
+/** Re-export for convenience; `EpisodeData` used widely by consumers. */
+export type { EpisodeData };

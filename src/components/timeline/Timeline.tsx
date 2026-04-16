@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore';
+import { selectCurrentSeason } from '../../store/selectors';
 import { BASE_STATS, isFinale, type BaseStat } from '../../engine/types';
 import { ARCHETYPES, ARCHETYPE_IDS, type ArchetypeId } from '../../data/archetypes';
 import PopoverBox from '../common/PopoverBox';
@@ -39,7 +40,8 @@ const FLOW_HORIZ_RESERVED_PX = 104;
 const BOX_PX = 48;
 
 export default function Timeline() {
-  const { currentSeason: season, conditions, updateEpisodeArchetype, updateEpisodeWeights } =
+  const season = useStore(selectCurrentSeason);
+  const { conditions, updateEpisodeArchetype, updateEpisodeWeights } =
     useStore();
 
   const conditionEpisodes = new Set(conditions.map((c) => c.episodeIndex));

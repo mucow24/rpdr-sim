@@ -252,20 +252,6 @@ const season5: SeasonData = {
       placements: {},
       eliminated: [],
     },
-    {
-      number: 13,
-      archetype: 'pass',
-      challengeName: 'Countdown to the Crown',
-      placements: {},
-      eliminated: [],
-    },
-    {
-      number: 14,
-      archetype: 'pass',
-      challengeName: 'Reunited',
-      placements: {},
-      eliminated: [],
-    },
   ],
 };
 

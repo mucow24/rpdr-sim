@@ -34,6 +34,13 @@ export interface Queen {
   color: string; // hex color for charts
 }
 
+/** Globally-unique queen identifier. `queen.id` alone is only unique within a
+ *  season (11 collisions across S1–S18), so cross-season lookups must use this
+ *  form. The engine stays within one season and keeps using `queen.id` directly. */
+export function queenUid(seasonId: string, queenId: string): string {
+  return `${seasonId}:${queenId}`;
+}
+
 export const PLACEMENTS = ['WIN', 'HIGH', 'SAFE', 'LOW', 'BTM2'] as const;
 export type Placement = (typeof PLACEMENTS)[number];
 

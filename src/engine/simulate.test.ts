@@ -227,7 +227,7 @@ describe('runFromState', () => {
 
     expect(result.buffer).toBeInstanceOf(Uint8Array);
     expect(result.numQueens).toBe(14);
-    expect(result.numEpisodes).toBe(14);
+    expect(result.numEpisodes).toBe(season5.episodes.length);
     expect(result.queenIds).toHaveLength(14);
     expect(result.queenIds[0]).toBe('jinkx');
   });
