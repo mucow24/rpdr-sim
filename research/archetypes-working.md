@@ -14,8 +14,8 @@
 | `ball` | Ball | · | · | · | · | · | 35 | **65** | · | 100 |
 | `designChallenge` | Design Challenge | · | · | · | · | · | **75** | 25 | · | 100 |
 | `makeover` | Makeover | · | · | 10 | · | · | 25 | 25 | **40** | 100 |
-| `girlGroup` | Girl Group / Music Performance | 10 | · | · | 30 | **35** | · | · | 25 | 100 |
-| `rusical` | Rusical | · | · | 25 | **35** | 15 | · | · | 25 | 100 |
+| `girlGroup` | Girl Group / Music Performance | 10 | · | · | 15 | **40** | · | · | 35 | 100 |
+| `rusical` | Rusical | · | · | 25 | 25 | 25 | · | · | 25 | 100 |
 | `dance` | Dance | · | · | 10 | **60** | 10 | · | · | 20 | 100 |
 | `talentShow` | Talent Show | 11 | 11 | 11 | 11 | 11 | 11 | 11 | **20** | 97 |
 
@@ -25,8 +25,8 @@
 |---|---|
 | Merged `unconventional` + `sewing` → `designChallenge` | v0 weights were 0.99 cosine-similar. Same queens would score the same in both. |
 | Merged `rdrLive` and `actingSketch` → `acting` | 0.97 cosine-similar. RDR Live is essentially an acting challenge with live flavor. |
-| `girlGroup` bumps music 30→35, charisma 20→25 | Merged in pure music performance challenges (Rocker Chicks, etc.). |
-| `rusical` weights now 25/35/15/25 | More dance-heavy (queens perform others' music), less music (they're not writing). |
+| `girlGroup` → music-dominant (10/15/40/35 com/dan/mus/cha) | Post-audit data showed ~15 RuMix/verse-writing challenges are music+charisma, not dance-heavy. Now covers both true girl groups and solo/group music performances. |
+| `rusical` → balanced 25/25/25/25 act/dan/mus/cha | Rusicals split roughly evenly between dance-dominant, balanced, and music-dominant (6 music / 5 balanced / 2 dance across 13 Rusicals). No single axis dominates. |
 | `dance` added (new) | 7 pure-choreography episodes were being shoehorned into girlGroup. |
 | `standUpRoast`, `branding` redistributed charisma | Charisma bumped across performance archetypes. |
 | Acting weight profile sharpened (com 20, imp 5, act 55, cha 20) | More purely about acting, less about joke writing. |
@@ -44,16 +44,15 @@ Cosine similarity check (see `archetype-overlap.py`). All pairs ≥ 0.70:
 | Pair | Sim | Acceptable? |
 |---|---:|---|
 | snatchGame ↔ improv | 0.92 | Yes — both are improv-dominant by nature. Differentiate on comedy (30 vs 10) and charisma (15 vs 30). |
-| rusical ↔ dance | 0.89 | Yes — both are dance-heavy performance. Acting (25 vs 10) differentiates. |
 | standUpRoast ↔ branding | 0.86 | Yes — both reward comedy + charisma. Magnitudes flip which dominates. |
-| girlGroup ↔ rusical | 0.79 | Yes — natural family resemblance. |
-| girlGroup ↔ dance | 0.77 | Yes — overlap on dance + charisma. |
+| girlGroup ↔ rusical | 0.80 | Yes — natural family resemblance. |
+| rusical ↔ dance | 0.77 | Yes — both performance archetypes. |
 | makeover ↔ talentShow | 0.76 | Yes — talentShow's flat profile creates moderate overlap with everything charisma-leaning. |
 | branding ↔ talentShow | 0.76 | Same as above. |
+| rusical ↔ talentShow | 0.75 | Natural overlap. |
 | ball ↔ designChallenge | 0.73 | Yes — both design/runway. Ball emphasizes runway (65), designChallenge emphasizes design (75). Meaningful split. |
-| rusical ↔ talentShow | 0.72 | Natural overlap. |
+| girlGroup ↔ talentShow | 0.71 | Acceptable. |
 | snatchGame ↔ branding | 0.71 | Acceptable. |
-| girlGroup ↔ talentShow | 0.70 | Right at threshold. |
 
 All top-of-threshold pairs are either expected family resemblance or accepted tradeoffs.
 
