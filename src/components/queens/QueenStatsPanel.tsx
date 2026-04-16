@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore';
+import { selectCurrentSeason } from '../../store/selectors';
 import { BASE_STATS, type BaseStat } from '../../engine/types';
 import StatInput from '../common/StatInput';
 import RadarChart from '../RadarChart';
@@ -18,8 +19,9 @@ const STAT_CODE: Record<BaseStat, string> = {
  *  PlacementGrid; mirrors what the queen popover used to show. When no queen
  *  is selected, renders the same layout in a disabled state. */
 export default function QueenStatsPanel() {
+  const season = useStore(selectCurrentSeason);
+  const activeSeasonId = useStore((s) => s.activeSeasonId);
   const {
-    currentSeason: season,
     selectedQueenId,
     baselineResults,
     filteredResults,
@@ -113,7 +115,7 @@ export default function QueenStatsPanel() {
               onCommit={(v) => {
                 if (!queen) return;
                 if (v === (queen.skills[stat] ?? 0)) return;
-                updateQueenSkill(queen.id, stat, v);
+                updateQueenSkill(activeSeasonId, queen.id, stat, v);
               }}
             />
           </div>
@@ -130,7 +132,7 @@ export default function QueenStatsPanel() {
             onCommit={(v) => {
               if (!queen) return;
               if (v === queen.lipSync) return;
-              updateQueenLipSync(queen.id, v);
+              updateQueenLipSync(activeSeasonId, queen.id, v);
             }}
           />
         </div>

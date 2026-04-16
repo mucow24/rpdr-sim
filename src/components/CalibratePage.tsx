@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
+import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
-import { BASE_STATS, BASE_STAT_DISPLAY, type BaseStat, type Queen } from '../engine/types';
+import { BASE_STATS, BASE_STAT_DISPLAY, queenUid, type BaseStat, type Queen } from '../engine/types';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -45,137 +46,60 @@ function getStatValue(queen: Queen, stat: StatKey): number {
   return stat === 'lipSync' ? queen.lipSync : queen.skills[stat];
 }
 
-function setStatValue(queen: Queen, stat: StatKey, value: number): Queen {
-  if (stat === 'lipSync') {
-    return { ...queen, lipSync: value };
-  }
-  return { ...queen, skills: { ...queen.skills, [stat]: value } };
-}
-
-function buildInitialRoster(): RosterEntry[] {
-  const entries: RosterEntry[] = [];
-  for (const preset of SEASON_PRESETS) {
-    for (const queen of preset.season.queens) {
-      entries.push({
-        seasonId: preset.season.id,
-        seasonName: preset.season.name,
-        queen: { ...queen, skills: { ...queen.skills } },
-      });
-    }
-  }
-  return entries;
-}
-
-function compositeKey(entry: RosterEntry): string {
-  return `${entry.seasonId}:${entry.queen.id}`;
-}
-
-const STORAGE_KEY = 'rpdr-calibrate-roster-v2';
-const ENABLED_SEASONS_STORAGE_KEY = 'rpdr-calibrate-enabled-seasons';
-
-function migrateEntry(entry: RosterEntry): RosterEntry {
-  // Backfill any base stats added after the roster was saved (e.g. charisma).
-  let patched = false;
-  const skills = { ...entry.queen.skills };
-  for (const stat of BASE_STATS) {
-    if (skills[stat] === undefined) {
-      skills[stat] = 5; // neutral default
-      patched = true;
-    }
-  }
-  return patched ? { ...entry, queen: { ...entry.queen, skills } } : entry;
-}
-
-function loadRoster(): RosterEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const data = JSON.parse(raw) as RosterEntry[];
-      if (Array.isArray(data) && data.length > 0) return data.map(migrateEntry);
-    }
-  } catch { /* ignore corrupt data */ }
-  return buildInitialRoster();
-}
-
-function saveRoster(roster: RosterEntry[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(roster));
-}
-
-function loadEnabledSeasons(): Set<string> {
-  try {
-    const raw = localStorage.getItem(ENABLED_SEASONS_STORAGE_KEY);
-    if (raw) {
-      const data = JSON.parse(raw) as string[];
-      if (Array.isArray(data)) return new Set(data);
-    }
-  } catch { /* ignore corrupt data */ }
-  return new Set(SEASON_PRESETS.map((p) => p.id));
-}
-
-function saveEnabledSeasons(seasons: Set<string>) {
-  localStorage.setItem(ENABLED_SEASONS_STORAGE_KEY, JSON.stringify([...seasons]));
-}
+// One-time cleanup of Calibrate's pre-v2 localStorage keys — their data now
+// lives in the store (under `rpdr-sim-store`).
+const LEGACY_STORAGE_KEYS = [
+  'rpdr-calibrate-roster-v2',
+  'rpdr-calibrate-enabled-seasons',
+];
 
 export default function CalibratePage() {
-  const [roster, setRosterRaw] = useState<RosterEntry[]>(loadRoster);
-  const setRoster = useCallback((update: RosterEntry[] | ((prev: RosterEntry[]) => RosterEntry[])) => {
-    setRosterRaw((prev) => {
-      const next = typeof update === 'function' ? update(prev) : update;
-      saveRoster(next);
-      return next;
-    });
-  }, []);
+  const seasonsById = useStore((s) => s.seasonsById);
+  const enabledCalibrateSeasons = useStore((s) => s.enabledCalibrateSeasons);
+  const updateQueenSkill = useStore((s) => s.updateQueenSkill);
+  const updateQueenLipSync = useStore((s) => s.updateQueenLipSync);
+  const toggleCalibrateSeason = useStore((s) => s.toggleCalibrateSeason);
+  const setEnabledCalibrateSeasons = useStore((s) => s.setEnabledCalibrateSeasons);
+
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
-  const [enabledSeasons, setEnabledSeasonsRaw] = useState<Set<string>>(loadEnabledSeasons);
-  const setEnabledSeasons = useCallback(
-    (update: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-      setEnabledSeasonsRaw((prev) => {
-        const next = typeof update === 'function' ? update(prev) : update;
-        saveEnabledSeasons(next);
-        return next;
-      });
-    },
-    [],
-  );
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const toggleSeason = (seasonId: string) => {
-    setEnabledSeasons((prev) => {
-      const next = new Set(prev);
-      if (next.has(seasonId)) next.delete(seasonId);
-      else next.add(seasonId);
-      return next;
-    });
-  };
-
-  const allSeasonsEnabled = enabledSeasons.size === SEASON_PRESETS.length;
-  const setAllSeasons = (enabled: boolean) => {
-    setEnabledSeasons(enabled ? new Set(SEASON_PRESETS.map((p) => p.id)) : new Set());
-  };
-
-  const handleReloadQueens = () => {
-    if (
-      window.confirm(
-        'Reload queens from season files? Any manual calibrations on this tab will be discarded.',
-      )
-    ) {
-      setRoster(buildInitialRoster());
+  useEffect(() => {
+    for (const key of LEGACY_STORAGE_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch { /* ignore */ }
     }
+  }, []);
+
+  const enabledSet = new Set(enabledCalibrateSeasons);
+  const allSeasonsEnabled = enabledSet.size === SEASON_PRESETS.length;
+  const setAllSeasons = (enabled: boolean) => {
+    setEnabledCalibrateSeasons(enabled ? SEASON_PRESETS.map((p) => p.id) : []);
   };
+
+  // Flatten all queens across all seasons into a single roster.
+  const roster: RosterEntry[] = [];
+  for (const preset of SEASON_PRESETS) {
+    const season = seasonsById[preset.id];
+    if (!season) continue;
+    for (const queen of season.queens) {
+      roster.push({ seasonId: preset.id, seasonName: season.name, queen });
+    }
+  }
 
   const scoreRows = Array.from({ length: 10 }, (_, i) => 10 - i); // [10, 9, 8, ..., 1]
 
   const entriesByScore = new Map<number, RosterEntry[]>();
   for (const score of scoreRows) entriesByScore.set(score, []);
   for (const entry of roster) {
-    if (!enabledSeasons.has(entry.seasonId)) continue;
+    if (!enabledSet.has(entry.seasonId)) continue;
     const val = getStatValue(entry.queen, selectedStat);
     entriesByScore.get(val)?.push(entry);
   }
 
   const handleDragStart = (e: DragEvent, entry: RosterEntry) => {
-    e.dataTransfer.setData('text/plain', compositeKey(entry));
+    e.dataTransfer.setData('text/plain', queenUid(entry.seasonId, entry.queen.id));
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -184,78 +108,19 @@ export default function CalibratePage() {
     setDragOverRow(null);
     const key = e.dataTransfer.getData('text/plain');
     if (!key) return;
-    setRoster((prev) =>
-      prev.map((entry) =>
-        compositeKey(entry) === key
-          ? { ...entry, queen: setStatValue(entry.queen, selectedStat, targetScore) }
-          : entry,
-      ),
-    );
+    const [seasonId, queenId] = key.split(':');
+    if (!seasonId || !queenId) return;
+    if (selectedStat === 'lipSync') {
+      updateQueenLipSync(seasonId, queenId, targetScore);
+    } else {
+      updateQueenSkill(seasonId, queenId, selectedStat, targetScore);
+    }
   };
 
   const handleDragOver = (e: DragEvent, score: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverRow(score);
-  };
-
-  const handleExport = () => {
-    const data: Record<string, { name: string; queens: Queen[] }> = {};
-    for (const entry of roster) {
-      if (!data[entry.seasonId]) {
-        data[entry.seasonId] = { name: entry.seasonName, queens: [] };
-      }
-      // Ensure consistent key order in skills
-      const orderedSkills: Record<string, number> = {};
-      for (const cat of BASE_STATS) {
-        orderedSkills[cat] = entry.queen.skills[cat];
-      }
-      data[entry.seasonId].queens.push({
-        id: entry.queen.id,
-        name: entry.queen.name,
-        skills: orderedSkills as Queen['skills'],
-        lipSync: entry.queen.lipSync,
-        color: entry.queen.color,
-      });
-    }
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'rpdr-queens-roster.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string) as Record<
-          string,
-          { name: string; queens: Queen[] }
-        >;
-        const entries: RosterEntry[] = [];
-        for (const [seasonId, season] of Object.entries(data)) {
-          for (const queen of season.queens) {
-            entries.push({
-              seasonId,
-              seasonName: season.name,
-              queen: { ...queen, skills: { ...queen.skills } },
-            });
-          }
-        }
-        setRoster(entries);
-      } catch {
-        alert('Invalid JSON file');
-      }
-    };
-    reader.readAsText(file);
-    // Reset so the same file can be re-imported
-    e.target.value = '';
   };
 
   return (
@@ -273,34 +138,6 @@ export default function CalibratePage() {
             </option>
           ))}
         </select>
-
-        <div className="flex gap-2 ml-auto">
-          <button
-            onClick={handleReloadQueens}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
-          >
-            Reload queens
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
-          >
-            Import JSON
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-          />
-          <button
-            onClick={handleExport}
-            className="text-xs text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-3 py-1.5 rounded transition-colors font-medium"
-          >
-            Export JSON
-          </button>
-        </div>
       </div>
 
       {/* Season filter */}
@@ -312,7 +149,7 @@ export default function CalibratePage() {
           {allSeasonsEnabled ? 'None' : 'All'}
         </button>
         {SEASON_PRESETS.map((preset) => {
-          const checked = enabledSeasons.has(preset.id);
+          const checked = enabledSet.has(preset.id);
           return (
             <label
               key={preset.id}
@@ -321,7 +158,7 @@ export default function CalibratePage() {
               <input
                 type="checkbox"
                 checked={checked}
-                onChange={() => toggleSeason(preset.id)}
+                onChange={() => toggleCalibrateSeason(preset.id)}
                 className="accent-amber-500"
               />
               <span
@@ -361,7 +198,7 @@ export default function CalibratePage() {
               <div className="flex flex-wrap gap-1.5">
                 {entries.map((entry) => (
                   <div
-                    key={compositeKey(entry)}
+                    key={queenUid(entry.seasonId, entry.queen.id)}
                     draggable
                     onDragStart={(e) => handleDragStart(e, entry)}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] cursor-grab active:cursor-grabbing transition-colors"

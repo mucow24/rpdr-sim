@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
+import { selectCurrentSeason } from '../../store/selectors';
 import { isFinale } from '../../engine/types';
 
 
@@ -24,7 +25,8 @@ export default function WinProbChart({ height = 400 }) {
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
-  const { currentSeason: season, baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const season = useStore(selectCurrentSeason);
+  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
 
   const results = filteredResults ?? baselineResults;

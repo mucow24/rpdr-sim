@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
+import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS } from '../../engine/types';
 
 const PLACEMENT_COLORS: Record<string, string> = {
@@ -66,7 +67,8 @@ export default function TrajectoryChart({ height = 350 }) {
     return () => obs.disconnect();
   }, []);
 
-  const { currentSeason: season, selectedQueenId, baselineResults, filteredResults } = useStore();
+  const season = useStore(selectCurrentSeason);
+  const { selectedQueenId, baselineResults, filteredResults } = useStore();
   const results = filteredResults ?? baselineResults;
 
   // Fall back to top-ranked queen (by crown probability) when no selection exists,
