@@ -5,7 +5,7 @@
 | 1 | RuPaullywood or Bust | Perform in a lip-sync/dance showcase number | music | charisma |
 | 2 | Lip Synch Extravaganza Eleganza | Lip-sync performance in assigned musical roles | music | acting |
 | 3 | Draggle Rock | Create a child-star persona and perform in kids TV parody | acting | comedy |
-| 4 | Black Swan: Why It Gotta Be Black? | Perform ballet-inspired dance routine in swan costumes | dance | design |
+| 4 | Black Swan: Why It Gotta Be Black? | Perform ballet-inspired dance routine in swan costumes | dance | charisma |
 | 5 | Snatch Game | Snatch Game celebrity impersonation | comedy | improv |
 | 6 | Can I Get an Amen? | Record and perform a gospel-inspired pop song | music | charisma |
 | 7 | RuPaul Roast | Stand-up comedy roast of RuPaul | comedy | charisma |
