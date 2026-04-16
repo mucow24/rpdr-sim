@@ -70,7 +70,8 @@ function compositeKey(entry: RosterEntry): string {
   return `${entry.seasonId}:${entry.queen.id}`;
 }
 
-const STORAGE_KEY = 'rpdr-calibrate-roster';
+const STORAGE_KEY = 'rpdr-calibrate-roster-v2';
+const ENABLED_SEASONS_STORAGE_KEY = 'rpdr-calibrate-enabled-seasons';
 
 function migrateEntry(entry: RosterEntry): RosterEntry {
   // Backfill any base stats added after the roster was saved (e.g. charisma).
@@ -100,6 +101,21 @@ function saveRoster(roster: RosterEntry[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(roster));
 }
 
+function loadEnabledSeasons(): Set<string> {
+  try {
+    const raw = localStorage.getItem(ENABLED_SEASONS_STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw) as string[];
+      if (Array.isArray(data)) return new Set(data);
+    }
+  } catch { /* ignore corrupt data */ }
+  return new Set(SEASON_PRESETS.map((p) => p.id));
+}
+
+function saveEnabledSeasons(seasons: Set<string>) {
+  localStorage.setItem(ENABLED_SEASONS_STORAGE_KEY, JSON.stringify([...seasons]));
+}
+
 export default function CalibratePage() {
   const [roster, setRosterRaw] = useState<RosterEntry[]>(loadRoster);
   const setRoster = useCallback((update: RosterEntry[] | ((prev: RosterEntry[]) => RosterEntry[])) => {
@@ -111,8 +127,16 @@ export default function CalibratePage() {
   }, []);
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
-  const [enabledSeasons, setEnabledSeasons] = useState<Set<string>>(
-    () => new Set(SEASON_PRESETS.map((p) => p.id)),
+  const [enabledSeasons, setEnabledSeasonsRaw] = useState<Set<string>>(loadEnabledSeasons);
+  const setEnabledSeasons = useCallback(
+    (update: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+      setEnabledSeasonsRaw((prev) => {
+        const next = typeof update === 'function' ? update(prev) : update;
+        saveEnabledSeasons(next);
+        return next;
+      });
+    },
+    [],
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +152,16 @@ export default function CalibratePage() {
   const allSeasonsEnabled = enabledSeasons.size === SEASON_PRESETS.length;
   const setAllSeasons = (enabled: boolean) => {
     setEnabledSeasons(enabled ? new Set(SEASON_PRESETS.map((p) => p.id)) : new Set());
+  };
+
+  const handleReloadQueens = () => {
+    if (
+      window.confirm(
+        'Reload queens from season files? Any manual calibrations on this tab will be discarded.',
+      )
+    ) {
+      setRoster(buildInitialRoster());
+    }
   };
 
   const scoreRows = Array.from({ length: 10 }, (_, i) => 10 - i); // [10, 9, 8, ..., 1]
@@ -241,6 +275,12 @@ export default function CalibratePage() {
         </select>
 
         <div className="flex gap-2 ml-auto">
+          <button
+            onClick={handleReloadQueens}
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+          >
+            Reload queens
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
