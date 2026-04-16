@@ -203,13 +203,6 @@ const season3: SeasonData = {
       placements: {},
       eliminated: [],
     },
-    {
-      number: 16,
-      archetype: 'pass',
-      challengeName: 'Reunited',
-      placements: {},
-      eliminated: [],
-    },
   ],
 };
 
