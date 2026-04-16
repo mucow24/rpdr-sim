@@ -54,31 +54,6 @@ Star quality, stage presence, connecting with the audience, confessional pop, th
 
 ---
 
-## Episode archetypes
-
-Each regular episode is tagged with an archetype id. The archetype's weights are a mixture over the 8 base stats; the simulation normalizes them at scoring time, so they don't need to sum to 100. Finales are their own track (`FinaleEpisode`, `kind: 'finale'`) and don't use an archetype.
-
-| Id | Display | Com | Imp | Act | Dan | Mus | Des | Run | Cha |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `snatchGame` | Snatch Game | 30 | 50 | 10 | | | | | 10 |
-| `rusical` | Rusical | | | 25 | 40 | 15 | | | 20 |
-| `girlGroup` | Girl Group / Music Video | 5 | | | 45 | 30 | | | 20 |
-| `actingSketch` | Acting Challenge | 35 | 10 | 40 | | | | | 15 |
-| `improv` | Improv Challenge | 25 | 60 | | | | | | 15 |
-| `standUpRoast` | Stand-Up / Roast | 55 | 15 | | | | | | 30 |
-| `unconventional` | Unconventional Materials | | | | | | 70 | 30 | |
-| `sewing` | Design-From-Scratch | | | | | | 80 | 20 | |
-| `ball` | Ball | | | | | | 40 | 60 | |
-| `makeover` | Makeover | | | 10 | | | 25 | 25 | 40 |
-| `branding` | Branding / Infomercial | 35 | 15 | 20 | | | | | 30 |
-| `talentShow` | Talent Show *(placeholder)* | 11 | 11 | 11 | 11 | 11 | 11 | 11 | 20 |
-
-**Talent Show note:** this is a placeholder using flat weights. The intended scoring is special-cased (e.g., ~70% argmax-of-skills + ~30% charisma, since queens pick their strongest talent). Will replace once the special-scoring path is implemented.
-
-**Finale:** handled separately via `FinaleEpisode` with `finaleType: 'default'`. Different finale formats (top-3 showcase, lip-sync lalaparuza, etc.) will be added as new `finaleType` values when needed.
-
----
-
 ## Scoring rubric
 
 How to rate a queen 1–10 on any given stat. The key distinction is **10 = consistency (multiple 9-caliber performances)** vs. **9 = one legendary performance**.
