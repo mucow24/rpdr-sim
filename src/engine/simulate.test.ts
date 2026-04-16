@@ -41,12 +41,12 @@ function makeTestSeason(): SeasonData {
       eliminated: [], // non-elim
     },
     {
-      number: 2, ...ep('actingSketch'), challengeName: 'Ep2',
+      number: 2, ...ep('acting'), challengeName: 'Ep2',
       placements: { alice: 'WIN', beth: 'HIGH', carol: 'SAFE', dana: 'LOW', eve: 'BTM2', faye: 'BTM2' },
       eliminated: ['faye'],
     },
     {
-      number: 3, ...ep('sewing'), challengeName: 'Ep3',
+      number: 3, ...ep('designChallenge'), challengeName: 'Ep3',
       placements: { alice: 'HIGH', beth: 'WIN', carol: 'SAFE', dana: 'BTM2', eve: 'BTM2' },
       eliminated: ['eve'],
     },
@@ -122,10 +122,10 @@ describe('weighted scoreQueen', () => {
   });
 
   test('archetype weights resolve correctly through scoring', () => {
-    // snatchGame archetype: comedy:30, improv:50, acting:10, charisma:10 → total 100
-    // score = (10*30 + 1*50 + 6*10 + 9*10) / 100 = (300 + 50 + 60 + 90) / 100 = 5.0
+    // snatchGame archetype: comedy:30, improv:50, acting:5, charisma:15 → total 100
+    // score = (10*30 + 1*50 + 6*5 + 9*15) / 100 = (300 + 50 + 30 + 135) / 100 = 5.15
     const score = scoreQueen(queen, ARCHETYPES.snatchGame.weights, 0);
-    expect(score).toBeCloseTo(5.0, 10);
+    expect(score).toBeCloseTo(5.15, 10);
   });
 });
 
@@ -226,7 +226,7 @@ describe('runFromState', () => {
 
     expect(result.buffer).toBeInstanceOf(Uint8Array);
     expect(result.numQueens).toBe(14);
-    expect(result.numEpisodes).toBe(12);
+    expect(result.numEpisodes).toBe(14);
     expect(result.queenIds).toHaveLength(14);
     expect(result.queenIds[0]).toBe('jinkx');
   });

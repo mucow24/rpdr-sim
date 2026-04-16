@@ -23,57 +23,57 @@ export const ARCHETYPES = {
   snatchGame: {
     displayName: 'Snatch Game',
     icon: '🎯',
-    weights: mix({ comedy: 30, improv: 50, acting: 10, charisma: 10 }),
-  },
-  rusical: {
-    displayName: 'Rusical',
-    icon: '🎼',
-    weights: mix({ acting: 25, dance: 40, music: 15, charisma: 20 }),
-  },
-  girlGroup: {
-    displayName: 'Girl Group / Music Video',
-    icon: '🎤',
-    weights: mix({ comedy: 5, dance: 45, music: 30, charisma: 20 }),
-  },
-  actingSketch: {
-    displayName: 'Acting Challenge',
-    icon: '🎭',
-    weights: mix({ comedy: 35, improv: 10, acting: 40, charisma: 15 }),
+    weights: mix({ comedy: 30, improv: 50, acting: 5, charisma: 15 }),
   },
   improv: {
     displayName: 'Improv Challenge',
     icon: '🎪',
-    weights: mix({ comedy: 25, improv: 60, charisma: 15 }),
+    weights: mix({ comedy: 10, improv: 60, charisma: 30 }),
+  },
+  acting: {
+    displayName: 'Acting Challenge',
+    icon: '🎭',
+    weights: mix({ comedy: 20, improv: 5, acting: 55, charisma: 20 }),
   },
   standUpRoast: {
     displayName: 'Stand-Up / Roast',
     icon: '🎙️',
-    weights: mix({ comedy: 55, improv: 15, charisma: 30 }),
+    weights: mix({ comedy: 60, improv: 10, charisma: 30 }),
   },
-  unconventional: {
-    displayName: 'Unconventional Materials',
-    icon: '🧵',
-    weights: mix({ design: 70, runway: 30 }),
-  },
-  sewing: {
-    displayName: 'Design-From-Scratch',
-    icon: '✂️',
-    weights: mix({ design: 80, runway: 20 }),
+  branding: {
+    displayName: 'Branding / Selling',
+    icon: '📣',
+    weights: mix({ comedy: 30, improv: 15, acting: 15, charisma: 40 }),
   },
   ball: {
     displayName: 'Ball',
     icon: '👗',
-    weights: mix({ design: 40, runway: 60 }),
+    weights: mix({ design: 35, runway: 65 }),
+  },
+  designChallenge: {
+    displayName: 'Design Challenge',
+    icon: '✂️',
+    weights: mix({ design: 75, runway: 25 }),
   },
   makeover: {
     displayName: 'Makeover',
     icon: '💄',
     weights: mix({ acting: 10, design: 25, runway: 25, charisma: 40 }),
   },
-  branding: {
-    displayName: 'Branding / Infomercial',
-    icon: '📣',
-    weights: mix({ comedy: 35, improv: 15, acting: 20, charisma: 30 }),
+  girlGroup: {
+    displayName: 'Girl Group / Music Performance',
+    icon: '🎤',
+    weights: mix({ comedy: 10, dance: 15, music: 40, charisma: 35 }),
+  },
+  rusical: {
+    displayName: 'Rusical',
+    icon: '🎼',
+    weights: mix({ acting: 25, dance: 25, music: 25, charisma: 25 }),
+  },
+  dance: {
+    displayName: 'Dance',
+    icon: '💃',
+    weights: mix({ acting: 10, dance: 60, music: 10, charisma: 20 }),
   },
   talentShow: {
     displayName: 'Talent Show',
@@ -82,6 +82,11 @@ export const ARCHETYPES = {
       comedy: 11, improv: 11, acting: 11, dance: 11,
       music: 11, design: 11, runway: 11, charisma: 20,
     }),
+  },
+  pass: {
+    displayName: 'Pass-Through (no challenge)',
+    icon: '⏭️',
+    weights: mix({}),
   },
 } as const satisfies Record<string, ArchetypeDef>;
 
