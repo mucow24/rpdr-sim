@@ -187,13 +187,6 @@ const season11: SeasonData = {
       eliminated: ['vanjie'],
     },
     {
-      number: 13,
-      archetype: 'pass',
-      challengeName: 'Reunited',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 14,

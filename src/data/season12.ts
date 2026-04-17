@@ -191,13 +191,6 @@ const season12: SeasonData = {
       eliminated: ['jackie'],
     },
     {
-      number: 13,
-      archetype: 'pass',
-      challengeName: 'Alone Together',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 14,

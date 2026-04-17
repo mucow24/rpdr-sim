@@ -75,6 +75,11 @@ export const ARCHETYPES = {
     icon: '💃',
     weights: mix({ acting: 10, dance: 60, music: 10, charisma: 20 }),
   },
+  lipSyncSmackdown: {
+    displayName: 'Lip Sync Smackdown',
+    icon: '🎤',
+    weights: mix({ dance: 100 }),
+  },
   talentShow: {
     displayName: 'Talent Show',
     icon: '🌟',

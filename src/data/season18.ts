@@ -210,13 +210,6 @@ const season18: SeasonData = {
       eliminated: ['juicy'],
     },
     {
-      number: 15,
-      archetype: 'pass',
-      challengeName: 'All RuPaul-A-Paruza Smackdown',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 16,

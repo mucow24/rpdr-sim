@@ -98,13 +98,6 @@ const season13: SeasonData = {
   ],
   episodes: [
     {
-      number: 1,
-      archetype: 'pass',
-      challengeName: 'The Pork Chop',
-      placements: {},
-      eliminated: ['elliott'],
-    },
-    {
       number: 2,
       archetype: 'girlGroup',
       challengeName: 'Condragulations',
@@ -271,13 +264,6 @@ const season13: SeasonData = {
       number: 14,
       archetype: 'girlGroup',
       challengeName: "Gettin' Lucky",
-      placements: {},
-      eliminated: [],
-    },
-    {
-      number: 15,
-      archetype: 'pass',
-      challengeName: 'Reunited',
       placements: {},
       eliminated: [],
     },

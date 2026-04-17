@@ -98,13 +98,6 @@ const season3: SeasonData = {
   ],
   episodes: [
     {
-      number: 1,
-      archetype: 'pass',
-      challengeName: 'Casting Extravaganza',
-      placements: {},
-      eliminated: [],
-    },
-    {
       number: 2,
       archetype: 'designChallenge',
       challengeName: 'The Queen Who Mopped Xmas',
@@ -187,13 +180,6 @@ const season3: SeasonData = {
       challengeName: 'The Money Ball',
       placements: { manila: 'WIN', alexis: 'BTM2', yara: 'BTM2' },
       eliminated: ['yara'],
-    },
-    {
-      number: 14,
-      archetype: 'pass',
-      challengeName: 'RuPaul Rewind',
-      placements: {},
-      eliminated: [],
     },
     {
       kind: 'finale',

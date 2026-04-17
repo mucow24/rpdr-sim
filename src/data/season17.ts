@@ -212,13 +212,6 @@ const season17: SeasonData = {
       eliminated: ['suzie'],
     },
     {
-      number: 15,
-      archetype: 'pass',
-      challengeName: 'Lip Sync Lalaparuza Smackdown',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 16,
