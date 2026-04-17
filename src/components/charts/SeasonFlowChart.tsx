@@ -397,6 +397,13 @@ export default function SeasonFlowChart() {
       return dimBase + (1 - dimBase) * Math.pow(t / dimCutoff, dimExp);
     };
 
+    const glowColor = (c: string): string => {
+      const hsl = d3.hsl(c);
+      hsl.s *= 0.5;
+      hsl.opacity = 0.5;
+      return hsl.formatRgb();
+    };
+
     // Queen bands within nodes (opacity scales with flow)
     const maxBandH = Math.max(
       ...Array.from({ length: numCols }, (_, col) =>
@@ -510,16 +517,20 @@ export default function SeasonFlowChart() {
     // don't steal events from adjacent queens' tight hit areas.
     const queenBars: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
     const queenNames: Record<string, d3.Selection<SVGTextElement, unknown, null, undefined>> = {};
+    const queenUnderlines: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
 
     function setHoverQueen(hoverId: string | null) {
       for (const q of queenOrder) {
         const bar = queenBars[q.id];
         const name = queenNames[q.id];
-        if (!bar || !name) continue;
+        const underline = queenUnderlines[q.id];
+        if (!bar || !name || !underline) continue;
         const sel = isSelected(q.id);
         const isHover = hoverId === q.id;
-        bar.attr('opacity', sel || isHover ? 1.0 : 0);
-        name.attr('opacity', isHover ? 1.0 : 0.9);
+        const on = sel || isHover;
+        bar.attr('opacity', on ? 1.0 : 0);
+        underline.attr('opacity', on ? 1.0 : 0);
+        name.style('text-shadow', on ? (() => { const gc = glowColor(q.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none');
       }
     }
 
@@ -548,22 +559,34 @@ export default function SeasonFlowChart() {
         .style('pointer-events', 'none');
       queenBars[queen.id] = colorBar;
 
-      // Queen name — always visible.
+      // Queen name — always 100% opacity; subtle glow + underline on select/hover.
       const nameText = srcGroup.append('text')
         .attr('x', SOURCE_COL_WIDTH - 30).attr('y', nameCenter)
         .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
         .attr('fill', queen.color)
         .attr('font-size', numQueens > 10 ? '12px' : '15px')
         .attr('font-weight', '600')
-        .attr('opacity', 0.9)
+        .attr('opacity', 1.0)
         .style('pointer-events', 'none')
+        .style('text-shadow', sel ? (() => { const gc = glowColor(queen.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none')
         .text(queen.name.split(' ')[0]);
       queenNames[queen.id] = nameText;
 
-      // Yellow dot for queens with pins.
+      const nameBBox = nameText.node()!.getBBox();
+      const underline = srcGroup.append('rect')
+        .attr('x', nameBBox.x)
+        .attr('y', nameBBox.y + nameBBox.height + 1)
+        .attr('width', nameBBox.width)
+        .attr('height', 2)
+        .attr('fill', queen.color)
+        .attr('opacity', sel ? 1.0 : 0)
+        .style('pointer-events', 'none');
+      queenUnderlines[queen.id] = underline;
+
+      // Yellow dot for queens with pins — ~20px left of the name.
       if (hasPins) {
         srcGroup.append('circle')
-          .attr('cx', 2).attr('cy', nameCenter)
+          .attr('cx', nameBBox.x - 20).attr('cy', nameCenter)
           .attr('r', 2.5)
           .attr('fill', '#ffd700')
           .attr('opacity', 0.9)
