@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { isFinale } from '../../engine/types';
+import { placementEpisodeLabels } from '../../engine/placementEpisodes';
 
 
 const MARGIN = { top: 32, right: 16, bottom: 16, left: 120 };
@@ -80,13 +80,12 @@ export default function PlacementGrid({
     // Single <defs> for per-row gradients
     const defs = svg.append('defs');
 
-    // Finale cohort size: queens that reach the finale = numQueens minus those
-    // eliminated in the regular episodes. Used to draw a divider between
-    // "last place in the finale" and "first eliminated before the finale".
-    const elimsBeforeFinale = season.episodes
-      .filter((ep) => !isFinale(ep))
-      .reduce((sum, ep) => sum + ep.eliminated.length, 0);
-    const finaleCohortSize = numQueens - elimsBeforeFinale;
+    // Map each final placement to a "Episode N" / "Finale" label for the
+    // tooltip, and recover `finaleCohortSize` from the same scan. The divider
+    // below uses finaleCohortSize to separate "last place in the finale" from
+    // "first eliminated before the finale".
+    const { labels: placeEpisodeLabel, finaleCohortSize } =
+      placementEpisodeLabels(season);
 
     // Column labels (above grid): "👑" at rightmost (place 1), then 2, 3, ..., N
     g.append('g')
@@ -270,7 +269,7 @@ export default function PlacementGrid({
               .style('left', `${event.clientX + 12}px`)
               .style('top', `${event.clientY - 10}px`)
               .html(
-                `<strong>${queen.name}</strong><br/>${label}: ${(prob * 100).toFixed(1)}%`,
+                `<strong>${queen.name}</strong><br/>${label}: ${(prob * 100).toFixed(1)}%<br/>${placeEpisodeLabel[place] ?? ''}`,
               );
           })
           .on('mousemove', (event) => {
