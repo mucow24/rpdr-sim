@@ -20,6 +20,12 @@ const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
 const SOURCE_COL_WIDTH = 72;
 const MIN_FLOW = 0.0001;
+// Pixels per 1 unit of flow. Fixed — does not scale with queen count.
+// Each placement rectangle AND each queen's source flow band is 1 unit = SCALE px.
+const SCALE = 50;
+// Vertical spacing between queen name rows in the source column. Tighter than
+// SCALE, so adjacent queens' flow bands overlap (invisible except on select/hover).
+const SRC_ROW_H = SCALE / 2;
 
 function ribbonPath(
   x0: number, y0top: number, y0bot: number,
@@ -29,15 +35,29 @@ function ribbonPath(
   return `M ${x0} ${y0top} C ${cpx} ${y0top}, ${cpx} ${y1top}, ${x1} ${y1top} L ${x1} ${y1bot} C ${cpx} ${y1bot}, ${cpx} ${y0bot}, ${x0} ${y0bot} Z`;
 }
 
-export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
+export default function SeasonFlowChart() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
+  const [dimExp, setDimExp] = useState(1.5);
+  const [dimBase, setDimBase] = useState(0.12);
+  const [dimCutoff, setDimCutoff] = useState(0.1);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
     useStore();
   const results = filteredResults ?? baselineResults;
+
+  // Layout heights (fixed scale; chart auto-sizes to fit whichever stack is taller).
+  const numQueens = season.queens.length;
+  const rectStackH =
+    CHART_PLACEMENTS.length * SCALE + (CHART_PLACEMENTS.length - 1) * PLACEMENT_GAP;
+  // srcColH spans from the first queen's flow-band top to the last's bottom.
+  const srcColH = numQueens === 0 ? 0 : (numQueens - 1) * SRC_ROW_H + SCALE;
+  const placementAreaH = Math.max(rectStackH, srcColH);
+  const height = placementAreaH + MARGIN.top + MARGIN.bottom;
+  const rectStackOffsetY = (placementAreaH - rectStackH) / 2;
+  const srcColOffsetY = (placementAreaH - srcColH) / 2;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -73,11 +93,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       return;
     }
 
-    const numQueens = season.queens.length;
     const numEps = season.episodes.length;
     const innerW = width - MARGIN.left - MARGIN.right;
-    const innerH = height - MARGIN.top - MARGIN.bottom;
-    const placementAreaH = innerH;
 
     const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
@@ -119,57 +136,48 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     const epSpacing = epAreaW / numCols;
     const colX = (col: number) => SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
 
-    // -- Vertical scale: total initial flow = numQueens fills placement area --
-    const SCALE = (placementAreaH - (CHART_PLACEMENTS.length - 1) * PLACEMENT_GAP) / numQueens;
-
-    // -- Placement nodes (sized per column based on actual flow) --
+    // -- Placement nodes (constant height = 1 queen's flow; stack centered vertically) --
     type NodePos = { y: number; h: number };
     const nodes: NodePos[][] = [];
     for (let col = 0; col < numCols; col++) {
       const nodeCol: NodePos[] = [];
-      let cy = 0;
+      let cy = rectStackOffsetY;
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-        let totalF = 0;
-        for (const q of queenOrder) totalF += flowData[q.id][col][CHART_PLACEMENTS[pi]] ?? 0;
-        const h = totalF * SCALE;
+        const h = SCALE;
         nodeCol.push({ y: cy, h });
-        // No gap between BTM2 and ELIM — they form one contiguous "bottom zone"
-        const gapAfter = CHART_PLACEMENTS[pi] === 'BTM2' ? 0 : PLACEMENT_GAP;
-        cy += h + gapAfter;
+        cy += h + PLACEMENT_GAP;
       }
       nodes[col] = nodeCol;
     }
 
-    // -- Queen bands within nodes (centered in constant-height nodes) --
+    // -- Queen bands within nodes (each queen centered in the node;
+    //    ELIM bottom-aligned so it "fills up" over time). Queens overlap. --
     type BandPos = { y: number; h: number };
     const bands: Record<string, BandPos>[][] = [];
     for (let col = 0; col < numCols; col++) {
       bands[col] = [];
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         const p = CHART_PLACEMENTS[pi];
+        const node = nodes[col][pi];
         const bmap: Record<string, BandPos> = {};
-        let actualH = 0;
-        for (const q of queenOrder) actualH += (flowData[q.id][col][p] ?? 0) * SCALE;
-        const offset = (nodes[col][pi].h - actualH) / 2;
-        let cy = nodes[col][pi].y + offset;
         for (const q of queenOrder) {
           const f = flowData[q.id][col][p] ?? 0;
           const h = f * SCALE;
-          bmap[q.id] = { y: cy, h };
-          cy += h;
+          const y = p === 'ELIM'
+            ? node.y + node.h - h
+            : node.y + (node.h - h) / 2;
+          bmap[q.id] = { y, h };
         }
         bands[col][pi] = bmap;
       }
     }
 
-    // -- Source column --
+    // -- Source column (name rows stacked tightly; flow bands SCALE-tall,
+    //    centered on each name; adjacent flow bands overlap). --
     const srcBands: Record<string, { y: number; h: number }> = {};
-    {
-      let cy = 0;
-      for (const q of queenOrder) {
-        srcBands[q.id] = { y: cy, h: SCALE };
-        cy += SCALE;
-      }
+    for (let i = 0; i < queenOrder.length; i++) {
+      const q = queenOrder[i];
+      srcBands[q.id] = { y: srcColOffsetY + i * SRC_ROW_H, h: SCALE };
     }
 
     // ============================================================
@@ -184,9 +192,10 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       color: string;
       srcX: number;
       srcY: number;
+      srcH: number;
       tgtX: number;
       tgtY: number;
-      h: number;
+      tgtH: number;
     }
 
     const allRibbons: SubRib[] = [];
@@ -220,7 +229,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
     for (const queen of queenOrder) {
       const qid = queen.id;
 
-      // Source → ep 0: queen's source band splits into placement bands at ep 0
+      // Source → ep 0: queen's source band splits into placement bands at ep 0.
       for (let ti = 0; ti < CHART_PLACEMENTS.length; ti++) {
         const weight = flowData[qid][0][CHART_PLACEMENTS[ti]];
         if (weight < MIN_FLOW) continue;
@@ -235,9 +244,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
         allRibbons.push({
           queenId: qid, color: queen.color,
-          srcX: SOURCE_COL_WIDTH - 16, srcY: sY,
-          tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY,
-          h,
+          srcX: SOURCE_COL_WIDTH - 16, srcY: sY, srcH: h,
+          tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
         });
       }
 
@@ -267,9 +275,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
               allRibbons.push({
                 queenId: qid, color: queen.color,
-                srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-                tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-                h,
+                srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
+                tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
               });
             }
 
@@ -291,9 +298,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
                       allRibbons.push({
                         queenId: qid, color: queen.color,
-                        srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-                        tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-                        h,
+                        srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
+                        tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
                       });
                     }
                   }
@@ -319,9 +325,8 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
               allRibbons.push({
                 queenId: qid, color: queen.color,
-                srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY,
-                tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY,
-                h,
+                srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
+                tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
               });
             }
           }
@@ -339,13 +344,28 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const isSelected = (qid: string) => qid === selId;
 
-    // Placement labels (left of first episode column)
-    for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
-      const node0 = nodes[0][pi];
+    // Episode labels (below ELIM row, centered on each episode's column)
+    const elimPi = CHART_PLACEMENTS.length - 1;
+    for (let col = 0; col < numCols; col++) {
+      const elimNode = nodes[col][elimPi];
+      const label = isFinale(season.episodes[col]) ? 'FINALE' : `EP ${col + 1}`;
       g.append('text')
-        .attr('x', colX(0) - NODE_WIDTH / 2 - 6)
-        .attr('y', node0.y + node0.h / 2)
-        .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
+        .attr('x', colX(col))
+        .attr('y', elimNode.y + elimNode.h + 10)
+        .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+        .attr('fill', '#888')
+        .attr('font-size', '9px').attr('font-weight', 'bold').attr('font-family', 'monospace')
+        .attr('opacity', 0.7)
+        .text(label);
+    }
+
+    // Placement labels (right of finale column, left-justified)
+    for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
+      const nodeLast = nodes[numCols - 1][pi];
+      g.append('text')
+        .attr('x', colX(numCols - 1) + NODE_WIDTH / 2 + 6)
+        .attr('y', nodeLast.y + nodeLast.h / 2)
+        .attr('text-anchor', 'start').attr('dominant-baseline', 'central')
         .attr('fill', PLACEMENT_COLORS[CHART_PLACEMENTS[pi]])
         .attr('font-size', '9px').attr('font-weight', 'bold').attr('font-family', 'monospace')
         .attr('opacity', 0.7)
@@ -372,6 +392,18 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
+    const dimOp = (t: number): number => {
+      if (dimCutoff <= 0 || t >= dimCutoff) return 1;
+      return dimBase + (1 - dimBase) * Math.pow(t / dimCutoff, dimExp);
+    };
+
+    const glowColor = (c: string): string => {
+      const hsl = d3.hsl(c);
+      hsl.s *= 0.5;
+      hsl.opacity = 0.5;
+      return hsl.formatRgb();
+    };
+
     // Queen bands within nodes (opacity scales with flow)
     const maxBandH = Math.max(
       ...Array.from({ length: numCols }, (_, col) =>
@@ -380,6 +412,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         ))
       ), 1
     );
+    const bandGroup = g.append('g').attr('class', 'queen-bands');
     for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         for (const [qid, band] of Object.entries(bands[col][pi])) {
@@ -388,15 +421,18 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           if (!queen) continue;
           const t = band.h / maxBandH;
           const sel = isSelected(qid);
-          g.append('rect')
+          bandGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
             .attr('fill', queen.color)
-            .attr('opacity', sel ? 0.15 + 0.45 * t : 0.02 * t)
+            .attr('opacity', sel ? dimOp(t) : 0)
+            .attr('data-queen', qid)
+            .attr('data-t', t)
             .style('pointer-events', 'none');
         }
       }
     }
+    const allBands = bandGroup.selectAll<SVGRectElement, unknown>('rect[data-queen]');
 
     // Sub-ribbons (render weakest queens first, strongest on top)
     const winProbs = new Map(season.queens.map((q) => [q.id, results.winProb[q.id] ?? 0]));
@@ -406,15 +442,15 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
 
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
 
-    const maxRibbonH = Math.max(...sortedRibbons.map((r) => r.h), 1);
+    const maxRibbonH = Math.max(...sortedRibbons.map((r) => Math.max(r.srcH, r.tgtH)), 1);
 
     for (const r of sortedRibbons) {
-      const t = r.h / maxRibbonH;
+      const t = Math.max(r.srcH, r.tgtH) / maxRibbonH;
       const sel = isSelected(r.queenId);
-      const fillOp = sel ? 0.15 + 0.45 * t : 0.02 * t;
-      const strokeOp = sel ? 0.2 + 0.5 * t : 0.01 * t;
+      const fillOp = sel ? dimOp(t) : 0;
+      const strokeOp = sel ? dimOp(t) : 0;
       ribbonGroup.append('path')
-        .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.h, r.tgtX, r.tgtY, r.tgtY + r.h))
+        .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.srcH, r.tgtX, r.tgtY, r.tgtY + r.tgtH))
         .attr('fill', r.color)
         .attr('fill-opacity', fillOp)
         .attr('stroke', r.color)
@@ -437,12 +473,30 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
         const isHover = highlightId !== null && pq === highlightId;
         let fOp: number, sOp: number;
         if (isSel || isHover) {
-          fOp = 0.15 + 0.45 * pt; sOp = 0.2 + 0.5 * pt;
+          fOp = dimOp(pt);
+          sOp = dimOp(pt);
         } else {
-          fOp = 0.02 * pt; sOp = 0.01 * pt;
+          fOp = 0; sOp = 0;
         }
         el.attr('fill-opacity', fOp).attr('stroke-opacity', sOp);
       });
+      allBands.each(function () {
+        const el = d3.select(this);
+        const pq = el.attr('data-queen')!;
+        const pt = parseFloat(el.attr('data-t') || '1');
+        const isSel = isSelected(pq);
+        const isHover = highlightId !== null && pq === highlightId;
+        el.attr('opacity', isSel || isHover ? dimOp(pt) : 0);
+      });
+      // Ensure hovered queen's ribbons and placement bars render above selected queen's.
+      if (highlightId !== null) {
+        allPaths.filter(function () {
+          return d3.select(this).attr('data-queen') === highlightId;
+        }).raise();
+        allBands.filter(function () {
+          return d3.select(this).attr('data-queen') === highlightId;
+        }).raise();
+      }
     }
 
     // Track which queens have pins (conditions)
@@ -452,57 +506,103 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       if (q) queensWithPins.add(q.id);
     }
 
-    // Source emitters + labels (click to select)
+    // Source emitters + labels (click to select).
+    // Flow bands overlap between adjacent queens (SRC_ROW_H < SCALE), but we
+    // only render a visible color bar for the selected or hovered queen, so
+    // the overlap isn't a visual problem. Hit areas are tight (SRC_ROW_H)
+    // so they don't overlap.
+    //
+    // Only the invisible hit-area rect receives pointer events — the color bar
+    // and name are pointer-events: none, so the 50px-tall overlapping bars
+    // don't steal events from adjacent queens' tight hit areas.
+    const queenBars: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
+    const queenNames: Record<string, d3.Selection<SVGTextElement, unknown, null, undefined>> = {};
+    const queenUnderlines: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
+
+    function setHoverQueen(hoverId: string | null) {
+      for (const q of queenOrder) {
+        const bar = queenBars[q.id];
+        const name = queenNames[q.id];
+        const underline = queenUnderlines[q.id];
+        if (!bar || !name || !underline) continue;
+        const sel = isSelected(q.id);
+        const isHover = hoverId === q.id;
+        const on = sel || isHover;
+        bar.attr('opacity', on ? 1.0 : 0);
+        underline.attr('opacity', on ? 1.0 : 0);
+        name.style('text-shadow', on ? (() => { const gc = glowColor(q.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none');
+      }
+    }
+
     for (const queen of queenOrder) {
       const sb = srcBands[queen.id];
+      const nameCenter = sb.y + sb.h / 2;
       const sel = isSelected(queen.id);
       const hasPins = queensWithPins.has(queen.id);
 
       const srcGroup = g.append('g')
         .style('cursor', 'pointer');
 
-      // Invisible hit area covering the full row
+      // Invisible hit area — tight row (non-overlapping).
       srcGroup.append('rect')
-        .attr('x', -MARGIN.left).attr('y', sb.y)
-        .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', sb.h)
+        .attr('x', -MARGIN.left).attr('y', nameCenter - SRC_ROW_H / 2)
+        .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', SRC_ROW_H)
         .attr('fill', 'transparent');
 
-      // Color bar — bright when selected
+      // Color bar — rendered at full flow-band height, but only visible for
+      // selected or hovered queens. pointer-events: none so overlapping bars
+      // don't intercept events meant for adjacent queens.
       const colorBar = srcGroup.append('rect')
         .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
         .attr('width', 6).attr('height', sb.h)
-        .attr('fill', queen.color).attr('opacity', sel ? 0.8 : 0.15).attr('rx', 1);
+        .attr('fill', queen.color).attr('opacity', sel ? 1.0 : 0).attr('rx', 1)
+        .style('pointer-events', 'none');
+      queenBars[queen.id] = colorBar;
 
-      // Queen name — always visible
+      // Queen name — always 100% opacity; subtle glow + underline on select/hover.
       const nameText = srcGroup.append('text')
-        .attr('x', SOURCE_COL_WIDTH - 26).attr('y', sb.y + sb.h / 2)
+        .attr('x', SOURCE_COL_WIDTH - 30).attr('y', nameCenter)
         .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
         .attr('fill', queen.color)
-        .attr('font-size', numQueens > 10 ? '8px' : '10px')
+        .attr('font-size', numQueens > 10 ? '12px' : '15px')
         .attr('font-weight', '600')
-        .attr('opacity', 0.9)
+        .attr('opacity', 1.0)
+        .style('pointer-events', 'none')
+        .style('text-shadow', sel ? (() => { const gc = glowColor(queen.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none')
         .text(queen.name.split(' ')[0]);
+      queenNames[queen.id] = nameText;
 
-      // Yellow dot for queens with pins
+      const nameBBox = nameText.node()!.getBBox();
+      const underline = srcGroup.append('rect')
+        .attr('x', nameBBox.x)
+        .attr('y', nameBBox.y + nameBBox.height + 1)
+        .attr('width', nameBBox.width)
+        .attr('height', 2)
+        .attr('fill', queen.color)
+        .attr('opacity', sel ? 1.0 : 0)
+        .style('pointer-events', 'none');
+      queenUnderlines[queen.id] = underline;
+
+      // Yellow dot for queens with pins — ~20px left of the name.
       if (hasPins) {
         srcGroup.append('circle')
-          .attr('cx', 2).attr('cy', sb.y + sb.h / 2)
+          .attr('cx', nameBBox.x - 20).attr('cy', nameCenter)
           .attr('r', 2.5)
           .attr('fill', '#ffd700')
           .attr('opacity', 0.9)
           .style('pointer-events', 'none');
       }
 
-      // Hover: highlight this queen's ribbons + brighten bar
+      // Hover: reveal this queen's color bar + highlight ribbons. Raise the
+      // group so the hovered bar sits on top of any overlapping selected bar.
       srcGroup
         .on('mouseenter', function () {
-          colorBar.attr('opacity', 1.0);
-          nameText.attr('opacity', 1.0);
+          d3.select(this).raise();
+          setHoverQueen(queen.id);
           setRibbonOpacity(queen.id);
         })
         .on('mouseleave', function () {
-          colorBar.attr('opacity', sel ? 0.8 : 0.15);
-          nameText.attr('opacity', 0.9);
+          setHoverQueen(null);
           setRibbonOpacity(null);
         })
         .on('click', () => {
@@ -681,7 +781,7 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
       }
     }
 
-  }, [results, season, width, height, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions]);
+  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, dimExp, dimBase, dimCutoff]);
 
   return (
     <div ref={containerRef}>
@@ -692,6 +792,47 @@ export default function SeasonFlowChart({ height = 650 }: { height?: number }) {
           Running simulations...
         </div>
       )}
+      <div className="flex items-center gap-4 mt-2 text-xs text-[#888]">
+        <div className="flex items-center gap-2">
+          <label>Dim exponent</label>
+          <input
+            type="range"
+            min={0}
+            max={3}
+            step={0.05}
+            value={dimExp}
+            onChange={(e) => setDimExp(parseFloat(e.target.value))}
+            className="w-48"
+          />
+          <span className="font-mono text-[#ccc] w-10">{dimExp.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label>Dim floor</label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={dimBase}
+            onChange={(e) => setDimBase(parseFloat(e.target.value))}
+            className="w-48"
+          />
+          <span className="font-mono text-[#ccc] w-10">{dimBase.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label>Dim cutoff</label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={dimCutoff}
+            onChange={(e) => setDimCutoff(parseFloat(e.target.value))}
+            className="w-48"
+          />
+          <span className="font-mono text-[#ccc] w-10">{dimCutoff.toFixed(2)}</span>
+        </div>
+      </div>
     </div>
   );
 }

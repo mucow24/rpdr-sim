@@ -214,7 +214,7 @@ export default function App() {
               Season Flow — click a queen to select, click placements to pin
             </h3>
             <Timeline />
-            <SeasonFlowChart height={650} />
+            <SeasonFlowChart />
           </section>
 
           <section className="mb-8">
