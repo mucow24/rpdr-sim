@@ -405,6 +405,7 @@ export default function SeasonFlowChart() {
         ))
       ), 1
     );
+    const bandGroup = g.append('g').attr('class', 'queen-bands');
     for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         for (const [qid, band] of Object.entries(bands[col][pi])) {
@@ -413,15 +414,18 @@ export default function SeasonFlowChart() {
           if (!queen) continue;
           const t = band.h / maxBandH;
           const sel = isSelected(qid);
-          g.append('rect')
+          bandGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
             .attr('fill', queen.color)
             .attr('opacity', sel ? dimOp(t) : 0)
+            .attr('data-queen', qid)
+            .attr('data-t', t)
             .style('pointer-events', 'none');
         }
       }
     }
+    const allBands = bandGroup.selectAll<SVGRectElement, unknown>('rect[data-queen]');
 
     // Sub-ribbons (render weakest queens first, strongest on top)
     const winProbs = new Map(season.queens.map((q) => [q.id, results.winProb[q.id] ?? 0]));
@@ -469,6 +473,23 @@ export default function SeasonFlowChart() {
         }
         el.attr('fill-opacity', fOp).attr('stroke-opacity', sOp);
       });
+      allBands.each(function () {
+        const el = d3.select(this);
+        const pq = el.attr('data-queen')!;
+        const pt = parseFloat(el.attr('data-t') || '1');
+        const isSel = isSelected(pq);
+        const isHover = highlightId !== null && pq === highlightId;
+        el.attr('opacity', isSel || isHover ? dimOp(pt) : 0);
+      });
+      // Ensure hovered queen's ribbons and placement bars render above selected queen's.
+      if (highlightId !== null) {
+        allPaths.filter(function () {
+          return d3.select(this).attr('data-queen') === highlightId;
+        }).raise();
+        allBands.filter(function () {
+          return d3.select(this).attr('data-queen') === highlightId;
+        }).raise();
+      }
     }
 
     // Track which queens have pins (conditions)
