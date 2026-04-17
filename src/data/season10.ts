@@ -179,13 +179,6 @@ const season10: SeasonData = {
       eliminated: [],
     },
     {
-      number: 13,
-      archetype: 'pass',
-      challengeName: 'Queens Reunited',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 14,

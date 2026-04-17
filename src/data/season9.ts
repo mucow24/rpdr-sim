@@ -251,13 +251,6 @@ const season9: SeasonData = {
       eliminated: [],
     },
     {
-      number: 13,
-      archetype: 'pass',
-      challengeName: 'Reunited',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 14,

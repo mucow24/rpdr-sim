@@ -175,13 +175,6 @@ const season4: SeasonData = {
       eliminated: ['latrice'],
     },
     {
-      number: 12,
-      archetype: 'pass',
-      challengeName: 'RuPaul Rewind',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 13,

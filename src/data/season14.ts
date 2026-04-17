@@ -246,7 +246,7 @@ const season14: SeasonData = {
     },
     {
       number: 11,
-      archetype: 'pass',
+      archetype: 'lipSyncSmackdown',
       challengeName: 'An Extra Special Episode',
       placements: {},
       eliminated: ['jasmine'],
@@ -284,13 +284,6 @@ const season14: SeasonData = {
         angeria: 'BTM2',
         willow: 'BTM2',
       },
-      eliminated: [],
-    },
-    {
-      number: 15,
-      archetype: 'pass',
-      challengeName: 'Reunited',
-      placements: {},
       eliminated: [],
     },
     {

@@ -112,13 +112,6 @@ const season1: SeasonData = {
       eliminated: ['shannel'],
     },
     {
-      number: 7,
-      archetype: 'pass',
-      challengeName: 'Extra Special Edition',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 8,

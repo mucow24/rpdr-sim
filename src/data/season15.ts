@@ -119,13 +119,6 @@ const season15: SeasonData = {
   ],
   episodes: [
     {
-      number: 1,
-      archetype: 'pass',
-      challengeName: 'One Night Only, Part 1',
-      placements: {},
-      eliminated: [],
-    },
-    {
       number: 2,
       archetype: 'talentShow',
       challengeName: 'One Night Only, Part 2',
@@ -211,7 +204,7 @@ const season15: SeasonData = {
     },
     {
       number: 8,
-      archetype: 'pass',
+      archetype: 'lipSyncSmackdown',
       challengeName: 'Lip Sync LaLaPaRuZa Smackdown',
       placements: {},
       eliminated: ['jax'],
@@ -296,13 +289,6 @@ const season15: SeasonData = {
         anetra: 'BTM2',
         mistress: 'BTM2',
       },
-      eliminated: [],
-    },
-    {
-      number: 15,
-      archetype: 'pass',
-      challengeName: 'Reunited!',
-      placements: {},
       eliminated: [],
     },
     {

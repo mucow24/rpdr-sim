@@ -261,13 +261,6 @@ const season7: SeasonData = {
       eliminated: ['kennedy'],
     },
     {
-      number: 13,
-      archetype: 'pass',
-      challengeName: 'Countdown to the Crown',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 14,

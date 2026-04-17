@@ -205,13 +205,6 @@ const season16: SeasonData = {
       eliminated: ['q'],
     },
     {
-      number: 15,
-      archetype: 'pass',
-      challengeName: 'Lip Sync LaLaPaRuZa Smackdown – Reunited',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 16,

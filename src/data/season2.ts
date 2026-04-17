@@ -154,13 +154,6 @@ const season2: SeasonData = {
       eliminated: ['tatianna'],
     },
     {
-      number: 10,
-      archetype: 'pass',
-      challengeName: 'The Main Event Clip Show',
-      placements: {},
-      eliminated: [],
-    },
-    {
       kind: 'finale',
       finaleType: 'default',
       number: 11,
