@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import type { EpisodeData, Queen, SeasonData } from './types';
 import { placementEpisodeLabels } from './placementEpisodes';
+import { ARCHETYPES } from '../data/archetypes';
 import { SEASON_PRESETS } from '../data/presets';
 
 // Hand-rolled minimal fixtures. Queens don't influence the helper beyond
@@ -33,6 +34,11 @@ function mkSeason(episodes: EpisodeData[], numQueens: number): SeasonData {
   };
 }
 
+// Shorthand for the expected icons attached to the labels.
+const BALL = ARCHETYPES.ball.icon;       // 👗
+const SNATCH = ARCHETYPES.snatchGame.icon; // 🎯
+const FINALE = '👑';
+
 describe('placementEpisodeLabels', () => {
   test('simple single-elim season with top-1 finale', () => {
     // 4 queens, eps 1-3 single-elim, ep 4 finale → 1 in finale cohort
@@ -48,10 +54,10 @@ describe('placementEpisodeLabels', () => {
 
     const { labels, finaleCohortSize } = placementEpisodeLabels(season);
 
-    expect(labels[4]).toBe('Episode 1');
-    expect(labels[3]).toBe('Episode 2');
-    expect(labels[2]).toBe('Episode 3');
-    expect(labels[1]).toBe('Finale');
+    expect(labels[4]).toBe(`Episode 1 ${BALL}`);
+    expect(labels[3]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[2]).toBe(`Episode 3 ${BALL}`);
+    expect(labels[1]).toBe(`Finale ${FINALE}`);
     expect(finaleCohortSize).toBe(1);
   });
 
@@ -68,12 +74,12 @@ describe('placementEpisodeLabels', () => {
 
     const { labels, finaleCohortSize } = placementEpisodeLabels(season);
 
-    expect(labels[6]).toBe('Episode 1');
-    expect(labels[5]).toBe('Episode 2');
-    expect(labels[4]).toBe('Finale');
-    expect(labels[3]).toBe('Finale');
-    expect(labels[2]).toBe('Finale');
-    expect(labels[1]).toBe('Finale');
+    expect(labels[6]).toBe(`Episode 1 ${BALL}`);
+    expect(labels[5]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[4]).toBe(`Finale ${FINALE}`);
+    expect(labels[3]).toBe(`Finale ${FINALE}`);
+    expect(labels[2]).toBe(`Finale ${FINALE}`);
+    expect(labels[1]).toBe(`Finale ${FINALE}`);
     expect(finaleCohortSize).toBe(4);
   });
 
@@ -91,12 +97,12 @@ describe('placementEpisodeLabels', () => {
 
     const { labels, finaleCohortSize } = placementEpisodeLabels(season);
 
-    expect(labels[6]).toBe('Episode 1');
-    expect(labels[5]).toBe('Episode 2');
-    expect(labels[4]).toBe('Episode 2');
-    expect(labels[3]).toBe('Episode 3');
-    expect(labels[2]).toBe('Finale');
-    expect(labels[1]).toBe('Finale');
+    expect(labels[6]).toBe(`Episode 1 ${BALL}`);
+    expect(labels[5]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[4]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[3]).toBe(`Episode 3 ${BALL}`);
+    expect(labels[2]).toBe(`Finale ${FINALE}`);
+    expect(labels[1]).toBe(`Finale ${FINALE}`);
     expect(finaleCohortSize).toBe(2);
   });
 
@@ -115,12 +121,12 @@ describe('placementEpisodeLabels', () => {
 
     const { labels, finaleCohortSize } = placementEpisodeLabels(season);
 
-    expect(labels[4]).toBe('Episode 1');
-    expect(labels[3]).toBe('Episode 3');
-    expect(labels[2]).toBe('Episode 4');
-    expect(labels[1]).toBe('Finale');
-    // No place should map to the pass episode
-    expect(Object.values(labels)).not.toContain('Episode 2');
+    expect(labels[4]).toBe(`Episode 1 ${BALL}`);
+    expect(labels[3]).toBe(`Episode 3 ${BALL}`);
+    expect(labels[2]).toBe(`Episode 4 ${BALL}`);
+    expect(labels[1]).toBe(`Finale ${FINALE}`);
+    // No place should map to the pass episode (including with its icon).
+    expect(Object.values(labels).some((v) => v.startsWith('Episode 2'))).toBe(false);
     expect(finaleCohortSize).toBe(1);
   });
 
@@ -138,12 +144,12 @@ describe('placementEpisodeLabels', () => {
 
     const { labels } = placementEpisodeLabels(season);
 
-    expect(labels[4]).toBe('Episode 1');
-    expect(labels[3]).toBe('Episode 2');
-    expect(labels[2]).toBe('Episode 4');
-    expect(labels[1]).toBe('Finale');
+    expect(labels[4]).toBe(`Episode 1 ${BALL}`);
+    expect(labels[3]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[2]).toBe(`Episode 4 ${BALL}`);
+    expect(labels[1]).toBe(`Finale ${FINALE}`);
     // Confirm we did NOT mislabel anything with 'Episode 3' (which never existed in the data).
-    expect(Object.values(labels)).not.toContain('Episode 3');
+    expect(Object.values(labels).some((v) => v.startsWith('Episode 3'))).toBe(false);
   });
 
   test('double elim at last pre-finale episode', () => {
@@ -159,10 +165,10 @@ describe('placementEpisodeLabels', () => {
 
     const { labels, finaleCohortSize } = placementEpisodeLabels(season);
 
-    expect(labels[4]).toBe('Episode 1');
-    expect(labels[3]).toBe('Episode 2');
-    expect(labels[2]).toBe('Episode 2');
-    expect(labels[1]).toBe('Finale');
+    expect(labels[4]).toBe(`Episode 1 ${BALL}`);
+    expect(labels[3]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[2]).toBe(`Episode 2 ${BALL}`);
+    expect(labels[1]).toBe(`Finale ${FINALE}`);
     expect(finaleCohortSize).toBe(1);
   });
 
@@ -171,11 +177,11 @@ describe('placementEpisodeLabels', () => {
     const { labels, finaleCohortSize } = placementEpisodeLabels(season);
     expect(finaleCohortSize).toBe(5);
     for (let p = 1; p <= 5; p++) {
-      expect(labels[p]).toBe('Finale');
+      expect(labels[p]).toBe(`Finale ${FINALE}`);
     }
   });
 
-  test('label format is exact: "Episode N" and "Finale"', () => {
+  test('label format is exact: "Episode N <icon>" and "Finale 👑"', () => {
     const season = mkSeason(
       [
         { number: 6, archetype: 'ball', challengeName: 'c6', placements: {}, eliminated: ['q2'] },
@@ -184,8 +190,22 @@ describe('placementEpisodeLabels', () => {
       2,
     );
     const { labels } = placementEpisodeLabels(season);
-    expect(labels[2]).toBe('Episode 6');
-    expect(labels[1]).toBe('Finale');
+    expect(labels[2]).toBe('Episode 6 👗');
+    expect(labels[1]).toBe('Finale 👑');
+  });
+
+  test('icon comes from the episode archetype (different archetypes produce different icons)', () => {
+    const season = mkSeason(
+      [
+        { number: 1, archetype: 'snatchGame', challengeName: 'Snatch Game', placements: {}, eliminated: ['q3'] },
+        { number: 2, archetype: 'ball', challengeName: 'The Ball', placements: {}, eliminated: ['q2'] },
+        { kind: 'finale', number: 3, finaleType: 'default', challengeName: 'Grand Finale', placements: {}, eliminated: [] },
+      ],
+      3,
+    );
+    const { labels } = placementEpisodeLabels(season);
+    expect(labels[3]).toBe(`Episode 1 ${SNATCH}`);
+    expect(labels[2]).toBe(`Episode 2 ${BALL}`);
   });
 
   test('smoke test across all real season presets', () => {
@@ -200,7 +220,7 @@ describe('placementEpisodeLabels', () => {
         expect(labels[p]).toBeDefined();
       }
       // (b) At least one Finale entry (every season has a finale cohort >= 1).
-      expect(Object.values(labels)).toContain('Finale');
+      expect(Object.values(labels)).toContain(`Finale ${FINALE}`);
       // (c) finaleCohortSize matches independent count.
       const preFinaleElims = season.episodes
         .filter((ep) => ep.kind !== 'finale')

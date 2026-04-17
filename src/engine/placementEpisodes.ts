@@ -1,5 +1,10 @@
 import type { SeasonData } from './types';
 import { isFinale } from './types';
+import { ARCHETYPES } from '../data/archetypes';
+
+/** Emoji shown for a finale placement. Finales have no archetype, so we use
+ *  the crown — the Drag Race finale emblem. */
+const FINALE_ICON = '👑';
 
 /**
  * Map each final placement (1 = winner, N = first eliminated) to a human-
@@ -29,18 +34,19 @@ export function placementEpisodeLabels(season: SeasonData): {
   for (const ep of season.episodes) {
     if (isFinale(ep)) continue;
     const n = ep.eliminated.length;
+    const icon = ARCHETYPES[ep.archetype].icon;
     // Queens eliminated in this episode fill places
     // [N - cumElims - n + 1 .. N - cumElims], descending by order in the array.
     for (let i = 0; i < n; i++) {
       const place = numQueens - cumElims - i;
-      labels[place] = `Episode ${ep.number}`;
+      labels[place] = `Episode ${ep.number} ${icon}`;
     }
     cumElims += n;
   }
 
   const finaleCohortSize = numQueens - cumElims;
   for (let p = 1; p <= finaleCohortSize; p++) {
-    labels[p] = 'Finale';
+    labels[p] = `Finale ${FINALE_ICON}`;
   }
 
   return { labels, finaleCohortSize };
