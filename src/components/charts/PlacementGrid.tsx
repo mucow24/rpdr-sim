@@ -118,6 +118,9 @@ export default function PlacementGrid({
           })
           .attr('font-size', '11px')
           .style('cursor', 'pointer')
+          .style('text-decoration', (id) =>
+            id === selectedQueenId ? 'underline' : null,
+          )
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
 
@@ -141,15 +144,12 @@ export default function PlacementGrid({
     const cellBg = '#000';
     for (const queen of sortedQueens) {
       const dist = results.placementDist[queen.id] ?? [];
-      const isFaded =
-        selectedQueenId !== null && selectedQueenId !== queen.id;
 
       // Row-normalize: brightest cell in each row is the queen's most likely
       // placement; every other cell is scaled relative to it.
       const rowMax = d3.max(placesRightToLeft, (p) => dist[p] ?? 0) ?? 0;
       const rowY = y(queen.id) ?? 0;
       const rowH = y.bandwidth();
-      const fadeMul = isFaded ? 0.3 : 1;
 
       // Row background (black) so zero-brightness regions are visible
       g.append('rect')
@@ -210,19 +210,19 @@ export default function PlacementGrid({
         if (cx < argmaxX) {
           // cell left of argmax
           const center = cx + cellW / 2;
-          addStop((center / innerWidth) * 100, brightnessAt(p) * fadeMul);
+          addStop((center / innerWidth) * 100, brightnessAt(p));
         } else if (cx >= argmaxRight) {
           // cell right of argmax — first insert the plateau-end stop
           if (!rightPlateauAdded) {
-            addStop((argmaxRight / innerWidth) * 100, fadeMul);
+            addStop((argmaxRight / innerWidth) * 100, 1);
             rightPlateauAdded = true;
           }
           const center = cx + cellW / 2;
-          addStop((center / innerWidth) * 100, brightnessAt(p) * fadeMul);
+          addStop((center / innerWidth) * 100, brightnessAt(p));
         } else {
           // this is the argmax cell — open the plateau
           if (!leftPlateauAdded) {
-            addStop((argmaxX / innerWidth) * 100, fadeMul);
+            addStop((argmaxX / innerWidth) * 100, 1);
             leftPlateauAdded = true;
           }
         }
@@ -230,7 +230,7 @@ export default function PlacementGrid({
       // If argmax is the rightmost cell, right plateau-end still needs to
       // close at the right edge at full brightness.
       if (!rightPlateauAdded) {
-        addStop((argmaxRight / innerWidth) * 100, fadeMul);
+        addStop((argmaxRight / innerWidth) * 100, 1);
       }
 
       g.append('rect')
@@ -241,6 +241,16 @@ export default function PlacementGrid({
         .attr('rx', 2)
         .attr('fill', `url(#${gradId})`)
         .style('pointer-events', 'none');
+
+      // Selected queen: white dot on argmax cell
+      if (queen.id === selectedQueenId) {
+        g.append('circle')
+          .attr('cx', argmaxX + cellW / 2)
+          .attr('cy', rowY + rowH / 2)
+          .attr('r', Math.min(cellW, rowH) * 0.15)
+          .attr('fill', '#fff')
+          .style('pointer-events', 'none');
+      }
 
       // Per-cell invisible hit rects for tooltip/click
       for (const place of placesRightToLeft) {
