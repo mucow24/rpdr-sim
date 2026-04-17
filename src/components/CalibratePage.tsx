@@ -1,7 +1,11 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
-import { BASE_STATS, BASE_STAT_DISPLAY, queenUid, type BaseStat, type Queen } from '../engine/types';
+import {
+  BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale,
+  type BaseStat, type Queen, type SeasonData, type Placement,
+} from '../engine/types';
+import { ARCHETYPES } from '../data/archetypes';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -9,6 +13,108 @@ interface RosterEntry {
   seasonId: string;
   seasonName: string;
   queen: Queen;
+}
+
+const PLACEMENT_COLORS: Record<string, string> = {
+  WIN: '#ffd700',
+  HIGH: '#a8d8ea',
+  SAFE: '#888888',
+  LOW: '#e8a87c',
+  BTM2: '#e74c3c',
+  ELIM: '#8b0000',
+};
+
+type PlacementOrElim = Placement | 'ELIM';
+
+interface HeavyEpisodeRow {
+  epNumber: number;
+  challengeName: string;
+  icon: string;
+  placement: PlacementOrElim;
+}
+
+const HEAVY_WEIGHT_THRESHOLD = 0.20;
+
+/** Episodes where the selected stat has >= 20% of total archetype weight AND
+ *  the queen was alive at episode start. Uses per-episode weight overrides
+ *  when present, mirroring the scoring path in simulate.ts. */
+function getHeavyEpisodes(
+  season: SeasonData,
+  queenId: string,
+  stat: BaseStat,
+): HeavyEpisodeRow[] {
+  const rows: HeavyEpisodeRow[] = [];
+  const eliminatedBefore = new Set<string>();
+
+  for (const ep of season.episodes) {
+    if (isFinale(ep)) continue;
+
+    const alive = !eliminatedBefore.has(queenId);
+    if (!alive) break; // queen is out; no later episode can match
+
+    const weights = ep.weights ?? ARCHETYPES[ep.archetype].weights;
+    let total = 0;
+    for (const s of BASE_STATS) total += weights[s];
+
+    if (total > 0 && weights[stat] / total >= HEAVY_WEIGHT_THRESHOLD) {
+      let placement: PlacementOrElim;
+      if (ep.eliminated.includes(queenId)) {
+        placement = 'ELIM';
+      } else {
+        placement = ep.placements[queenId] ?? 'SAFE';
+      }
+      rows.push({
+        epNumber: ep.number,
+        challengeName: ep.challengeName,
+        icon: ARCHETYPES[ep.archetype].icon,
+        placement,
+      });
+    }
+
+    for (const id of ep.eliminated) eliminatedBefore.add(id);
+  }
+
+  return rows;
+}
+
+function HistoryTooltip({ rows }: { rows: HeavyEpisodeRow[] }) {
+  return (
+    <div
+      className="absolute left-0 top-full mt-1 z-50 bg-[#121218] border border-[#2a2a3a] rounded shadow-xl p-2 pointer-events-none"
+      style={{ minWidth: 220 }}
+    >
+      {rows.length === 0 ? (
+        <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+          No heavy-weight episodes for this stat
+        </div>
+      ) : (
+        <table className="text-[10px] font-mono border-separate" style={{ borderSpacing: '6px 2px' }}>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.epNumber}>
+                <td className="text-[#ccc] whitespace-nowrap">
+                  <span className="text-[#666]">Ep {row.epNumber}</span>{' '}
+                  {row.challengeName} {row.icon}
+                </td>
+                <td>
+                  <span
+                    className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                    style={{
+                      backgroundColor: PLACEMENT_COLORS[row.placement] + '33',
+                      color: PLACEMENT_COLORS[row.placement],
+                      border: `1px solid ${PLACEMENT_COLORS[row.placement]}66`,
+                    }}
+                  >
+                    {row.placement}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }
 
 const STAT_OPTIONS: { value: StatKey; label: string }[] = [
@@ -63,6 +169,7 @@ export default function CalibratePage() {
 
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
+  const [hoveredUid, setHoveredUid] = useState<string | null>(null);
 
   useEffect(() => {
     for (const key of LEGACY_STORAGE_KEYS) {
@@ -196,25 +303,42 @@ export default function CalibratePage() {
                 {entries.length}
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {entries.map((entry) => (
-                  <div
-                    key={queenUid(entry.seasonId, entry.queen.id)}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, entry)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] cursor-grab active:cursor-grabbing transition-colors"
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
-                    />
-                    <span className="text-[#ccc] whitespace-nowrap">
-                      {entry.queen.name}
-                    </span>
-                    <span className="text-[#555] text-[10px]">
-                      {seasonAbbrev(entry.seasonId)}
-                    </span>
-                  </div>
-                ))}
+                {entries.map((entry) => {
+                  const uid = queenUid(entry.seasonId, entry.queen.id);
+                  const showTooltip =
+                    hoveredUid === uid && selectedStat !== 'lipSync';
+                  const season = seasonsById[entry.seasonId];
+                  return (
+                    <div
+                      key={uid}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, entry)}
+                      onMouseEnter={() => setHoveredUid(uid)}
+                      onMouseLeave={() => setHoveredUid((cur) => (cur === uid ? null : cur))}
+                      className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] cursor-grab active:cursor-grabbing transition-colors"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
+                      />
+                      <span className="text-[#ccc] whitespace-nowrap">
+                        {entry.queen.name}
+                      </span>
+                      <span className="text-[#555] text-[10px]">
+                        {seasonAbbrev(entry.seasonId)}
+                      </span>
+                      {showTooltip && season && (
+                        <HistoryTooltip
+                          rows={getHeavyEpisodes(
+                            season,
+                            entry.queen.id,
+                            selectedStat as BaseStat,
+                          )}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 {entries.length === 0 && (
                   <span className="text-[#333] text-xs italic px-2">
                     drop here
