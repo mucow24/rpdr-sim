@@ -4,13 +4,15 @@ import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS } from '../../engine/types';
 
+// Label colors match the flow chart tooltip: SAFE is lifted to #888 and ELIM
+// uses a brighter red (#b22222) for readability on the dark panel background.
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
   HIGH: '#a8d8ea',
-  SAFE: '#555',
+  SAFE: '#888888',
   LOW: '#e8a87c',
   BTM2: '#e74c3c',
-  ELIM: '#8b0000',
+  ELIM: '#b22222',
 };
 
 // Placements including ELIM at the bottom of the chart. Each per-episode
@@ -330,10 +332,13 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       .attr('stroke-dasharray', '4,3')
       .attr('opacity', compact ? 0.5 : 0.6);
 
-    // Hover interaction — dims scale with compact mode
+    // Hover interaction — dims scale with compact mode. barX/barW sit in the
+    // whitespace right of the placement percentage rows.
     const tt = compact
-      ? { w: 82, h: 96, pad: 6, headerY: 11, headerFont: '8px', rowStart: 22, rowStep: 10, rowFont: '8px', dividerY: 78, aliveY: 90, offset: 8, topY: 4 }
-      : { w: 110, h: 131, pad: 8, headerY: 14, headerFont: '10px', rowStart: 28, rowStep: 13, rowFont: '9px', dividerY: 109, aliveY: 123, offset: 12, topY: 10 };
+      ? { w: 82, h: 96, pad: 6, headerY: 11, headerFont: '8px', rowStart: 22, rowStep: 10, rowFont: '8px', dividerY: 78, aliveY: 90, offset: 8, topY: 4,
+          barX: 62, barW: 12, barTop: 16, barH: 56 }
+      : { w: 110, h: 131, pad: 8, headerY: 14, headerFont: '10px', rowStart: 28, rowStep: 13, rowFont: '9px', dividerY: 109, aliveY: 123, offset: 12, topY: 10,
+          barX: 82, barW: 18, barTop: 22, barH: 75 };
 
     const hoverLine = g
       .append('line')
@@ -372,6 +377,8 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
           .style('display', null);
 
         tooltipG.selectAll('text').remove();
+        tooltipG.selectAll('.tt-bar').remove();
+        tooltipG.selectAll('line').remove();
         tooltipG.style('display', null);
 
         const ttX = x(ep) + tt.offset;
@@ -399,6 +406,35 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
             .attr('font-family', 'monospace')
             .text(`${p.padEnd(4)} ${pct.toFixed(1).padStart(5)}%`);
         });
+
+        // Stacked bar breakdown of conditional placement percentages. Matches the
+        // flow tooltip bar styling (base ELIM color, thin slate outline).
+        const barTotal = CHART_PLACEMENTS.reduce((s, p) => s + (data.dist[p] ?? 0), 0);
+        if (barTotal > 0) {
+          const barG = tooltipG.append('g').attr('class', 'tt-bar');
+          let yOff = 0;
+          for (const p of CHART_PLACEMENTS) {
+            const v = data.dist[p] ?? 0;
+            if (v < 0.001) continue;
+            const segH = (v / barTotal) * tt.barH;
+            const segColor = p === 'ELIM' ? '#8b0000' : PLACEMENT_COLORS[p];
+            barG.append('rect')
+              .attr('x', finalX + tt.barX)
+              .attr('y', ttY + tt.barTop + yOff)
+              .attr('width', tt.barW)
+              .attr('height', segH)
+              .attr('fill', segColor);
+            yOff += segH;
+          }
+          barG.append('rect')
+            .attr('x', finalX + tt.barX)
+            .attr('y', ttY + tt.barTop)
+            .attr('width', tt.barW)
+            .attr('height', tt.barH)
+            .attr('fill', 'none')
+            .attr('stroke', '#3e5d78')
+            .attr('stroke-width', 1);
+        }
 
         // Survival line
         tooltipG
