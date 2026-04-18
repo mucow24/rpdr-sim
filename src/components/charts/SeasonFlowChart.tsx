@@ -13,6 +13,16 @@ const PLACEMENT_COLORS: Record<string, string> = {
   ELIM: '#8b0000',
 };
 
+// Brighter placement colors used for flow fills (nodes + ribbons). Lift
+// lightness floor to 0.75 so dark colors like ELIM stay readable on dark bg.
+const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PLACEMENT_COLORS).map(([k, c]) => {
+    const hsl = d3.hsl(c);
+    hsl.l = Math.max(hsl.l, 0.75);
+    return [k, hsl.formatRgb()];
+  }),
+);
+
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
 const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
@@ -39,9 +49,9 @@ export default function SeasonFlowChart() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [dimExp, setDimExp] = useState(0.8);
-  const [dimBase, setDimBase] = useState(0.1);
-  const [dimCutoff, setDimCutoff] = useState(0.5);
+  const [dimExp, setDimExp] = useState(1.2);
+  const [dimBase, setDimBase] = useState(0.04);
+  const [dimCutoff, setDimCutoff] = useState(0.4);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -189,7 +199,6 @@ export default function SeasonFlowChart() {
 
     interface SubRib {
       queenId: string;
-      color: string;
       srcX: number;
       srcY: number;
       srcH: number;
@@ -200,6 +209,10 @@ export default function SeasonFlowChart() {
       // in the source/target placement node (source column = 1.0).
       srcT: number;
       tgtT: number;
+      // Color at each end. Source column side of initial ribbons uses the
+      // queen's color; placement-node ends use the placement's flow color.
+      srcColor: string;
+      tgtColor: string;
     }
 
     const allRibbons: SubRib[] = [];
@@ -247,11 +260,13 @@ export default function SeasonFlowChart() {
         inCursor[0][ti][qid] += h;
 
         allRibbons.push({
-          queenId: qid, color: queen.color,
+          queenId: qid,
           srcX: SOURCE_COL_WIDTH - 16, srcY: sY, srcH: h,
           tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
           srcT: 1.0,
           tgtT: weight,
+          srcColor: queen.color,
+          tgtColor: PLACEMENT_FLOW_COLORS[CHART_PLACEMENTS[ti]],
         });
       }
 
@@ -280,11 +295,13 @@ export default function SeasonFlowChart() {
               inCursor[ep + 1][ti][qid] += h;
 
               allRibbons.push({
-                queenId: qid, color: queen.color,
+                queenId: qid,
                 srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                 tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
                 srcT: flowData[qid][ep][PLACEMENTS[pi]],
                 tgtT: flowData[qid][ep + 1][PLACEMENTS[ti]],
+                srcColor: PLACEMENT_FLOW_COLORS[PLACEMENTS[pi]],
+                tgtColor: PLACEMENT_FLOW_COLORS[PLACEMENTS[ti]],
               });
             }
 
@@ -305,11 +322,13 @@ export default function SeasonFlowChart() {
                       inCursor[ep + 1][elimIdx][qid] += h;
 
                       allRibbons.push({
-                        queenId: qid, color: queen.color,
+                        queenId: qid,
                         srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                         tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
                         srcT: flowData[qid][ep][PLACEMENTS[pi]],
                         tgtT: flowData[qid][ep + 1]['ELIM'],
+                        srcColor: PLACEMENT_FLOW_COLORS[PLACEMENTS[pi]],
+                        tgtColor: PLACEMENT_FLOW_COLORS['ELIM'],
                       });
                     }
                   }
@@ -334,11 +353,13 @@ export default function SeasonFlowChart() {
               inCursor[ep + 1][elimIdx][qid] += h;
 
               allRibbons.push({
-                queenId: qid, color: queen.color,
+                queenId: qid,
                 srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                 tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
                 srcT: flowData[qid][ep]['ELIM'],
                 tgtT: flowData[qid][ep + 1]['ELIM'],
+                srcColor: PLACEMENT_FLOW_COLORS['ELIM'],
+                tgtColor: PLACEMENT_FLOW_COLORS['ELIM'],
               });
             }
           }
@@ -421,6 +442,7 @@ export default function SeasonFlowChart() {
     const bandGroup = g.append('g').attr('class', 'queen-bands');
     for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
+        const placementName = CHART_PLACEMENTS[pi];
         for (const [qid, band] of Object.entries(bands[col][pi])) {
           if (band.h < 0.3) continue;
           const queen = queenMap.get(qid);
@@ -430,7 +452,7 @@ export default function SeasonFlowChart() {
           bandGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
-            .attr('fill', queen.color)
+            .attr('fill', PLACEMENT_FLOW_COLORS[placementName])
             .attr('opacity', sel ? dimOp(t) : 0)
             .attr('data-queen', qid)
             .attr('data-t', t)
@@ -460,9 +482,9 @@ export default function SeasonFlowChart() {
         .attr('x1', r.srcX).attr('y1', 0)
         .attr('x2', r.tgtX).attr('y2', 0);
       grad.append('stop').attr('offset', '0%')
-        .attr('stop-color', r.color).attr('stop-opacity', dimOp(r.srcT));
+        .attr('stop-color', r.srcColor).attr('stop-opacity', dimOp(r.srcT));
       grad.append('stop').attr('offset', '100%')
-        .attr('stop-color', r.color).attr('stop-opacity', dimOp(r.tgtT));
+        .attr('stop-color', r.tgtColor).attr('stop-opacity', dimOp(r.tgtT));
 
       const sel = isSelected(r.queenId);
       ribbonGroup.append('path')
