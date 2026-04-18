@@ -49,9 +49,9 @@ export default function SeasonFlowChart() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [dimExp, setDimExp] = useState(1.2);
+  const [dimExp, setDimExp] = useState(2);
   const [dimBase, setDimBase] = useState(0.04);
-  const [dimCutoff, setDimCutoff] = useState(0.4);
+  const [dimCutoff, setDimCutoff] = useState(0.3);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
