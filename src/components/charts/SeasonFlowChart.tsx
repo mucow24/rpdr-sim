@@ -13,6 +13,16 @@ const PLACEMENT_COLORS: Record<string, string> = {
   ELIM: '#8b0000',
 };
 
+// Brighter placement colors used for flow fills (nodes + ribbons). Lift
+// lightness floor to 0.75 so dark colors like ELIM stay readable on dark bg.
+const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PLACEMENT_COLORS).map(([k, c]) => {
+    const hsl = d3.hsl(c);
+    hsl.l = Math.max(hsl.l, 0.75);
+    return [k, hsl.formatRgb()];
+  }),
+);
+
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
 const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
@@ -39,9 +49,9 @@ export default function SeasonFlowChart() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [dimExp, setDimExp] = useState(1.5);
-  const [dimBase, setDimBase] = useState(0.12);
-  const [dimCutoff, setDimCutoff] = useState(0.1);
+  const [dimExp, setDimExp] = useState(1.2);
+  const [dimBase, setDimBase] = useState(0.04);
+  const [dimCutoff, setDimCutoff] = useState(0.4);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -189,13 +199,20 @@ export default function SeasonFlowChart() {
 
     interface SubRib {
       queenId: string;
-      color: string;
       srcX: number;
       srcY: number;
       srcH: number;
       tgtX: number;
       tgtY: number;
       tgtH: number;
+      // Brightness at each end of the ribbon, = queen's probability of being
+      // in the source/target placement node (source column = 1.0).
+      srcT: number;
+      tgtT: number;
+      // Color at each end. Source column side of initial ribbons uses the
+      // queen's color; placement-node ends use the placement's flow color.
+      srcColor: string;
+      tgtColor: string;
     }
 
     const allRibbons: SubRib[] = [];
@@ -243,9 +260,13 @@ export default function SeasonFlowChart() {
         inCursor[0][ti][qid] += h;
 
         allRibbons.push({
-          queenId: qid, color: queen.color,
+          queenId: qid,
           srcX: SOURCE_COL_WIDTH - 16, srcY: sY, srcH: h,
           tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+          srcT: 1.0,
+          tgtT: weight,
+          srcColor: queen.color,
+          tgtColor: PLACEMENT_FLOW_COLORS[CHART_PLACEMENTS[ti]],
         });
       }
 
@@ -274,9 +295,13 @@ export default function SeasonFlowChart() {
               inCursor[ep + 1][ti][qid] += h;
 
               allRibbons.push({
-                queenId: qid, color: queen.color,
+                queenId: qid,
                 srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                 tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+                srcT: flowData[qid][ep][PLACEMENTS[pi]],
+                tgtT: flowData[qid][ep + 1][PLACEMENTS[ti]],
+                srcColor: PLACEMENT_FLOW_COLORS[PLACEMENTS[pi]],
+                tgtColor: PLACEMENT_FLOW_COLORS[PLACEMENTS[ti]],
               });
             }
 
@@ -297,9 +322,13 @@ export default function SeasonFlowChart() {
                       inCursor[ep + 1][elimIdx][qid] += h;
 
                       allRibbons.push({
-                        queenId: qid, color: queen.color,
+                        queenId: qid,
                         srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                         tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+                        srcT: flowData[qid][ep][PLACEMENTS[pi]],
+                        tgtT: flowData[qid][ep + 1]['ELIM'],
+                        srcColor: PLACEMENT_FLOW_COLORS[PLACEMENTS[pi]],
+                        tgtColor: PLACEMENT_FLOW_COLORS['ELIM'],
                       });
                     }
                   }
@@ -324,9 +353,13 @@ export default function SeasonFlowChart() {
               inCursor[ep + 1][elimIdx][qid] += h;
 
               allRibbons.push({
-                queenId: qid, color: queen.color,
+                queenId: qid,
                 srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                 tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+                srcT: flowData[qid][ep]['ELIM'],
+                tgtT: flowData[qid][ep + 1]['ELIM'],
+                srcColor: PLACEMENT_FLOW_COLORS['ELIM'],
+                tgtColor: PLACEMENT_FLOW_COLORS['ELIM'],
               });
             }
           }
@@ -404,30 +437,27 @@ export default function SeasonFlowChart() {
       return hsl.formatRgb();
     };
 
-    // Queen bands within nodes (opacity scales with flow)
-    const maxBandH = Math.max(
-      ...Array.from({ length: numCols }, (_, col) =>
-        Math.max(...CHART_PLACEMENTS.map((_, pi) =>
-          Math.max(...Object.values(bands[col][pi]).map((b) => b.h), 0)
-        ))
-      ), 1
-    );
+    // Queen bands within nodes — opacity = dimOp(queen's probability at this
+    // placement node), i.e. the normalized flow through the node.
     const bandGroup = g.append('g').attr('class', 'queen-bands');
     for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
+        const placementName = CHART_PLACEMENTS[pi];
         for (const [qid, band] of Object.entries(bands[col][pi])) {
           if (band.h < 0.3) continue;
           const queen = queenMap.get(qid);
           if (!queen) continue;
-          const t = band.h / maxBandH;
+          const t = band.h / SCALE;
           const sel = isSelected(qid);
           bandGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
-            .attr('fill', queen.color)
+            .attr('fill', PLACEMENT_FLOW_COLORS[placementName])
             .attr('opacity', sel ? dimOp(t) : 0)
             .attr('data-queen', qid)
             .attr('data-t', t)
+            .attr('data-color-placement', PLACEMENT_FLOW_COLORS[placementName])
+            .attr('data-color-queen', queen.color)
             .style('pointer-events', 'none');
         }
       }
@@ -440,24 +470,69 @@ export default function SeasonFlowChart() {
       (a, b) => (winProbs.get(a.queenId) ?? 0) - (winProbs.get(b.queenId) ?? 0),
     );
 
+    // One <linearGradient> per ribbon, stops at source/target brightness.
+    // Coordinates are in the `g` user space (gradientUnits=userSpaceOnUse).
+    const defs = g.append('defs');
+
+    // Yellow halo filter for pinned placement nodes. Three stacked
+    // drop-shadows build up a bright, large glow. Filter region needs
+    // huge horizontal padding — the node is only 8px wide so percentage
+    // padding adds up slowly, and a wide blur gets clipped otherwise.
+    const pinGlow = defs.append('filter')
+      .attr('id', 'pin-glow')
+      .attr('x', '-3000%').attr('y', '-500%')
+      .attr('width', '6100%').attr('height', '1100%');
+    pinGlow.append('feDropShadow')
+      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 10)
+      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+    pinGlow.append('feDropShadow')
+      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 25)
+      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+    pinGlow.append('feDropShadow')
+      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 45)
+      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
 
-    const maxRibbonH = Math.max(...sortedRibbons.map((r) => Math.max(r.srcH, r.tgtH)), 1);
+    for (let i = 0; i < sortedRibbons.length; i++) {
+      const r = sortedRibbons[i];
+      const queen = queenMap.get(r.queenId);
+      if (!queen) continue;
 
-    for (const r of sortedRibbons) {
-      const t = Math.max(r.srcH, r.tgtH) / maxRibbonH;
+      // Placement-colored gradient (default, used when queen is selected).
+      const gradIdP = `ribbon-grad-p-${i}`;
+      const gradP = defs.append('linearGradient')
+        .attr('id', gradIdP)
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', r.srcX).attr('y1', 0)
+        .attr('x2', r.tgtX).attr('y2', 0);
+      gradP.append('stop').attr('offset', '0%')
+        .attr('stop-color', r.srcColor).attr('stop-opacity', dimOp(r.srcT));
+      gradP.append('stop').attr('offset', '100%')
+        .attr('stop-color', r.tgtColor).attr('stop-opacity', dimOp(r.tgtT));
+
+      // Queen-colored gradient (used on hover — distinct from placement palette).
+      const gradIdQ = `ribbon-grad-q-${i}`;
+      const gradQ = defs.append('linearGradient')
+        .attr('id', gradIdQ)
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', r.srcX).attr('y1', 0)
+        .attr('x2', r.tgtX).attr('y2', 0);
+      gradQ.append('stop').attr('offset', '0%')
+        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.srcT));
+      gradQ.append('stop').attr('offset', '100%')
+        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.tgtT));
+
       const sel = isSelected(r.queenId);
-      const fillOp = sel ? dimOp(t) : 0;
-      const strokeOp = sel ? dimOp(t) : 0;
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.srcH, r.tgtX, r.tgtY, r.tgtY + r.tgtH))
-        .attr('fill', r.color)
-        .attr('fill-opacity', fillOp)
-        .attr('stroke', r.color)
+        .attr('fill', `url(#${gradIdP})`)
+        .attr('stroke', `url(#${gradIdP})`)
         .attr('stroke-width', 0.3)
-        .attr('stroke-opacity', strokeOp)
+        .attr('opacity', sel ? 1 : 0)
         .attr('data-queen', r.queenId)
-        .attr('data-t', t);
+        .attr('data-grad-p', gradIdP)
+        .attr('data-grad-q', gradIdQ);
     }
 
     const allPaths = ribbonGroup.selectAll<SVGPathElement, unknown>('path[data-queen]');
@@ -465,20 +540,24 @@ export default function SeasonFlowChart() {
     // Helper: set ribbon opacities for hover highlight.
     // Hover boosts the hovered queen without fading the selected queen.
     function setRibbonOpacity(highlightId: string | null) {
+      // Dim the selected queen when a *different* queen is being hovered, so
+      // the hovered comparison pops. Hovering the selected queen itself does
+      // nothing special — she stays in the placement palette at full opacity.
+      const hoveringOther = highlightId !== null && !isSelected(highlightId);
       allPaths.each(function () {
         const el = d3.select(this);
         const pq = el.attr('data-queen')!;
-        const pt = parseFloat(el.attr('data-t') || '1');
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        let fOp: number, sOp: number;
-        if (isSel || isHover) {
-          fOp = dimOp(pt);
-          sOp = dimOp(pt);
-        } else {
-          fOp = 0; sOp = 0;
+        const visible = isSel || isHover;
+        const dimSelected = isSel && !isHover && hoveringOther;
+        el.attr('opacity', visible ? (dimSelected ? 0.3 : 1) : 0);
+        if (visible) {
+          // Queen-color gradient only when hovered and *not* also selected.
+          const useQueenGrad = isHover && !isSel;
+          const gradId = useQueenGrad ? el.attr('data-grad-q')! : el.attr('data-grad-p')!;
+          el.attr('fill', `url(#${gradId})`).attr('stroke', `url(#${gradId})`);
         }
-        el.attr('fill-opacity', fOp).attr('stroke-opacity', sOp);
       });
       allBands.each(function () {
         const el = d3.select(this);
@@ -486,7 +565,17 @@ export default function SeasonFlowChart() {
         const pt = parseFloat(el.attr('data-t') || '1');
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        el.attr('opacity', isSel || isHover ? dimOp(pt) : 0);
+        const visible = isSel || isHover;
+        const dimSelected = isSel && !isHover && hoveringOther;
+        const baseOp = visible ? dimOp(pt) : 0;
+        el.attr('opacity', dimSelected ? baseOp * 0.3 : baseOp);
+        if (visible) {
+          const useQueenColor = isHover && !isSel;
+          const fill = useQueenColor
+            ? el.attr('data-color-queen')!
+            : el.attr('data-color-placement')!;
+          el.attr('fill', fill);
+        }
       });
       // Ensure hovered queen's ribbons and placement bars render above selected queen's.
       if (highlightId !== null) {
@@ -647,12 +736,26 @@ export default function SeasonFlowChart() {
         const isPinned = pinSet.has(`${condEpIdx}:${placementNum}`);
 
         if (selectedQueen) {
-          // Clickable overlay
+          // Yellow glow halo for pinned nodes — rendered first so the
+          // clickable overlay and X sit on top. Source rect is fully opaque
+          // so the drop-shadow halo is bright.
+          if (isPinned) {
+            overlayGroup.append('rect')
+              .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
+              .attr('width', NODE_WIDTH).attr('height', node.h)
+              .attr('fill', '#ffd700').attr('opacity', 1)
+              .attr('rx', 1)
+              .attr('filter', 'url(#pin-glow)')
+              .style('pointer-events', 'none');
+          }
+
+          // Clickable overlay — always transparent; the halo above is what
+          // shows pin state visually.
           const overlay = overlayGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
-            .attr('fill', isPinned ? selectedQueen!.color : 'transparent')
-            .attr('opacity', isPinned ? 0.5 : 0)
+            .attr('fill', 'transparent')
+            .attr('opacity', 0)
             .attr('rx', 1)
             .style('cursor', 'pointer');
 
@@ -671,11 +774,14 @@ export default function SeasonFlowChart() {
               const surv = survival[qid]?.[col] ?? 0;
               const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
               const noRoutes = !isPinned && rawProb < 0.001;
+              const priorElim = Math.max(0, Math.min(1, 1 - surv));
 
-              const ttW = 110;
+              const ttTextW = 65;
+              const ttBarW = 34;
+              const ttW = ttTextW + ttBarW;
               const lineH = 12;
               const numRows = CHART_PLACEMENTS.length + 1; // +1 for P.ELIM
-              const ttH = 16 + numRows * lineH;
+              const ttH = 22 + numRows * lineH;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const initX = flipLeft ? mx - ttW - 12 : rawX;
@@ -690,7 +796,7 @@ export default function SeasonFlowChart() {
                 .attr('fill', '#1a1a24').attr('stroke', '#2a2a3a').attr('stroke-width', 1);
 
               tt.append('text').attr('class', 'tt-title')
-                .attr('x', 6).attr('y', 11)
+                .attr('x', 6).attr('y', 14)
                 .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
                 .text(`${isFinale(season.episodes[col]) ? 'Finale' : `Ep ${season.episodes[col].number}`} / ${placementName}`);
 
@@ -700,26 +806,60 @@ export default function SeasonFlowChart() {
                 const rowDead = rowRaw < 0.001;
                 const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
                 tt.append('text')
-                  .attr('x', 6).attr('y', 24 + idx * lineH)
-                  .attr('fill', PLACEMENT_COLORS[p])
+                  .attr('x', 6).attr('y', 27 + idx * lineH)
+                  .attr('fill', p === 'ELIM' ? '#b22222' : PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
                   .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
                   .text(`${p.padEnd(6)} ${valStr}`);
               });
 
-              // P.ELIM — probability queen is already eliminated at start of episode
-              const priorElim = Math.max(0, Math.min(1, 1 - surv));
               tt.append('text')
-                .attr('x', 6).attr('y', 24 + CHART_PLACEMENTS.length * lineH)
-                .attr('fill', '#888')
+                .attr('x', 6).attr('y', 27 + CHART_PLACEMENTS.length * lineH)
+                .attr('fill', '#666')
                 .attr('font-size', '9px').attr('font-family', 'monospace')
                 .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
                 .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
 
+              type BarSeg = { key: string; value: number; color: string };
+              const barInput: BarSeg[] = [
+                { key: 'WIN', value: surv * (dist['WIN'] ?? 0), color: PLACEMENT_COLORS['WIN'] },
+                { key: 'HIGH', value: surv * (dist['HIGH'] ?? 0), color: PLACEMENT_COLORS['HIGH'] },
+                { key: 'SAFE', value: surv * (dist['SAFE'] ?? 0), color: PLACEMENT_COLORS['SAFE'] },
+                { key: 'LOW', value: surv * (dist['LOW'] ?? 0), color: PLACEMENT_COLORS['LOW'] },
+                { key: 'BTM2', value: surv * (dist['BTM2'] ?? 0), color: PLACEMENT_COLORS['BTM2'] },
+                { key: 'ELIM', value: elimProb, color: PLACEMENT_COLORS['ELIM'] },
+                { key: 'P.ELIM', value: priorElim, color: '#333' },
+              ];
+
+              const statsH = numRows * lineH;
+              const barW = 20;
+              const barX = ttTextW + (ttBarW - barW) / 2;
+              const barY = 19;
+              const barH = statsH - 2;
+              const barTotal = barInput.reduce((s, d) => s + d.value, 0);
+
+              if (barTotal > 0) {
+                const barG = tt.append('g').attr('opacity', isPinned || noRoutes ? 0.2 : 1);
+                let yOff = 0;
+                for (const d of barInput) {
+                  if (d.value < 0.001) continue;
+                  const segH = (d.value / barTotal) * barH;
+                  barG.append('rect')
+                    .attr('x', barX).attr('y', barY + yOff)
+                    .attr('width', barW).attr('height', segH)
+                    .attr('fill', d.color);
+                  yOff += segH;
+                }
+                barG.append('rect')
+                  .attr('x', barX).attr('y', barY)
+                  .attr('width', barW).attr('height', barH)
+                  .attr('fill', 'none')
+                  .attr('stroke', '#3e5d78').attr('stroke-width', 1);
+              }
+
               if (isPinned || noRoutes) {
-                const statsH = numRows * lineH;
                 tt.append('text')
-                  .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
+                  .attr('x', ttW / 2).attr('y', 19 + statsH / 2)
                   .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
                   .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
                   .attr('font-size', '11px').attr('font-weight', 'bold')
@@ -731,8 +871,8 @@ export default function SeasonFlowChart() {
               const tt = g.select('.flow-tooltip');
               if (tt.empty()) return;
               const [mx, my] = d3.pointer(event, g.node());
-              const ttW = 110;
-              const ttH = 16 + (CHART_PLACEMENTS.length + 1) * 12;
+              const ttW = 65 + 34;
+              const ttH = 22 + (CHART_PLACEMENTS.length + 1) * 12;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const ttX = flipLeft ? mx - ttW - 12 : rawX;
@@ -764,16 +904,18 @@ export default function SeasonFlowChart() {
               }
             });
 
-          // Red X indicator for existing pins — centered on the queen's band
+          // Big bold X on pinned nodes — centered on the node (a pinned node
+          // carries 100% of the queen's flow, so the node height = the band
+          // height). Black fill + yellow stroke for high contrast on any
+          // placement color.
           if (isPinned) {
-            const qBand = bands[col][pi][selectedQueen.id];
-            const yCenter = qBand
-              ? qBand.y + qBand.h / 2
-              : node.y + node.h / 2;
             overlayGroup.append('text')
-              .attr('x', colX(col)).attr('y', yCenter)
+              .attr('x', colX(col)).attr('y', node.y + node.h / 2)
               .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-              .attr('fill', '#e74c3c').attr('font-size', '7px').attr('font-weight', 'bold')
+              .attr('fill', '#000')
+              .attr('stroke', '#ffd700').attr('stroke-width', 1.5)
+              .attr('paint-order', 'stroke')
+              .attr('font-size', '22px').attr('font-weight', '900')
               .style('pointer-events', 'none')
               .text('\u2715');
           }
