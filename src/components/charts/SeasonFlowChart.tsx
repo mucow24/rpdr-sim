@@ -774,8 +774,11 @@ export default function SeasonFlowChart() {
               const surv = survival[qid]?.[col] ?? 0;
               const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
               const noRoutes = !isPinned && rawProb < 0.001;
+              const priorElim = Math.max(0, Math.min(1, 1 - surv));
 
-              const ttW = 110;
+              const ttTextW = 65;
+              const ttPieW = 78;
+              const ttW = ttTextW + ttPieW;
               const lineH = 12;
               const numRows = CHART_PLACEMENTS.length + 1; // +1 for P.ELIM
               const ttH = 16 + numRows * lineH;
@@ -804,23 +807,50 @@ export default function SeasonFlowChart() {
                 const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
                 tt.append('text')
                   .attr('x', 6).attr('y', 24 + idx * lineH)
-                  .attr('fill', PLACEMENT_COLORS[p])
+                  .attr('fill', p === 'ELIM' ? '#b22222' : PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
                   .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
                   .text(`${p.padEnd(6)} ${valStr}`);
               });
 
-              // P.ELIM — probability queen is already eliminated at start of episode
-              const priorElim = Math.max(0, Math.min(1, 1 - surv));
               tt.append('text')
                 .attr('x', 6).attr('y', 24 + CHART_PLACEMENTS.length * lineH)
-                .attr('fill', '#888')
+                .attr('fill', '#666')
                 .attr('font-size', '9px').attr('font-family', 'monospace')
                 .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
                 .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
 
+              type PieSlice = { key: string; value: number; color: string };
+              const pieInput: PieSlice[] = [
+                { key: 'WIN', value: surv * (dist['WIN'] ?? 0), color: PLACEMENT_COLORS['WIN'] },
+                { key: 'HIGH', value: surv * (dist['HIGH'] ?? 0), color: PLACEMENT_COLORS['HIGH'] },
+                { key: 'SAFE', value: surv * (dist['SAFE'] ?? 0), color: PLACEMENT_COLORS['SAFE'] },
+                { key: 'LOW', value: surv * (dist['LOW'] ?? 0), color: PLACEMENT_COLORS['LOW'] },
+                { key: 'BTM2', value: surv * (dist['BTM2'] ?? 0), color: PLACEMENT_COLORS['BTM2'] },
+                { key: 'ELIM', value: elimProb, color: PLACEMENT_COLORS['ELIM'] },
+                { key: 'P.ELIM', value: priorElim, color: '#333' },
+              ].filter((d) => d.value > 0.001);
+
+              const statsH = numRows * lineH;
+              const pieCx = ttTextW + ttPieW / 2;
+              const pieCy = 16 + statsH / 2;
+              const pieR = 28;
+
+              if (pieInput.length > 0) {
+                const arcs = d3.pie<PieSlice>().value((d) => d.value).sort(null)(pieInput);
+                const arcGen = d3.arc<d3.PieArcDatum<PieSlice>>().innerRadius(0).outerRadius(pieR);
+                const pieG = tt.append('g')
+                  .attr('transform', `translate(${pieCx},${pieCy})`)
+                  .attr('opacity', isPinned || noRoutes ? 0.2 : 1);
+                pieG.selectAll('path')
+                  .data(arcs)
+                  .join('path')
+                  .attr('d', (d) => arcGen(d) as string)
+                  .attr('fill', (d) => d.data.color)
+                  .attr('stroke', '#1a1a24').attr('stroke-width', 0.5);
+              }
+
               if (isPinned || noRoutes) {
-                const statsH = numRows * lineH;
                 tt.append('text')
                   .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
                   .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
@@ -834,7 +864,7 @@ export default function SeasonFlowChart() {
               const tt = g.select('.flow-tooltip');
               if (tt.empty()) return;
               const [mx, my] = d3.pointer(event, g.node());
-              const ttW = 110;
+              const ttW = 65 + 78;
               const ttH = 16 + (CHART_PLACEMENTS.length + 1) * 12;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
