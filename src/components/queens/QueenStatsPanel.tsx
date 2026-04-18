@@ -3,6 +3,7 @@ import { selectCurrentSeason } from '../../store/selectors';
 import { BASE_STATS, type BaseStat } from '../../engine/types';
 import StatInput from '../common/StatInput';
 import RadarChart from '../RadarChart';
+import TrajectoryChart from '../charts/TrajectoryChart';
 
 const STAT_CODE: Record<BaseStat, string> = {
   comedy: 'COM',
@@ -72,7 +73,7 @@ export default function QueenStatsPanel() {
         <div className="flex-shrink-0">
           <RadarChart queen={queen} size={110} />
         </div>
-        <div className="flex-1 min-w-0 text-xs text-[#666] space-y-1">
+        <div className="flex-shrink-0 text-xs text-[#666] space-y-1">
           <div>
             Crown:{' '}
             <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
@@ -93,6 +94,9 @@ export default function QueenStatsPanel() {
               {queen ? area.toFixed(2) : '--'}
             </span>
           </div>
+        </div>
+        <div className="flex-1 min-w-0 self-stretch">
+          {queen && <TrajectoryChart compact height={110} />}
         </div>
       </div>
 
