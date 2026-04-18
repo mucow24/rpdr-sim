@@ -25,6 +25,8 @@ const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
+const NEUTRAL_QUEEN_COLOR = '#888';
+
 const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
@@ -52,6 +54,7 @@ export default function SeasonFlowChart() {
   const [dimExp, setDimExp] = useState(2);
   const [dimBase, setDimBase] = useState(0.04);
   const [dimCutoff, setDimCutoff] = useState(0.3);
+  const [useQueenColor, setUseQueenColor] = useState(true);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -265,7 +268,7 @@ export default function SeasonFlowChart() {
           tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
           srcT: 1.0,
           tgtT: weight,
-          srcColor: queen.color,
+          srcColor: useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR,
           tgtColor: PLACEMENT_FLOW_COLORS[CHART_PLACEMENTS[ti]],
         });
       }
@@ -457,7 +460,7 @@ export default function SeasonFlowChart() {
             .attr('data-queen', qid)
             .attr('data-t', t)
             .attr('data-color-placement', PLACEMENT_FLOW_COLORS[placementName])
-            .attr('data-color-queen', queen.color)
+            .attr('data-color-queen', useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR)
             .style('pointer-events', 'none');
         }
       }
@@ -518,10 +521,11 @@ export default function SeasonFlowChart() {
         .attr('gradientUnits', 'userSpaceOnUse')
         .attr('x1', r.srcX).attr('y1', 0)
         .attr('x2', r.tgtX).attr('y2', 0);
+      const qHoverColor = useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR;
       gradQ.append('stop').attr('offset', '0%')
-        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.srcT));
+        .attr('stop-color', qHoverColor).attr('stop-opacity', dimOp(r.srcT));
       gradQ.append('stop').attr('offset', '100%')
-        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.tgtT));
+        .attr('stop-color', qHoverColor).attr('stop-opacity', dimOp(r.tgtT));
 
       const sel = isSelected(r.queenId);
       ribbonGroup.append('path')
@@ -654,7 +658,8 @@ export default function SeasonFlowChart() {
       const colorBar = labelGroup.append('rect')
         .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
         .attr('width', 6).attr('height', sb.h)
-        .attr('fill', queen.color).attr('opacity', sel ? 1.0 : 0).attr('rx', 1);
+        .attr('fill', useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR)
+        .attr('opacity', sel ? 1.0 : 0).attr('rx', 1);
       queenBars[queen.id] = colorBar;
 
       // Queen name — always 100% opacity; subtle glow + underline on select/hover.
@@ -931,10 +936,20 @@ export default function SeasonFlowChart() {
       }
     }
 
-  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, dimExp, dimBase, dimCutoff]);
+  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, dimExp, dimBase, dimCutoff, useQueenColor]);
 
   return (
     <div ref={containerRef}>
+      <div className="flex items-center gap-2 mb-2 text-xs text-[#888]">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={useQueenColor}
+            onChange={(e) => setUseQueenColor(e.target.checked)}
+          />
+          Use queen color
+        </label>
+      </div>
       {results ? (
         <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
       ) : (
