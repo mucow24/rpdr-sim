@@ -44,20 +44,6 @@ function percentileY(
   return yPositions[yPositions.length - 1];
 }
 
-/** Find the mode (most likely) placement index. */
-function modePlacement(dist: Record<string, number>): number {
-  let bestIdx = 2; // default SAFE
-  let bestProb = 0;
-  for (let i = 0; i < CHART_PLACEMENTS.length; i++) {
-    const prob = dist[CHART_PLACEMENTS[i]] ?? 0;
-    if (prob > bestProb) {
-      bestProb = prob;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
-}
-
 type TrajectoryChartProps = {
   height?: number;
   compact?: boolean;
@@ -192,7 +178,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
     type EpData = {
       ep: number;
       dist: Record<string, number>;
-      modeY: number;
+      medianY: number;
       survival: number;
       p005: number; p05: number; p25: number; p75: number; p95: number; p995: number;
     };
@@ -219,7 +205,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         ep: epIdx + 1,
         dist,
         survival: surv,
-        modeY: yPositions[modePlacement(dist)],
+        medianY: percentileY(dist, 0.5, yPositions),
         p005: percentileY(dist, 0.005, yPositions),
         p05: percentileY(dist, 0.05, yPositions),
         p25: percentileY(dist, 0.25, yPositions),
@@ -275,20 +261,20 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .attr('fill', gradUrl);
     }
 
-    // Mode line with survival-fade gradient for stroke
-    const modeGradUrl = makeSurvivalGradient('modeLine', 0.9);
+    // Median line with survival-fade gradient for stroke
+    const medianGradUrl = makeSurvivalGradient('medianLine', 0.9);
 
-    const modeLine = d3
+    const medianLine = d3
       .line<EpData>()
       .x((d) => x(d.ep))
-      .y((d) => d.modeY)
+      .y((d) => d.medianY)
       .curve(d3.curveMonotoneX);
 
     g.append('path')
       .datum(epData)
-      .attr('d', modeLine)
+      .attr('d', medianLine)
       .attr('fill', 'none')
-      .attr('stroke', modeGradUrl)
+      .attr('stroke', medianGradUrl)
       .attr('stroke-width', 2.5)
       .attr('stroke-linecap', 'round');
 
