@@ -777,11 +777,11 @@ export default function SeasonFlowChart() {
               const priorElim = Math.max(0, Math.min(1, 1 - surv));
 
               const ttTextW = 65;
-              const ttPieW = 78;
-              const ttW = ttTextW + ttPieW;
+              const ttBarW = 34;
+              const ttW = ttTextW + ttBarW;
               const lineH = 12;
               const numRows = CHART_PLACEMENTS.length + 1; // +1 for P.ELIM
-              const ttH = 16 + numRows * lineH;
+              const ttH = 22 + numRows * lineH;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const initX = flipLeft ? mx - ttW - 12 : rawX;
@@ -796,7 +796,7 @@ export default function SeasonFlowChart() {
                 .attr('fill', '#1a1a24').attr('stroke', '#2a2a3a').attr('stroke-width', 1);
 
               tt.append('text').attr('class', 'tt-title')
-                .attr('x', 6).attr('y', 11)
+                .attr('x', 6).attr('y', 14)
                 .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
                 .text(`${isFinale(season.episodes[col]) ? 'Finale' : `Ep ${season.episodes[col].number}`} / ${placementName}`);
 
@@ -806,7 +806,7 @@ export default function SeasonFlowChart() {
                 const rowDead = rowRaw < 0.001;
                 const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
                 tt.append('text')
-                  .attr('x', 6).attr('y', 24 + idx * lineH)
+                  .attr('x', 6).attr('y', 27 + idx * lineH)
                   .attr('fill', p === 'ELIM' ? '#b22222' : PLACEMENT_COLORS[p])
                   .attr('font-size', '9px').attr('font-family', 'monospace')
                   .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
@@ -814,14 +814,14 @@ export default function SeasonFlowChart() {
               });
 
               tt.append('text')
-                .attr('x', 6).attr('y', 24 + CHART_PLACEMENTS.length * lineH)
+                .attr('x', 6).attr('y', 27 + CHART_PLACEMENTS.length * lineH)
                 .attr('fill', '#666')
                 .attr('font-size', '9px').attr('font-family', 'monospace')
                 .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
                 .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
 
-              type PieSlice = { key: string; value: number; color: string };
-              const pieInput: PieSlice[] = [
+              type BarSeg = { key: string; value: number; color: string };
+              const barInput: BarSeg[] = [
                 { key: 'WIN', value: surv * (dist['WIN'] ?? 0), color: PLACEMENT_COLORS['WIN'] },
                 { key: 'HIGH', value: surv * (dist['HIGH'] ?? 0), color: PLACEMENT_COLORS['HIGH'] },
                 { key: 'SAFE', value: surv * (dist['SAFE'] ?? 0), color: PLACEMENT_COLORS['SAFE'] },
@@ -829,30 +829,37 @@ export default function SeasonFlowChart() {
                 { key: 'BTM2', value: surv * (dist['BTM2'] ?? 0), color: PLACEMENT_COLORS['BTM2'] },
                 { key: 'ELIM', value: elimProb, color: PLACEMENT_COLORS['ELIM'] },
                 { key: 'P.ELIM', value: priorElim, color: '#333' },
-              ].filter((d) => d.value > 0.001);
+              ];
 
               const statsH = numRows * lineH;
-              const pieCx = ttTextW + ttPieW / 2;
-              const pieCy = 16 + statsH / 2;
-              const pieR = 28;
+              const barW = 20;
+              const barX = ttTextW + (ttBarW - barW) / 2;
+              const barY = 19;
+              const barH = statsH - 2;
+              const barTotal = barInput.reduce((s, d) => s + d.value, 0);
 
-              if (pieInput.length > 0) {
-                const arcs = d3.pie<PieSlice>().value((d) => d.value).sort(null)(pieInput);
-                const arcGen = d3.arc<d3.PieArcDatum<PieSlice>>().innerRadius(0).outerRadius(pieR);
-                const pieG = tt.append('g')
-                  .attr('transform', `translate(${pieCx},${pieCy})`)
-                  .attr('opacity', isPinned || noRoutes ? 0.2 : 1);
-                pieG.selectAll('path')
-                  .data(arcs)
-                  .join('path')
-                  .attr('d', (d) => arcGen(d) as string)
-                  .attr('fill', (d) => d.data.color)
-                  .attr('stroke', '#1a1a24').attr('stroke-width', 0.5);
+              if (barTotal > 0) {
+                const barG = tt.append('g').attr('opacity', isPinned || noRoutes ? 0.2 : 1);
+                let yOff = 0;
+                for (const d of barInput) {
+                  if (d.value < 0.001) continue;
+                  const segH = (d.value / barTotal) * barH;
+                  barG.append('rect')
+                    .attr('x', barX).attr('y', barY + yOff)
+                    .attr('width', barW).attr('height', segH)
+                    .attr('fill', d.color);
+                  yOff += segH;
+                }
+                barG.append('rect')
+                  .attr('x', barX).attr('y', barY)
+                  .attr('width', barW).attr('height', barH)
+                  .attr('fill', 'none')
+                  .attr('stroke', '#3e5d78').attr('stroke-width', 1);
               }
 
               if (isPinned || noRoutes) {
                 tt.append('text')
-                  .attr('x', ttW / 2).attr('y', 16 + statsH / 2)
+                  .attr('x', ttW / 2).attr('y', 19 + statsH / 2)
                   .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
                   .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
                   .attr('font-size', '11px').attr('font-weight', 'bold')
@@ -864,8 +871,8 @@ export default function SeasonFlowChart() {
               const tt = g.select('.flow-tooltip');
               if (tt.empty()) return;
               const [mx, my] = d3.pointer(event, g.node());
-              const ttW = 65 + 78;
-              const ttH = 16 + (CHART_PLACEMENTS.length + 1) * 12;
+              const ttW = 65 + 34;
+              const ttH = 22 + (CHART_PLACEMENTS.length + 1) * 12;
               const rawX = mx + 12;
               const flipLeft = rawX + ttW > innerW;
               const ttX = flipLeft ? mx - ttW - 12 : rawX;
