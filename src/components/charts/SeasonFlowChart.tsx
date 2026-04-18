@@ -456,6 +456,8 @@ export default function SeasonFlowChart() {
             .attr('opacity', sel ? dimOp(t) : 0)
             .attr('data-queen', qid)
             .attr('data-t', t)
+            .attr('data-color-placement', PLACEMENT_FLOW_COLORS[placementName])
+            .attr('data-color-queen', queen.color)
             .style('pointer-events', 'none');
         }
       }
@@ -475,25 +477,43 @@ export default function SeasonFlowChart() {
 
     for (let i = 0; i < sortedRibbons.length; i++) {
       const r = sortedRibbons[i];
-      const gradId = `ribbon-grad-${i}`;
-      const grad = defs.append('linearGradient')
-        .attr('id', gradId)
+      const queen = queenMap.get(r.queenId);
+      if (!queen) continue;
+
+      // Placement-colored gradient (default, used when queen is selected).
+      const gradIdP = `ribbon-grad-p-${i}`;
+      const gradP = defs.append('linearGradient')
+        .attr('id', gradIdP)
         .attr('gradientUnits', 'userSpaceOnUse')
         .attr('x1', r.srcX).attr('y1', 0)
         .attr('x2', r.tgtX).attr('y2', 0);
-      grad.append('stop').attr('offset', '0%')
+      gradP.append('stop').attr('offset', '0%')
         .attr('stop-color', r.srcColor).attr('stop-opacity', dimOp(r.srcT));
-      grad.append('stop').attr('offset', '100%')
+      gradP.append('stop').attr('offset', '100%')
         .attr('stop-color', r.tgtColor).attr('stop-opacity', dimOp(r.tgtT));
+
+      // Queen-colored gradient (used on hover — distinct from placement palette).
+      const gradIdQ = `ribbon-grad-q-${i}`;
+      const gradQ = defs.append('linearGradient')
+        .attr('id', gradIdQ)
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', r.srcX).attr('y1', 0)
+        .attr('x2', r.tgtX).attr('y2', 0);
+      gradQ.append('stop').attr('offset', '0%')
+        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.srcT));
+      gradQ.append('stop').attr('offset', '100%')
+        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.tgtT));
 
       const sel = isSelected(r.queenId);
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.srcH, r.tgtX, r.tgtY, r.tgtY + r.tgtH))
-        .attr('fill', `url(#${gradId})`)
-        .attr('stroke', `url(#${gradId})`)
+        .attr('fill', `url(#${gradIdP})`)
+        .attr('stroke', `url(#${gradIdP})`)
         .attr('stroke-width', 0.3)
         .attr('opacity', sel ? 1 : 0)
-        .attr('data-queen', r.queenId);
+        .attr('data-queen', r.queenId)
+        .attr('data-grad-p', gradIdP)
+        .attr('data-grad-q', gradIdQ);
     }
 
     const allPaths = ribbonGroup.selectAll<SVGPathElement, unknown>('path[data-queen]');
@@ -501,12 +521,24 @@ export default function SeasonFlowChart() {
     // Helper: set ribbon opacities for hover highlight.
     // Hover boosts the hovered queen without fading the selected queen.
     function setRibbonOpacity(highlightId: string | null) {
+      // Dim the selected queen when a *different* queen is being hovered, so
+      // the hovered comparison pops. Hovering the selected queen itself does
+      // nothing special — she stays in the placement palette at full opacity.
+      const hoveringOther = highlightId !== null && !isSelected(highlightId);
       allPaths.each(function () {
         const el = d3.select(this);
         const pq = el.attr('data-queen')!;
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        el.attr('opacity', isSel || isHover ? 1 : 0);
+        const visible = isSel || isHover;
+        const dimSelected = isSel && !isHover && hoveringOther;
+        el.attr('opacity', visible ? (dimSelected ? 0.3 : 1) : 0);
+        if (visible) {
+          // Queen-color gradient only when hovered and *not* also selected.
+          const useQueenGrad = isHover && !isSel;
+          const gradId = useQueenGrad ? el.attr('data-grad-q')! : el.attr('data-grad-p')!;
+          el.attr('fill', `url(#${gradId})`).attr('stroke', `url(#${gradId})`);
+        }
       });
       allBands.each(function () {
         const el = d3.select(this);
@@ -514,7 +546,17 @@ export default function SeasonFlowChart() {
         const pt = parseFloat(el.attr('data-t') || '1');
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        el.attr('opacity', isSel || isHover ? dimOp(pt) : 0);
+        const visible = isSel || isHover;
+        const dimSelected = isSel && !isHover && hoveringOther;
+        const baseOp = visible ? dimOp(pt) : 0;
+        el.attr('opacity', dimSelected ? baseOp * 0.3 : baseOp);
+        if (visible) {
+          const useQueenColor = isHover && !isSel;
+          const fill = useQueenColor
+            ? el.attr('data-color-queen')!
+            : el.attr('data-color-placement')!;
+          el.attr('fill', fill);
+        }
       });
       // Ensure hovered queen's ribbons and placement bars render above selected queen's.
       if (highlightId !== null) {
