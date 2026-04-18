@@ -607,6 +607,7 @@ export default function SeasonFlowChart() {
     const queenBars: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
     const queenNames: Record<string, d3.Selection<SVGTextElement, unknown, null, undefined>> = {};
     const queenUnderlines: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
+    const queenLabelGroups: Record<string, d3.Selection<SVGGElement, unknown, null, undefined>> = {};
 
     function setHoverQueen(hoverId: string | null) {
       for (const q of queenOrder) {
@@ -623,6 +624,13 @@ export default function SeasonFlowChart() {
       }
     }
 
+    // Visuals (color bars, names, underlines, pin dots) live in a dedicated
+    // top-level group — separate from the per-queen hit-area groups below.
+    // The hovered queen's label sub-group is raised for z-order; we never
+    // reattach the hit-area group the pointer is currently over (doing so
+    // can cause the browser to drop the subsequent mouseleave).
+    const srcLabelsGroup = g.append('g').attr('class', 'src-labels');
+
     for (const queen of queenOrder) {
       const sb = srcBands[queen.id];
       const nameCenter = sb.y + sb.h / 2;
@@ -638,55 +646,55 @@ export default function SeasonFlowChart() {
         .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', SRC_ROW_H)
         .attr('fill', 'transparent');
 
+      const labelGroup = srcLabelsGroup.append('g').style('pointer-events', 'none');
+      queenLabelGroups[queen.id] = labelGroup;
+
       // Color bar — rendered at full flow-band height, but only visible for
-      // selected or hovered queens. pointer-events: none so overlapping bars
-      // don't intercept events meant for adjacent queens.
-      const colorBar = srcGroup.append('rect')
+      // selected or hovered queens.
+      const colorBar = labelGroup.append('rect')
         .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
         .attr('width', 6).attr('height', sb.h)
-        .attr('fill', queen.color).attr('opacity', sel ? 1.0 : 0).attr('rx', 1)
-        .style('pointer-events', 'none');
+        .attr('fill', queen.color).attr('opacity', sel ? 1.0 : 0).attr('rx', 1);
       queenBars[queen.id] = colorBar;
 
       // Queen name — always 100% opacity; subtle glow + underline on select/hover.
-      const nameText = srcGroup.append('text')
+      const nameText = labelGroup.append('text')
         .attr('x', SOURCE_COL_WIDTH - 30).attr('y', nameCenter)
         .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
         .attr('fill', queen.color)
         .attr('font-size', numQueens > 10 ? '12px' : '15px')
         .attr('font-weight', '600')
         .attr('opacity', 1.0)
-        .style('pointer-events', 'none')
         .style('text-shadow', sel ? (() => { const gc = glowColor(queen.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none')
         .text(queen.name.split(' ')[0]);
       queenNames[queen.id] = nameText;
 
       const nameBBox = nameText.node()!.getBBox();
-      const underline = srcGroup.append('rect')
+      const underline = labelGroup.append('rect')
         .attr('x', nameBBox.x)
         .attr('y', nameBBox.y + nameBBox.height + 1)
         .attr('width', nameBBox.width)
         .attr('height', 2)
         .attr('fill', queen.color)
-        .attr('opacity', sel ? 1.0 : 0)
-        .style('pointer-events', 'none');
+        .attr('opacity', sel ? 1.0 : 0);
       queenUnderlines[queen.id] = underline;
 
       // Yellow dot for queens with pins — ~20px left of the name.
       if (hasPins) {
-        srcGroup.append('circle')
+        labelGroup.append('circle')
           .attr('cx', nameBBox.x - 20).attr('cy', nameCenter)
           .attr('r', 2.5)
           .attr('fill', '#ffd700')
-          .attr('opacity', 0.9)
-          .style('pointer-events', 'none');
+          .attr('opacity', 0.9);
       }
 
       // Hover: reveal this queen's color bar + highlight ribbons. Raise the
-      // group so the hovered bar sits on top of any overlapping selected bar.
+      // label sub-group (not the hit-area group) so the hovered bar sits on
+      // top of any overlapping selected bar without disturbing the element
+      // the pointer is currently over.
       srcGroup
         .on('mouseenter', function () {
-          d3.select(this).raise();
+          queenLabelGroups[queen.id]?.raise();
           setHoverQueen(queen.id);
           setRibbonOpacity(queen.id);
         })
