@@ -473,6 +473,25 @@ export default function SeasonFlowChart() {
     // One <linearGradient> per ribbon, stops at source/target brightness.
     // Coordinates are in the `g` user space (gradientUnits=userSpaceOnUse).
     const defs = g.append('defs');
+
+    // Yellow halo filter for pinned placement nodes. Three stacked
+    // drop-shadows build up a bright, large glow. Filter region needs
+    // huge horizontal padding — the node is only 8px wide so percentage
+    // padding adds up slowly, and a wide blur gets clipped otherwise.
+    const pinGlow = defs.append('filter')
+      .attr('id', 'pin-glow')
+      .attr('x', '-3000%').attr('y', '-500%')
+      .attr('width', '6100%').attr('height', '1100%');
+    pinGlow.append('feDropShadow')
+      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 10)
+      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+    pinGlow.append('feDropShadow')
+      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 25)
+      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+    pinGlow.append('feDropShadow')
+      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 45)
+      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
 
     for (let i = 0; i < sortedRibbons.length; i++) {
@@ -717,12 +736,26 @@ export default function SeasonFlowChart() {
         const isPinned = pinSet.has(`${condEpIdx}:${placementNum}`);
 
         if (selectedQueen) {
-          // Clickable overlay
+          // Yellow glow halo for pinned nodes — rendered first so the
+          // clickable overlay and X sit on top. Source rect is fully opaque
+          // so the drop-shadow halo is bright.
+          if (isPinned) {
+            overlayGroup.append('rect')
+              .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
+              .attr('width', NODE_WIDTH).attr('height', node.h)
+              .attr('fill', '#ffd700').attr('opacity', 1)
+              .attr('rx', 1)
+              .attr('filter', 'url(#pin-glow)')
+              .style('pointer-events', 'none');
+          }
+
+          // Clickable overlay — always transparent; the halo above is what
+          // shows pin state visually.
           const overlay = overlayGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
-            .attr('fill', isPinned ? selectedQueen!.color : 'transparent')
-            .attr('opacity', isPinned ? 0.5 : 0)
+            .attr('fill', 'transparent')
+            .attr('opacity', 0)
             .attr('rx', 1)
             .style('cursor', 'pointer');
 
@@ -834,16 +867,18 @@ export default function SeasonFlowChart() {
               }
             });
 
-          // Red X indicator for existing pins — centered on the queen's band
+          // Big bold X on pinned nodes — centered on the node (a pinned node
+          // carries 100% of the queen's flow, so the node height = the band
+          // height). Black fill + yellow stroke for high contrast on any
+          // placement color.
           if (isPinned) {
-            const qBand = bands[col][pi][selectedQueen.id];
-            const yCenter = qBand
-              ? qBand.y + qBand.h / 2
-              : node.y + node.h / 2;
             overlayGroup.append('text')
-              .attr('x', colX(col)).attr('y', yCenter)
+              .attr('x', colX(col)).attr('y', node.y + node.h / 2)
               .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-              .attr('fill', '#e74c3c').attr('font-size', '7px').attr('font-weight', 'bold')
+              .attr('fill', '#000')
+              .attr('stroke', '#ffd700').attr('stroke-width', 1.5)
+              .attr('paint-order', 'stroke')
+              .attr('font-size', '22px').attr('font-weight', '900')
               .style('pointer-events', 'none')
               .text('\u2715');
           }
