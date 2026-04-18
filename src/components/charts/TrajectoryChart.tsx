@@ -4,15 +4,23 @@ import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS } from '../../engine/types';
 
+// Label colors match the flow chart tooltip: SAFE is lifted to #888 and ELIM
+// uses a brighter red (#b22222) for readability on the dark panel background.
 const PLACEMENT_COLORS: Record<string, string> = {
   WIN: '#ffd700',
   HIGH: '#a8d8ea',
-  SAFE: '#555',
+  SAFE: '#888888',
   LOW: '#e8a87c',
   BTM2: '#e74c3c',
+  ELIM: '#b22222',
 };
 
+// Placements including ELIM at the bottom of the chart. Each per-episode
+// distribution folds cumulative elimination into ELIM so probabilities sum to 1.
+const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
+
 const MARGIN = { top: 24, right: 50, bottom: 48, left: 60 };
+const MARGIN_COMPACT = { top: 4, right: 6, bottom: 18, left: 28 };
 
 /**
  * Given a discrete placement distribution, find the y-position for a given percentile.
@@ -24,9 +32,9 @@ function percentileY(
   yPositions: number[],
 ): number {
   let cumProb = 0;
-  for (let i = 0; i < PLACEMENTS.length; i++) {
+  for (let i = 0; i < CHART_PLACEMENTS.length; i++) {
     const prevCum = cumProb;
-    cumProb += dist[PLACEMENTS[i]] ?? 0;
+    cumProb += dist[CHART_PLACEMENTS[i]] ?? 0;
     if (cumProb >= p - 1e-9) {
       if (i === 0 || prevCum >= p - 1e-9) return yPositions[i];
       const frac = (p - prevCum) / (cumProb - prevCum);
@@ -36,36 +44,28 @@ function percentileY(
   return yPositions[yPositions.length - 1];
 }
 
-/** Find the mode (most likely) placement index. */
-function modePlacement(dist: Record<string, number>): number {
-  let bestIdx = 2; // default SAFE
-  let bestProb = 0;
-  for (let i = 0; i < PLACEMENTS.length; i++) {
-    const prob = dist[PLACEMENTS[i]] ?? 0;
-    if (prob > bestProb) {
-      bestProb = prob;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
-}
+type TrajectoryChartProps = {
+  height?: number;
+  compact?: boolean;
+};
 
-export default function TrajectoryChart({ height = 350 }) {
+export default function TrajectoryChart({ height = 350, compact = false }: TrajectoryChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(900);
+  const [width, setWidth] = useState(compact ? 100 : 900);
   const [fadeByElim, setFadeByElim] = useState(true);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const minW = compact ? 40 : 100;
     const obs = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
+      if (w && w > minW) setWidth(Math.floor(w));
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [compact]);
 
   const season = useStore(selectCurrentSeason);
   const { selectedQueenId, baselineResults, filteredResults } = useStore();
@@ -89,13 +89,14 @@ export default function TrajectoryChart({ height = 350 }) {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
 
-    const innerWidth = width - MARGIN.left - MARGIN.right;
-    const innerHeight = height - MARGIN.top - MARGIN.bottom;
+    const margin = compact ? MARGIN_COMPACT : MARGIN;
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
     const numEpisodes = season.episodes.length;
 
     const g = svg
       .append('g')
-      .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+      .attr('transform', `translate(${margin.left},${margin.top})`);
 
     // Scales
     const x = d3
@@ -105,14 +106,14 @@ export default function TrajectoryChart({ height = 350 }) {
 
     const y = d3
       .scalePoint<string>()
-      .domain([...PLACEMENTS])
+      .domain([...CHART_PLACEMENTS])
       .range([0, innerHeight])
       .padding(0.3);
 
-    const yPositions = PLACEMENTS.map((p) => y(p)!);
+    const yPositions = CHART_PLACEMENTS.map((p) => y(p)!);
 
     // Grid lines
-    for (const p of PLACEMENTS) {
+    for (const p of CHART_PLACEMENTS) {
       g.append('line')
         .attr('x1', 0)
         .attr('x2', innerWidth)
@@ -126,7 +127,7 @@ export default function TrajectoryChart({ height = 350 }) {
     const xAxis = d3
       .axisBottom(x)
       .ticks(numEpisodes)
-      .tickFormat((d) => `${d}`);
+      .tickFormat((d) => (Number(d) === numEpisodes ? '👑' : `${d}`));
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
       .call(xAxis)
@@ -142,18 +143,21 @@ export default function TrajectoryChart({ height = 350 }) {
           .attr('stroke-dasharray', '2,4'),
       )
       .call((ax) =>
-        ax.selectAll('.tick text').attr('fill', '#666').attr('font-size', '11px'),
+        ax
+          .selectAll('.tick text')
+          .attr('fill', '#666')
+          .attr('font-size', compact ? '9px' : '11px'),
       );
 
     // Y-axis labels
-    for (const p of PLACEMENTS) {
+    for (const p of CHART_PLACEMENTS) {
       g.append('text')
-        .attr('x', -10)
+        .attr('x', compact ? -4 : -10)
         .attr('y', y(p)!)
         .attr('text-anchor', 'end')
         .attr('dominant-baseline', 'central')
         .attr('fill', PLACEMENT_COLORS[p])
-        .attr('font-size', '11px')
+        .attr('font-size', compact ? '8px' : '11px')
         .attr('font-weight', 'bold')
         .attr('font-family', 'monospace')
         .text(p);
@@ -174,7 +178,7 @@ export default function TrajectoryChart({ height = 350 }) {
     type EpData = {
       ep: number;
       dist: Record<string, number>;
-      modeY: number;
+      medianY: number;
       survival: number;
       p005: number; p05: number; p25: number; p75: number; p95: number; p995: number;
     };
@@ -183,16 +187,25 @@ export default function TrajectoryChart({ height = 350 }) {
     for (let epIdx = 0; epIdx < numEpisodes; epIdx++) {
       const epPlacements = results.episodePlacements[epIdx];
       if (!epPlacements) break;
-      const dist = epPlacements[queen.id];
-      if (!dist) break;
-      const total = PLACEMENTS.reduce((sum, p) => sum + (dist[p] ?? 0), 0);
-      if (total < 0.001) break;
+      const rawDist = epPlacements[queen.id] ?? {};
+      const elim = results.elimProbByEpisode[epIdx]?.[queen.id] ?? 0;
+      const surv = survival[epIdx];
+      if (surv < 1e-3) break;
+
+      // Per-episode conditional distribution (given alive at start of episode).
+      // Sums to 1. ELIM represents only this episode's elimination probability —
+      // prior eliminations are visualized separately via the survival-fade overlay.
+      const dist: Record<string, number> = {};
+      for (const p of PLACEMENTS) dist[p] = rawDist[p] ?? 0;
+      const elimCond = elim / surv;
+      dist['BTM2'] = Math.max(0, dist['BTM2'] - elimCond);
+      dist['ELIM'] = elimCond;
 
       epData.push({
         ep: epIdx + 1,
         dist,
-        survival: survival[epIdx],
-        modeY: yPositions[modePlacement(dist)],
+        survival: surv,
+        medianY: percentileY(dist, 0.5, yPositions),
         p005: percentileY(dist, 0.005, yPositions),
         p05: percentileY(dist, 0.05, yPositions),
         p25: percentileY(dist, 0.25, yPositions),
@@ -248,20 +261,20 @@ export default function TrajectoryChart({ height = 350 }) {
         .attr('fill', gradUrl);
     }
 
-    // Mode line with survival-fade gradient for stroke
-    const modeGradUrl = makeSurvivalGradient('modeLine', 0.9);
+    // Median line with survival-fade gradient for stroke
+    const medianGradUrl = makeSurvivalGradient('medianLine', 0.9);
 
-    const modeLine = d3
+    const medianLine = d3
       .line<EpData>()
       .x((d) => x(d.ep))
-      .y((d) => d.modeY)
+      .y((d) => d.medianY)
       .curve(d3.curveMonotoneX);
 
     g.append('path')
       .datum(epData)
-      .attr('d', modeLine)
+      .attr('d', medianLine)
       .attr('fill', 'none')
-      .attr('stroke', modeGradUrl)
+      .attr('stroke', medianGradUrl)
       .attr('stroke-width', 2.5)
       .attr('stroke-linecap', 'round');
 
@@ -271,21 +284,23 @@ export default function TrajectoryChart({ height = 350 }) {
       .domain([0, 1])
       .range([innerHeight, 0]);
 
-    const rightAxis = d3
-      .axisRight(yRight)
-      .ticks(5)
-      .tickFormat((d) => `${(d as number) * 100}%`);
+    if (!compact) {
+      const rightAxis = d3
+        .axisRight(yRight)
+        .ticks(5)
+        .tickFormat((d) => `${(d as number) * 100}%`);
 
-    g.append('g')
-      .attr('transform', `translate(${innerWidth},0)`)
-      .call(rightAxis)
-      .call((ax) => ax.select('.domain').attr('stroke', '#2a2a3a'))
-      .call((ax) =>
-        ax.selectAll('.tick line').attr('stroke', '#2a2a3a'),
-      )
-      .call((ax) =>
-        ax.selectAll('.tick text').attr('fill', '#e74c3c').attr('font-size', '9px').attr('opacity', 0.6),
-      );
+      g.append('g')
+        .attr('transform', `translate(${innerWidth},0)`)
+        .call(rightAxis)
+        .call((ax) => ax.select('.domain').attr('stroke', '#2a2a3a'))
+        .call((ax) =>
+          ax.selectAll('.tick line').attr('stroke', '#2a2a3a'),
+        )
+        .call((ax) =>
+          ax.selectAll('.tick text').attr('fill', '#e74c3c').attr('font-size', '9px').attr('opacity', 0.6),
+        );
+    }
 
     // Survival rate line (red dotted)
     const survivalLine = d3
@@ -299,11 +314,18 @@ export default function TrajectoryChart({ height = 350 }) {
       .attr('d', survivalLine)
       .attr('fill', 'none')
       .attr('stroke', '#e74c3c')
-      .attr('stroke-width', 1.5)
+      .attr('stroke-width', compact ? 1 : 1.5)
       .attr('stroke-dasharray', '4,3')
-      .attr('opacity', 0.6);
+      .attr('opacity', compact ? 0.5 : 0.6);
 
-    // Hover interaction
+    // Hover interaction — dims scale with compact mode. barX/barW sit in the
+    // whitespace right of the placement percentage rows.
+    const tt = compact
+      ? { w: 82, h: 96, pad: 6, headerY: 11, headerFont: '8px', rowStart: 22, rowStep: 10, rowFont: '8px', dividerY: 78, aliveY: 90, offset: 8, topY: 4,
+          barX: 62, barW: 12, barTop: 16, barH: 56 }
+      : { w: 110, h: 131, pad: 8, headerY: 14, headerFont: '10px', rowStart: 28, rowStep: 13, rowFont: '9px', dividerY: 109, aliveY: 123, offset: 12, topY: 10,
+          barX: 82, barW: 18, barTop: 22, barH: 75 };
+
     const hoverLine = g
       .append('line')
       .attr('y1', 0)
@@ -341,95 +363,130 @@ export default function TrajectoryChart({ height = 350 }) {
           .style('display', null);
 
         tooltipG.selectAll('text').remove();
+        tooltipG.selectAll('.tt-bar').remove();
+        tooltipG.selectAll('line').remove();
         tooltipG.style('display', null);
 
-        const ttX = x(ep) + 12;
-        const flipLeft = ttX + 110 > innerWidth;
-        const finalX = flipLeft ? x(ep) - 122 : ttX;
-        const ttY = 10;
+        const ttX = x(ep) + tt.offset;
+        const flipLeft = ttX + tt.w > innerWidth;
+        const finalX = flipLeft ? x(ep) - tt.w - tt.offset : ttX;
+        const ttY = tt.topY;
 
         tooltipG
           .append('text')
-          .attr('x', finalX + 8)
-          .attr('y', ttY + 14)
+          .attr('x', finalX + tt.pad)
+          .attr('y', ttY + tt.headerY)
           .attr('fill', '#888')
-          .attr('font-size', '10px')
+          .attr('font-size', tt.headerFont)
           .attr('font-weight', 'bold')
           .text(`Episode ${ep}`);
 
-        PLACEMENTS.forEach((p, idx) => {
+        CHART_PLACEMENTS.forEach((p, idx) => {
           const pct = (data.dist[p] ?? 0) * 100;
           tooltipG
             .append('text')
-            .attr('x', finalX + 8)
-            .attr('y', ttY + 28 + idx * 13)
+            .attr('x', finalX + tt.pad)
+            .attr('y', ttY + tt.rowStart + idx * tt.rowStep)
             .attr('fill', PLACEMENT_COLORS[p])
-            .attr('font-size', '9px')
+            .attr('font-size', tt.rowFont)
             .attr('font-family', 'monospace')
             .text(`${p.padEnd(4)} ${pct.toFixed(1).padStart(5)}%`);
         });
 
+        // Stacked bar breakdown of conditional placement percentages. Matches the
+        // flow tooltip bar styling (base ELIM color, thin slate outline).
+        const barTotal = CHART_PLACEMENTS.reduce((s, p) => s + (data.dist[p] ?? 0), 0);
+        if (barTotal > 0) {
+          const barG = tooltipG.append('g').attr('class', 'tt-bar');
+          let yOff = 0;
+          for (const p of CHART_PLACEMENTS) {
+            const v = data.dist[p] ?? 0;
+            if (v < 0.001) continue;
+            const segH = (v / barTotal) * tt.barH;
+            const segColor = p === 'ELIM' ? '#8b0000' : PLACEMENT_COLORS[p];
+            barG.append('rect')
+              .attr('x', finalX + tt.barX)
+              .attr('y', ttY + tt.barTop + yOff)
+              .attr('width', tt.barW)
+              .attr('height', segH)
+              .attr('fill', segColor);
+            yOff += segH;
+          }
+          barG.append('rect')
+            .attr('x', finalX + tt.barX)
+            .attr('y', ttY + tt.barTop)
+            .attr('width', tt.barW)
+            .attr('height', tt.barH)
+            .attr('fill', 'none')
+            .attr('stroke', '#3e5d78')
+            .attr('stroke-width', 1);
+        }
+
         // Survival line
         tooltipG
           .append('line')
-          .attr('x1', finalX + 8)
-          .attr('x2', finalX + 102)
-          .attr('y1', ttY + 96)
-          .attr('y2', ttY + 96)
+          .attr('x1', finalX + tt.pad)
+          .attr('x2', finalX + tt.w - tt.pad)
+          .attr('y1', ttY + tt.dividerY)
+          .attr('y2', ttY + tt.dividerY)
           .attr('stroke', '#2a2a3a');
 
         tooltipG
           .append('text')
-          .attr('x', finalX + 8)
-          .attr('y', ttY + 110)
+          .attr('x', finalX + tt.pad)
+          .attr('y', ttY + tt.aliveY)
           .attr('fill', '#e74c3c')
-          .attr('font-size', '9px')
+          .attr('font-size', tt.rowFont)
           .attr('font-family', 'monospace')
           .text(`Alive ${(data.survival * 100).toFixed(1).padStart(5)}%`);
 
         tooltipBg
           .attr('x', finalX)
           .attr('y', ttY)
-          .attr('width', 110)
-          .attr('height', 118);
+          .attr('width', tt.w)
+          .attr('height', tt.h);
       })
       .on('mouseleave', () => {
         hoverLine.style('display', 'none');
         tooltipG.style('display', 'none');
       });
 
-    // Title
-    g.append('text')
-      .attr('x', 0)
-      .attr('y', -8)
-      .attr('fill', queen.color)
-      .attr('font-size', '13px')
-      .attr('font-weight', 'bold')
-      .text(`Trajectory — ${queen.name}`);
+    if (!compact) {
+      // Title
+      g.append('text')
+        .attr('x', 0)
+        .attr('y', -8)
+        .attr('fill', queen.color)
+        .attr('font-size', '13px')
+        .attr('font-weight', 'bold')
+        .text(`Trajectory — ${queen.name}`);
 
-    g.append('text')
-      .attr('x', innerWidth)
-      .attr('y', -8)
-      .attr('text-anchor', 'end')
-      .attr('fill', '#555')
-      .attr('font-size', '10px')
-      .text(`${results.numSimulations.toLocaleString()} simulations`);
+      g.append('text')
+        .attr('x', innerWidth)
+        .attr('y', -8)
+        .attr('text-anchor', 'end')
+        .attr('fill', '#555')
+        .attr('font-size', '10px')
+        .text(`${results.numSimulations.toLocaleString()} simulations`);
+    }
 
-  }, [results, queen, width, height, season.episodes.length, fadeByElim]);
+  }, [results, queen, width, height, season.episodes.length, fadeByElim, compact]);
 
   return (
     <div ref={containerRef} className="w-full relative">
       {queen && results && (
         <>
-          <label className="absolute top-7 right-14 flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={fadeByElim}
-              onChange={() => setFadeByElim((v) => !v)}
-              className="accent-[#e74c3c] w-3 h-3 cursor-pointer"
-            />
-            <span className="text-[10px] text-[#666] font-mono">Shade by survival</span>
-          </label>
+          {!compact && (
+            <label className="absolute top-7 right-14 flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={fadeByElim}
+                onChange={() => setFadeByElim((v) => !v)}
+                className="accent-[#e74c3c] w-3 h-3 cursor-pointer"
+              />
+              <span className="text-[10px] text-[#666] font-mono">Shade by survival</span>
+            </label>
+          )}
           <svg ref={svgRef} width={width} height={height} />
         </>
       )}
