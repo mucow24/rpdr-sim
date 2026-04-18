@@ -39,9 +39,9 @@ export default function SeasonFlowChart() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [dimExp, setDimExp] = useState(1.5);
-  const [dimBase, setDimBase] = useState(0.12);
-  const [dimCutoff, setDimCutoff] = useState(0.1);
+  const [dimExp, setDimExp] = useState(0.8);
+  const [dimBase, setDimBase] = useState(0.1);
+  const [dimCutoff, setDimCutoff] = useState(0.5);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -196,6 +196,10 @@ export default function SeasonFlowChart() {
       tgtX: number;
       tgtY: number;
       tgtH: number;
+      // Brightness at each end of the ribbon, = queen's probability of being
+      // in the source/target placement node (source column = 1.0).
+      srcT: number;
+      tgtT: number;
     }
 
     const allRibbons: SubRib[] = [];
@@ -246,6 +250,8 @@ export default function SeasonFlowChart() {
           queenId: qid, color: queen.color,
           srcX: SOURCE_COL_WIDTH - 16, srcY: sY, srcH: h,
           tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+          srcT: 1.0,
+          tgtT: weight,
         });
       }
 
@@ -277,6 +283,8 @@ export default function SeasonFlowChart() {
                 queenId: qid, color: queen.color,
                 srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                 tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+                srcT: flowData[qid][ep][PLACEMENTS[pi]],
+                tgtT: flowData[qid][ep + 1][PLACEMENTS[ti]],
               });
             }
 
@@ -300,6 +308,8 @@ export default function SeasonFlowChart() {
                         queenId: qid, color: queen.color,
                         srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                         tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+                        srcT: flowData[qid][ep][PLACEMENTS[pi]],
+                        tgtT: flowData[qid][ep + 1]['ELIM'],
                       });
                     }
                   }
@@ -327,6 +337,8 @@ export default function SeasonFlowChart() {
                 queenId: qid, color: queen.color,
                 srcX: colX(ep) + NODE_WIDTH / 2, srcY: sY, srcH: h,
                 tgtX: colX(ep + 1) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+                srcT: flowData[qid][ep]['ELIM'],
+                tgtT: flowData[qid][ep + 1]['ELIM'],
               });
             }
           }
@@ -404,14 +416,8 @@ export default function SeasonFlowChart() {
       return hsl.formatRgb();
     };
 
-    // Queen bands within nodes (opacity scales with flow)
-    const maxBandH = Math.max(
-      ...Array.from({ length: numCols }, (_, col) =>
-        Math.max(...CHART_PLACEMENTS.map((_, pi) =>
-          Math.max(...Object.values(bands[col][pi]).map((b) => b.h), 0)
-        ))
-      ), 1
-    );
+    // Queen bands within nodes — opacity = dimOp(queen's probability at this
+    // placement node), i.e. the normalized flow through the node.
     const bandGroup = g.append('g').attr('class', 'queen-bands');
     for (let col = 0; col < numCols; col++) {
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
@@ -419,7 +425,7 @@ export default function SeasonFlowChart() {
           if (band.h < 0.3) continue;
           const queen = queenMap.get(qid);
           if (!queen) continue;
-          const t = band.h / maxBandH;
+          const t = band.h / SCALE;
           const sel = isSelected(qid);
           bandGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
@@ -440,24 +446,32 @@ export default function SeasonFlowChart() {
       (a, b) => (winProbs.get(a.queenId) ?? 0) - (winProbs.get(b.queenId) ?? 0),
     );
 
+    // One <linearGradient> per ribbon, stops at source/target brightness.
+    // Coordinates are in the `g` user space (gradientUnits=userSpaceOnUse).
+    const defs = g.append('defs');
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
 
-    const maxRibbonH = Math.max(...sortedRibbons.map((r) => Math.max(r.srcH, r.tgtH)), 1);
+    for (let i = 0; i < sortedRibbons.length; i++) {
+      const r = sortedRibbons[i];
+      const gradId = `ribbon-grad-${i}`;
+      const grad = defs.append('linearGradient')
+        .attr('id', gradId)
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', r.srcX).attr('y1', 0)
+        .attr('x2', r.tgtX).attr('y2', 0);
+      grad.append('stop').attr('offset', '0%')
+        .attr('stop-color', r.color).attr('stop-opacity', dimOp(r.srcT));
+      grad.append('stop').attr('offset', '100%')
+        .attr('stop-color', r.color).attr('stop-opacity', dimOp(r.tgtT));
 
-    for (const r of sortedRibbons) {
-      const t = Math.max(r.srcH, r.tgtH) / maxRibbonH;
       const sel = isSelected(r.queenId);
-      const fillOp = sel ? dimOp(t) : 0;
-      const strokeOp = sel ? dimOp(t) : 0;
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.srcH, r.tgtX, r.tgtY, r.tgtY + r.tgtH))
-        .attr('fill', r.color)
-        .attr('fill-opacity', fillOp)
-        .attr('stroke', r.color)
+        .attr('fill', `url(#${gradId})`)
+        .attr('stroke', `url(#${gradId})`)
         .attr('stroke-width', 0.3)
-        .attr('stroke-opacity', strokeOp)
-        .attr('data-queen', r.queenId)
-        .attr('data-t', t);
+        .attr('opacity', sel ? 1 : 0)
+        .attr('data-queen', r.queenId);
     }
 
     const allPaths = ribbonGroup.selectAll<SVGPathElement, unknown>('path[data-queen]');
@@ -468,17 +482,9 @@ export default function SeasonFlowChart() {
       allPaths.each(function () {
         const el = d3.select(this);
         const pq = el.attr('data-queen')!;
-        const pt = parseFloat(el.attr('data-t') || '1');
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        let fOp: number, sOp: number;
-        if (isSel || isHover) {
-          fOp = dimOp(pt);
-          sOp = dimOp(pt);
-        } else {
-          fOp = 0; sOp = 0;
-        }
-        el.attr('fill-opacity', fOp).attr('stroke-opacity', sOp);
+        el.attr('opacity', isSel || isHover ? 1 : 0);
       });
       allBands.each(function () {
         const el = d3.select(this);
