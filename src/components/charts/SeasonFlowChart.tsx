@@ -497,6 +497,24 @@ export default function SeasonFlowChart() {
       .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 45)
       .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
 
+    // Shared horizontal fade-in mask for queen color bars. Coords are in
+    // user space so the fade distance is consistent (in pixels) across bars.
+    const BAR_FADE_PX = 14;
+    const barLeftX = -MARGIN.left;
+    const barRightX = SOURCE_COL_WIDTH - 28;
+    const fadeGrad = defs.append('linearGradient')
+      .attr('id', 'src-bar-fade-grad')
+      .attr('gradientUnits', 'userSpaceOnUse')
+      .attr('x1', barLeftX).attr('y1', 0)
+      .attr('x2', barLeftX + BAR_FADE_PX).attr('y2', 0);
+    fadeGrad.append('stop').attr('offset', '0%').attr('stop-color', '#000');
+    fadeGrad.append('stop').attr('offset', '100%').attr('stop-color', '#fff');
+    const fadeMask = defs.append('mask').attr('id', 'src-bar-fade');
+    fadeMask.append('rect')
+      .attr('x', barLeftX).attr('y', 0)
+      .attr('width', barRightX - barLeftX).attr('height', placementAreaH)
+      .attr('fill', 'url(#src-bar-fade-grad)');
+
     // Queen color bars live BELOW the ribbons (ribbons can extend leftward
     // into the bar area and appear to emerge from within the bar), while
     // names live ABOVE the ribbons for readability.
@@ -612,7 +630,7 @@ export default function SeasonFlowChart() {
     // Only the invisible hit-area rect receives pointer events — the color bar
     // and name are pointer-events: none, so the 50px-tall overlapping bars
     // don't steal events from adjacent queens' tight hit areas.
-    const queenBars: Record<string, d3.Selection<SVGPathElement, unknown, null, undefined>> = {};
+    const queenBars: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
     const queenNames: Record<string, d3.Selection<SVGTextElement, unknown, null, undefined>> = {};
 
     function setHoverQueen(hoverId: string | null) {
@@ -662,28 +680,14 @@ export default function SeasonFlowChart() {
 
       // Color bar — fixed width across all queens. Only visible when
       // selected or hovered. Right edge meets the flow's straight left
-      // edge at SOURCE_COL_WIDTH - 28 — no overlap (the flow's gradient
-      // would mismatch the bar's solid fill) and no gap (flat right
-      // corners meet the flat flow edge). Drawn as a path so left
-      // corners get rounded and right corners stay flat.
-      const barLeft = -MARGIN.left;
-      const barRight = SOURCE_COL_WIDTH - 28;
-      const barTop = sb.y;
-      const barBot = sb.y + sb.h;
-      const rL = 7; // left-corner radius
-      const barPath = [
-        `M ${barLeft + rL} ${barTop}`,
-        `L ${barRight} ${barTop}`,
-        `L ${barRight} ${barBot}`,
-        `L ${barLeft + rL} ${barBot}`,
-        `Q ${barLeft} ${barBot} ${barLeft} ${barBot - rL}`,
-        `L ${barLeft} ${barTop + rL}`,
-        `Q ${barLeft} ${barTop} ${barLeft + rL} ${barTop}`,
-        'Z',
-      ].join(' ');
-      const colorBar = srcBarsGroup.append('path')
-        .attr('d', barPath)
+      // edge at SOURCE_COL_WIDTH - 28. Left side fades in via a shared
+      // horizontal mask (src-bar-fade) so the bar blends into the page
+      // background rather than ending in a hard edge.
+      const colorBar = srcBarsGroup.append('rect')
+        .attr('x', barLeftX).attr('y', sb.y)
+        .attr('width', barRightX - barLeftX).attr('height', sb.h)
         .attr('fill', barFill)
+        .attr('mask', 'url(#src-bar-fade)')
         .attr('opacity', sel ? 1.0 : 0);
       queenBars[queen.id] = colorBar;
 
