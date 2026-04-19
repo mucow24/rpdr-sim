@@ -9,7 +9,7 @@ const season4: SeasonData = {
       name: 'Sharon Needles',
       skills: { comedy: 6, improv: 6, acting: 6, dance: 4, music: 5, design: 7, runway: 7, charisma: 7 },
       lipSync: 6,
-      color: '#1a1a1a',
+      color: '#00d9ff',
     },
     {
       id: 'chad',

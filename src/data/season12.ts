@@ -12,7 +12,7 @@ const season12: SeasonData = {
     { id: 'widow', name: 'Widow Von\'Du', skills: { comedy: 6, improv: 5, acting: 5, dance: 6, music: 7, design: 5, runway: 6, charisma: 5 }, lipSync: 5, color: '#6c5ce7' },
     { id: 'jan', name: 'Jan', skills: { comedy: 7, improv: 6, acting: 7, dance: 6, music: 7, design: 5, runway: 6, charisma: 6 }, lipSync: 5, color: '#ff7675' },
     { id: 'brita', name: 'Brita', skills: { comedy: 5, improv: 5, acting: 5, dance: 5, music: 5, design: 5, runway: 5, charisma: 5 }, lipSync: 5, color: '#74b9ff' },
-    { id: 'aiden', name: 'Aiden Zhane', skills: { comedy: 2, improv: 1, acting: 4, dance: 4, music: 4, design: 4, runway: 4, charisma: 2 }, lipSync: 3, color: '#2d3436' },
+    { id: 'aiden', name: 'Aiden Zhane', skills: { comedy: 2, improv: 1, acting: 4, dance: 4, music: 4, design: 4, runway: 4, charisma: 2 }, lipSync: 3, color: '#84cc16' },
     { id: 'nicky', name: 'Nicky Doll', skills: { comedy: 4, improv: 4, acting: 4, dance: 5, music: 4, design: 6, runway: 7, charisma: 5 }, lipSync: 4, color: '#fab1d4' },
     { id: 'dahlia', name: 'Dahlia Sin', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 4, runway: 5, charisma: 4 }, lipSync: 3, color: '#d63031' },
     { id: 'rock', name: 'Rock M. Sakura', skills: { comedy: 5, improv: 5, acting: 4, dance: 4, music: 4, design: 4, runway: 5, charisma: 5 }, lipSync: 4, color: '#e84393' },

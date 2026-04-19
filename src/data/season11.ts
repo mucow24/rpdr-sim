@@ -15,7 +15,7 @@ const season11: SeasonData = {
     { id: 'rajah', name: 'Ra\'Jah O\'Hara', skills: { comedy: 5, improv: 5, acting: 5, dance: 5, music: 5, design: 5, runway: 6, charisma: 5 }, lipSync: 6, color: '#6c5ce7' },
     { id: 'scarlet', name: 'Scarlet Envy', skills: { comedy: 6, improv: 5, acting: 6, dance: 5, music: 5, design: 5, runway: 6, charisma: 6 }, lipSync: 4, color: '#e17055' },
     { id: 'ariel', name: 'Ariel Versace', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 4, runway: 6, charisma: 5 }, lipSync: 4, color: '#74b9ff' },
-    { id: 'mercedes', name: 'Mercedes Iman Diamond', skills: { comedy: 5, improv: 4, acting: 5, dance: 4, music: 4, design: 4, runway: 5, charisma: 5 }, lipSync: 4, color: '#2d3436' },
+    { id: 'mercedes', name: 'Mercedes Iman Diamond', skills: { comedy: 5, improv: 4, acting: 5, dance: 4, music: 4, design: 4, runway: 5, charisma: 5 }, lipSync: 4, color: '#e2e8f0' },
     { id: 'honey11', name: 'Honey Davenport', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 5, design: 4, runway: 5, charisma: 5 }, lipSync: 4, color: '#f9a825' },
     { id: 'kahanna', name: 'Kahanna Montrese', skills: { comedy: 4, improv: 4, acting: 3, dance: 4, music: 4, design: 4, runway: 5, charisma: 4 }, lipSync: 4, color: '#0984e3' },
     { id: 'soju', name: 'Soju', skills: { comedy: 5, improv: 4, acting: 3, dance: 3, music: 3, design: 4, runway: 4, charisma: 4 }, lipSync: 3, color: '#55efc4' },

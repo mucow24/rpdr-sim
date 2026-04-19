@@ -11,7 +11,7 @@ const season18: SeasonData = {
     { id: 'nini', name: 'Nini Coco', skills: { comedy: 6, improv: 7, acting: 6, dance: 5, music: 5, design: 7, runway: 7, charisma: 6 }, lipSync: 5, color: '#f7d94c' },
     { id: 'mia18', name: 'Mia Starr', skills: { comedy: 5, improv: 4, acting: 5, dance: 6, music: 5, design: 5, runway: 6, charisma: 5 }, lipSync: 4, color: '#ff9ecb' },
     { id: 'kenya18', name: 'Kenya Pleaser', skills: { comedy: 5, improv: 4, acting: 5, dance: 5, music: 6, design: 5, runway: 5, charisma: 5 }, lipSync: 4, color: '#16a085' },
-    { id: 'discord', name: 'Discord Addams', skills: { comedy: 5, improv: 4, acting: 5, dance: 5, music: 5, design: 5, runway: 6, charisma: 5 }, lipSync: 4, color: '#34495e' },
+    { id: 'discord', name: 'Discord Addams', skills: { comedy: 5, improv: 4, acting: 5, dance: 5, music: 5, design: 5, runway: 6, charisma: 5 }, lipSync: 4, color: '#3b82f6' },
     { id: 'athena', name: 'Athena Dion', skills: { comedy: 5, improv: 4, acting: 4, dance: 5, music: 5, design: 5, runway: 6, charisma: 5 }, lipSync: 4, color: '#f5a623' },
     { id: 'vita', name: 'Vita VonTesse Starr', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 6, runway: 6, charisma: 4 }, lipSync: 4, color: '#7d5ba6' },
     { id: 'briar', name: 'Briar Blush', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 4, runway: 5, charisma: 4 }, lipSync: 4, color: '#f8b6cf' },

@@ -30,7 +30,7 @@ const season14: SeasonData = {
       name: 'Bosco',
       skills: { comedy: 7, improv: 7, acting: 7, dance: 5, music: 5, design: 6, runway: 6, charisma: 6 },
       lipSync: 5,
-      color: '#8b0000',
+      color: '#f43f5e',
     },
     {
       id: 'daya',

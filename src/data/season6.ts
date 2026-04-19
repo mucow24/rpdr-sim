@@ -37,7 +37,7 @@ const season6: SeasonData = {
       name: 'Darienne Lake',
       skills: { comedy: 7, improv: 6, acting: 6, dance: 4, music: 5, design: 5, runway: 5, charisma: 6 },
       lipSync: 5,
-      color: '#5d4037',
+      color: '#1e88e5',
     },
     {
       id: 'joslyn',
