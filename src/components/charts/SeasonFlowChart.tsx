@@ -25,8 +25,6 @@ const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
-const NEUTRAL_QUEEN_COLOR = '#888';
-
 const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
@@ -47,14 +45,20 @@ function ribbonPath(
   return `M ${x0} ${y0top} C ${cpx} ${y0top}, ${cpx} ${y1top}, ${x1} ${y1top} L ${x1} ${y1bot} C ${cpx} ${y1bot}, ${cpx} ${y0bot}, ${x0} ${y0bot} Z`;
 }
 
-export default function SeasonFlowChart() {
+interface Props {
+  carrierWidth: number;
+}
+
+// Tuned defaults (previously exposed as sliders during iteration).
+const DIM_EXP = 2;
+const DIM_BASE = 0.04;
+const DIM_CUTOFF = 0.3;
+const PRE_SPLIT_WIDTH = 20;
+
+export default function SeasonFlowChart({ carrierWidth }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
-  const [dimExp, setDimExp] = useState(2);
-  const [dimBase, setDimBase] = useState(0.04);
-  const [dimCutoff, setDimCutoff] = useState(0.3);
-  const [useQueenColor, setUseQueenColor] = useState(true);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -144,10 +148,15 @@ export default function SeasonFlowChart() {
     }
 
     // -- Horizontal layout --
+    // Carrier (full-SCALE-height ribbon segment) runs from the right edge of
+    // the queen color bar to the left edge of the ep 0 placement node. Its
+    // width is manually controlled. ep → ep spacing is auto-sized to fill
+    // the remaining area across numCols episodes.
     const numCols = numEps;
-    const epAreaW = innerW - SOURCE_COL_WIDTH;
-    const epSpacing = epAreaW / numCols;
-    const colX = (col: number) => SOURCE_COL_WIDTH + col * epSpacing + epSpacing / 2;
+    const barEdgeX = SOURCE_COL_WIDTH - 28;
+    const ep0X = barEdgeX + carrierWidth + NODE_WIDTH / 2;
+    const epSpacing = (innerW - SOURCE_COL_WIDTH) / numCols;
+    const colX = (col: number) => ep0X + col * epSpacing;
 
     // -- Placement nodes (constant height = 1 queen's flow; stack centered vertically) --
     type NodePos = { y: number; h: number };
@@ -245,40 +254,61 @@ export default function SeasonFlowChart() {
         }
       }
     }
-    const srcCursor: Record<string, number> = {};
-    for (const q of queenOrder) srcCursor[q.id] = srcBands[q.id].y;
-
     const elimIdx = CHART_PLACEMENTS.indexOf('ELIM');
 
     // Process per queen (consistent stacking order)
     for (const queen of queenOrder) {
       const qid = queen.id;
 
-      // Source → ep 0: queen's source band splits into placement bands at ep 0.
-      // Source side is compressed to SELECTED_BAR_H so ribbons emerge from the
-      // queen's (select/hover-triggered) color bar; target side stays at full
-      // SCALE to land inside the ep 0 placement-node bands cleanly.
+      // Source → ep 0: carrier is SCALE-tall across its full length so the
+      // queen's 100% starting flow reads at the same thickness as the finale
+      // column. The step from bar-thin (SELECTED_BAR_H) to carrier-fat (SCALE)
+      // is a hard right angle at barEdgeX — no curved flare.
+      //
+      // The carrier has two sub-segments:
+      //   1. Pre-split — strips stay stacked around the name row (sYFat),
+      //      solid queen color, no placement divergence yet. Width is
+      //      manually controlled (clamped to carrierWidth).
+      //   2. Split — strips curve from sYFat to their ep 0 placement-node y,
+      //      colors transition queen → placement.
+      const centerY = srcBands[qid].y + srcBands[qid].h / 2;
+      let scaleY = centerY - SCALE / 2;
+      const qColor = queen.color;
+      const preSplit = Math.min(PRE_SPLIT_WIDTH, carrierWidth);
+      const splitStartX = barEdgeX + preSplit;
+
       for (let ti = 0; ti < CHART_PLACEMENTS.length; ti++) {
         const weight = flowData[qid][0][CHART_PLACEMENTS[ti]];
         if (weight < MIN_FLOW) continue;
-        const hSrc = weight * SELECTED_BAR_H;
-        const hTgt = weight * SCALE;
+        const hFat = weight * SCALE;
 
-        const sY = srcCursor[qid];
-        srcCursor[qid] += hSrc;
+        const sY = scaleY;
+        scaleY += hFat;
 
         const tY = inCursor[0][ti][qid];
         if (tY === undefined) continue;
-        inCursor[0][ti][qid] += hTgt;
+        inCursor[0][ti][qid] += hFat;
 
+        const pColor = PLACEMENT_FLOW_COLORS[CHART_PLACEMENTS[ti]];
+
+        // Pre-split: solid queen color, horizontal rectangle
+        if (preSplit > 0) {
+          allRibbons.push({
+            queenId: qid,
+            srcX: barEdgeX, srcY: sY, srcH: hFat,
+            tgtX: splitStartX, tgtY: sY, tgtH: hFat,
+            srcT: 1.0, tgtT: 1.0,
+            srcColor: qColor, tgtColor: qColor,
+          });
+        }
+
+        // Split: curve from name-row-centered stack into ep 0 placement nodes
         allRibbons.push({
           queenId: qid,
-          srcX: SOURCE_COL_WIDTH - 28, srcY: sY, srcH: hSrc,
-          tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: hTgt,
-          srcT: 1.0,
-          tgtT: weight,
-          srcColor: useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR,
-          tgtColor: PLACEMENT_FLOW_COLORS[CHART_PLACEMENTS[ti]],
+          srcX: splitStartX, srcY: sY, srcH: hFat,
+          tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: hFat,
+          srcT: 1.0, tgtT: weight,
+          srcColor: qColor, tgtColor: pColor,
         });
       }
 
@@ -438,8 +468,8 @@ export default function SeasonFlowChart() {
     }
 
     const dimOp = (t: number): number => {
-      if (dimCutoff <= 0 || t >= dimCutoff) return 1;
-      return dimBase + (1 - dimBase) * Math.pow(t / dimCutoff, dimExp);
+      if (DIM_CUTOFF <= 0 || t >= DIM_CUTOFF) return 1;
+      return DIM_BASE + (1 - DIM_BASE) * Math.pow(t / DIM_CUTOFF, DIM_EXP);
     };
 
     // Queen bands within nodes — opacity = dimOp(queen's probability at this
@@ -462,7 +492,7 @@ export default function SeasonFlowChart() {
             .attr('data-queen', qid)
             .attr('data-t', t)
             .attr('data-color-placement', PLACEMENT_FLOW_COLORS[placementName])
-            .attr('data-color-queen', useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR)
+            .attr('data-color-queen', queen.color)
             .style('pointer-events', 'none');
         }
       }
@@ -497,27 +527,7 @@ export default function SeasonFlowChart() {
       .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 45)
       .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
 
-    // Shared horizontal fade-in mask for queen color bars. Coords are in
-    // user space so the fade distance is consistent (in pixels) across bars.
-    const BAR_FADE_PX = 14;
-    const barLeftX = -MARGIN.left;
-    const barRightX = SOURCE_COL_WIDTH - 28;
-    const fadeGrad = defs.append('linearGradient')
-      .attr('id', 'src-bar-fade-grad')
-      .attr('gradientUnits', 'userSpaceOnUse')
-      .attr('x1', barLeftX).attr('y1', 0)
-      .attr('x2', barLeftX + BAR_FADE_PX).attr('y2', 0);
-    fadeGrad.append('stop').attr('offset', '0%').attr('stop-color', '#000');
-    fadeGrad.append('stop').attr('offset', '100%').attr('stop-color', '#fff');
-    const fadeMask = defs.append('mask').attr('id', 'src-bar-fade');
-    fadeMask.append('rect')
-      .attr('x', barLeftX).attr('y', 0)
-      .attr('width', barRightX - barLeftX).attr('height', placementAreaH)
-      .attr('fill', 'url(#src-bar-fade-grad)');
-
-    // Queen color bars live BELOW the ribbons (ribbons can extend leftward
-    // into the bar area and appear to emerge from within the bar), while
-    // names live ABOVE the ribbons for readability.
+    // Queen name underlines (shown on select/hover) live BELOW the ribbons.
     const srcBarsGroup = g.append('g').attr('class', 'src-bars');
 
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
@@ -546,7 +556,7 @@ export default function SeasonFlowChart() {
         .attr('gradientUnits', 'userSpaceOnUse')
         .attr('x1', r.srcX).attr('y1', 0)
         .attr('x2', r.tgtX).attr('y2', 0);
-      const qHoverColor = useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR;
+      const qHoverColor = queen.color;
       gradQ.append('stop').attr('offset', '0%')
         .attr('stop-color', qHoverColor).attr('stop-opacity', dimOp(r.srcT));
       gradQ.append('stop').attr('offset', '100%')
@@ -636,21 +646,10 @@ export default function SeasonFlowChart() {
     function setHoverQueen(hoverId: string | null) {
       for (const q of queenOrder) {
         const bar = queenBars[q.id];
-        const name = queenNames[q.id];
-        if (!bar || !name) continue;
+        if (!bar) continue;
         const sel = isSelected(q.id);
         const isHover = hoverId === q.id;
-        // Selected queen's bar stays at full opacity; a different hovered
-        // queen's bar overlays in her color at full opacity on top.
-        const barOp = sel || isHover ? 1.0 : 0;
-        bar.attr('opacity', barOp);
-        // When the bar is visible, name sits on top of it — flip to a
-        // light/dark fill for readability; otherwise use the queen's color.
-        const on = sel || isHover;
-        const targetFill = on
-          ? name.attr('data-color-onbar')
-          : name.attr('data-color-default');
-        name.attr('fill', targetFill);
+        bar.attr('opacity', sel || isHover ? 1.0 : 0);
       }
     }
 
@@ -675,36 +674,31 @@ export default function SeasonFlowChart() {
         .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', SRC_ROW_H)
         .attr('fill', 'transparent');
 
-      const barFill = useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR;
-      const nameOnBarColor = d3.hsl(barFill).l > 0.5 ? '#000' : '#fff';
+      const nameColor = queen.color;
 
-      // Color bar — fixed width across all queens. Only visible when
-      // selected or hovered. Right edge meets the flow's straight left
-      // edge at SOURCE_COL_WIDTH - 28. Left side fades in via a shared
-      // horizontal mask (src-bar-fade) so the bar blends into the page
-      // background rather than ending in a hard edge.
-      const colorBar = srcBarsGroup.append('rect')
-        .attr('x', barLeftX).attr('y', sb.y)
-        .attr('width', barRightX - barLeftX).attr('height', sb.h)
-        .attr('fill', barFill)
-        .attr('mask', 'url(#src-bar-fade)')
-        .attr('opacity', sel ? 1.0 : 0);
-      queenBars[queen.id] = colorBar;
-
-      // Queen name — fill flips to light/dark when the bar is visible
-      // (selected or hovered), otherwise uses queen color. Sits above
-      // ribbons (srcNamesGroup is rendered after ribbonGroup).
+      // Queen name — always rendered in the queen's color. Sits above
+      // ribbons (srcNamesGroup is rendered after ribbonGroup). When selected,
+      // the name renders bold with a subtle queen-colored glow filter (not
+      // applied on mere hover — that's reserved for the underline).
       const nameText = srcNamesGroup.append('text')
-        .attr('x', SOURCE_COL_WIDTH - 30).attr('y', nameCenter)
+        .attr('x', SOURCE_COL_WIDTH - 38).attr('y', nameCenter)
         .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
-        .attr('fill', sel ? nameOnBarColor : queen.color)
+        .attr('fill', nameColor)
         .attr('font-size', numQueens > 10 ? '12px' : '15px')
-        .attr('font-weight', '600')
+        .attr('font-weight', sel ? '800' : '600')
         .attr('opacity', 1.0)
-        .attr('data-color-default', queen.color)
-        .attr('data-color-onbar', nameOnBarColor)
         .text(queen.name.split(' ')[0]);
       queenNames[queen.id] = nameText;
+
+      // Underline — shown only when selected or hovered. Spans the text
+      // width, positioned just below the baseline, in the queen's color.
+      const nameBBox = nameText.node()!.getBBox();
+      const underline = srcBarsGroup.append('rect')
+        .attr('x', nameBBox.x).attr('y', nameBBox.y + nameBBox.height + 1)
+        .attr('width', nameBBox.width).attr('height', 2)
+        .attr('fill', nameColor)
+        .attr('opacity', sel ? 1.0 : 0);
+      queenBars[queen.id] = underline;
 
       // Yellow dot for queens with pins — ~20px left of the name.
       if (hasPins) {
@@ -955,20 +949,10 @@ export default function SeasonFlowChart() {
       }
     }
 
-  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, dimExp, dimBase, dimCutoff, useQueenColor]);
+  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
 
   return (
     <div ref={containerRef}>
-      <div className="flex items-center gap-2 mb-2 text-xs text-[#888]">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={useQueenColor}
-            onChange={(e) => setUseQueenColor(e.target.checked)}
-          />
-          Use queen color
-        </label>
-      </div>
       {results ? (
         <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
       ) : (
@@ -976,47 +960,6 @@ export default function SeasonFlowChart() {
           Running simulations...
         </div>
       )}
-      <div className="flex items-center gap-4 mt-2 text-xs text-[#888]">
-        <div className="flex items-center gap-2">
-          <label>Dim exponent</label>
-          <input
-            type="range"
-            min={0}
-            max={3}
-            step={0.05}
-            value={dimExp}
-            onChange={(e) => setDimExp(parseFloat(e.target.value))}
-            className="w-48"
-          />
-          <span className="font-mono text-[#ccc] w-10">{dimExp.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label>Dim floor</label>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.02}
-            value={dimBase}
-            onChange={(e) => setDimBase(parseFloat(e.target.value))}
-            className="w-48"
-          />
-          <span className="font-mono text-[#ccc] w-10">{dimBase.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label>Dim cutoff</label>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.02}
-            value={dimCutoff}
-            onChange={(e) => setDimCutoff(parseFloat(e.target.value))}
-            className="w-48"
-          />
-          <span className="font-mono text-[#ccc] w-10">{dimCutoff.toFixed(2)}</span>
-        </div>
-      </div>
     </div>
   );
 }
