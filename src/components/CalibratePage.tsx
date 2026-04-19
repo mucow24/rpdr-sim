@@ -311,22 +311,26 @@ export default function CalibratePage() {
                   return (
                     <div
                       key={uid}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, entry)}
+                      className="relative"
                       onMouseEnter={() => setHoveredUid(uid)}
                       onMouseLeave={() => setHoveredUid((cur) => (cur === uid ? null : cur))}
-                      className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] cursor-grab active:cursor-grabbing transition-colors"
                     >
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
-                      />
-                      <span className="text-[#ccc] whitespace-nowrap">
-                        {entry.queen.name}
-                      </span>
-                      <span className="text-[#555] text-[10px]">
-                        {seasonAbbrev(entry.seasonId)}
-                      </span>
+                      <div
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, entry)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] cursor-grab active:cursor-grabbing transition-colors"
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
+                        />
+                        <span className="text-[#ccc] whitespace-nowrap">
+                          {entry.queen.name}
+                        </span>
+                        <span className="text-[#555] text-[10px]">
+                          {seasonAbbrev(entry.seasonId)}
+                        </span>
+                      </div>
                       {showTooltip && season && (
                         <HistoryTooltip
                           rows={getHeavyEpisodes(
