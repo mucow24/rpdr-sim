@@ -34,13 +34,15 @@ function formatArchetypeOption(id: ArchetypeId): string {
 }
 
 // Match SeasonFlowChart's geometry so episode boxes line up with the flow
-// chart's columns. Sum of the chart's MARGIN.left (16) + SOURCE_COL_WIDTH (72).
-const FLOW_LEFT_OFFSET_PX = 88;
-// MARGIN.left + MARGIN.right + SOURCE_COL_WIDTH on the chart.
+// chart's columns. In the chart, ep 0 center (page coords) is at
+// MARGIN.left (16) + barEdgeX (SOURCE_COL_WIDTH - 28 = 44) + carrierWidth +
+// NODE_WIDTH/2 (4) = 64 + carrierWidth. Subsequent episodes are spaced by
+// epSpacing = (innerW - SOURCE_COL_WIDTH) / N = (W - 104) / N.
+const FLOW_EP0_BASE_PX = 64;
 const FLOW_HORIZ_RESERVED_PX = 104;
 const BOX_PX = 48;
 
-export default function Timeline() {
+export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
   const season = useStore(selectCurrentSeason);
   const { conditions, updateEpisodeArchetype, updateEpisodeWeights } =
     useStore();
@@ -104,10 +106,10 @@ export default function Timeline() {
             : episode.weights ?? ARCHETYPES[episode.archetype].weights;
 
           // Center on the flow chart's column for episode `idx`:
-          //   center_x = 88 + (W - 104) * (i + 0.5) / N
-          // Box left = center - BOX_PX/2 = (88 - 24) + (W - 104) * (i + 0.5) / N.
-          const t = (idx + 0.5) / N;
-          const leftCalc = `calc(${FLOW_LEFT_OFFSET_PX - BOX_PX / 2}px + (100% - ${FLOW_HORIZ_RESERVED_PX}px) * ${t})`;
+          //   center_x = (FLOW_EP0_BASE_PX + carrierWidth) + (W - 104) * i / N
+          // Box left = center - BOX_PX/2.
+          const leftBasePx = FLOW_EP0_BASE_PX + carrierWidth - BOX_PX / 2;
+          const leftCalc = `calc(${leftBasePx}px + (100% - ${FLOW_HORIZ_RESERVED_PX}px) * ${idx / N})`;
 
           return (
             <div

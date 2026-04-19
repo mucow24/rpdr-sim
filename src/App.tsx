@@ -33,6 +33,8 @@ export default function App() {
 
   const [simInput, setSimInput] = useState(numSimulations.toLocaleString());
   const [pendingSeasonId, setPendingSeasonId] = useState(activeSeasonId);
+  // Shared with Timeline so episode boxes stay aligned with flow-chart columns.
+  const carrierWidth = 75;
 
   // Keep the dropdown selection in sync when the active season changes externally.
   useEffect(() => {
@@ -213,8 +215,8 @@ export default function App() {
             <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
               Season Flow — click a queen to select, click placements to pin
             </h3>
-            <Timeline />
-            <SeasonFlowChart />
+            <Timeline carrierWidth={carrierWidth} />
+            <SeasonFlowChart carrierWidth={carrierWidth} />
           </section>
 
           <section className="mb-8">
