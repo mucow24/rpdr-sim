@@ -42,6 +42,13 @@ export default function QueenStatsPanel() {
   const maxSkill = queen
     ? Math.max(...BASE_STATS.map((s) => queen.skills[s] ?? 0))
     : 0;
+  const avgStat = queen
+    ? ([...BASE_STATS.map((s) => queen.skills[s] ?? 0), queen.lipSync ?? 0].reduce(
+        (a, b) => a + b,
+        0,
+      )) /
+      (BASE_STATS.length + 1)
+    : 0;
 
   return (
     <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">
@@ -61,13 +68,16 @@ export default function QueenStatsPanel() {
         </h3>
         {queen && (
           <div className="ml-auto flex items-center gap-3 text-xs font-mono text-[#aaa] flex-shrink-0">
-            <span>
+            <span title="Queen power - average stat value">
+              💪 {avgStat.toFixed(1)}
+            </span>
+            <span title="Probability of being in finale">
               🏆{' '}
               {reachedFinaleProb !== null
                 ? `${(reachedFinaleProb * 100).toFixed(0)}%`
                 : '--'}
             </span>
-            <span>
+            <span title="Probability of winning the crown">
               👑{' '}
               {winProb !== null ? `${(winProb * 100).toFixed(0)}%` : '--'}
             </span>
