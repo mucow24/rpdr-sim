@@ -4,7 +4,6 @@ import { selectBaselineSeason } from './store/selectors';
 import { useSimulation } from './engine/useSimulation';
 import Timeline from './components/timeline/Timeline';
 import QueenStatsPanel from './components/queens/QueenStatsPanel';
-import WinProbChart from './components/charts/WinProbChart';
 import PlacementDistChart from './components/charts/PlacementDistChart';
 import DivergencePanel from './components/DivergencePanel';
 import CalibratePage from './components/CalibratePage';
@@ -215,10 +214,6 @@ export default function App() {
             </h3>
             <Timeline carrierWidth={carrierWidth} />
             <SeasonFlowChart carrierWidth={carrierWidth} />
-          </section>
-
-          <section className="mb-8">
-            <WinProbChart height={400} />
           </section>
 
           <section className="mb-8">
