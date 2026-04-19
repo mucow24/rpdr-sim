@@ -226,27 +226,46 @@ function EpisodePopoverContent({
             Stat Weights
           </label>
           <div className="grid grid-cols-4 gap-2">
-            {BASE_STATS.map((stat) => (
-              <div
-                key={stat}
-                className="flex flex-col items-center gap-1 p-2 bg-[#0a0a10] border border-[#2a2a3a] rounded"
-              >
-                <span className="text-[10px] font-mono text-[#888]">
-                  {STAT_CODE[stat]}
-                </span>
-                <StatInput
-                  value={weights[stat] ?? 0}
-                  min={0}
-                  max={100}
-                  onCommit={(v) => {
-                    if (v === (weights[stat] ?? 0)) return;
-                    const next = { ...weights };
-                    next[stat] = v;
-                    onWeightsChange(next);
-                  }}
-                />
-              </div>
-            ))}
+            {(() => {
+              // Medals for the top-4 distinct non-zero weights; ties share a medal.
+              const distinct = Array.from(
+                new Set(BASE_STATS.map((s) => weights[s] ?? 0)),
+              )
+                .filter((v) => v > 0)
+                .sort((a, b) => b - a);
+              const medalByValue = new Map<number, 'gold' | 'silver' | 'copper' | 'pewter'>();
+              if (distinct[0] !== undefined) medalByValue.set(distinct[0], 'gold');
+              if (distinct[1] !== undefined) medalByValue.set(distinct[1], 'silver');
+              if (distinct[2] !== undefined) medalByValue.set(distinct[2], 'copper');
+              if (distinct[3] !== undefined) medalByValue.set(distinct[3], 'pewter');
+
+              return BASE_STATS.map((stat) => {
+                const v = weights[stat] ?? 0;
+                return (
+                  <div
+                    key={stat}
+                    className="flex flex-col items-center gap-1 p-2 bg-[#0a0a10] border border-[#2a2a3a] rounded"
+                  >
+                    <span className="text-[10px] font-mono text-[#888]">
+                      {STAT_CODE[stat]}
+                    </span>
+                    <StatInput
+                      value={v}
+                      min={0}
+                      max={100}
+                      medal={medalByValue.get(v)}
+                      dim={v === 0}
+                      onCommit={(nv) => {
+                        if (nv === v) return;
+                        const next = { ...weights };
+                        next[stat] = nv;
+                        onWeightsChange(next);
+                      }}
+                    />
+                  </div>
+                );
+              });
+            })()}
           </div>
         </>
       )}
@@ -288,8 +307,14 @@ function PlacementProbGrid({
   const season = useStore(selectCurrentSeason);
   const baselineResults = useStore((s) => s.baselineResults);
   const filteredResults = useStore((s) => s.filteredResults);
-  const results = filteredResults ?? baselineResults;
+  const [hover, setHover] = useState<{
+    queenName: string;
+    color: string;
+    label: string;
+    prob: number;
+  } | null>(null);
 
+  const results = filteredResults ?? baselineResults;
   if (!results) return null;
 
   const sortedQueens = [...season.queens].sort(
@@ -304,13 +329,6 @@ function PlacementProbGrid({
   const CELL = 14;
   const GAP = 2;
   const LABEL_W = 34;
-
-  const [hover, setHover] = useState<{
-    queenName: string;
-    color: string;
-    label: string;
-    prob: number;
-  } | null>(null);
 
   function prob(queenId: string, key: GridRow['key']): number {
     const alive = aliveByQ[queenId] ?? 0;
