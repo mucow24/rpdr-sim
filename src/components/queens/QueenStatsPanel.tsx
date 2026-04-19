@@ -42,14 +42,6 @@ export default function QueenStatsPanel() {
   const maxSkill = queen
     ? Math.max(...BASE_STATS.map((s) => queen.skills[s] ?? 0))
     : 0;
-  const area = queen
-    ? BASE_STATS.reduce((sum, s, i) => {
-        const r = (queen.skills[s] ?? 0) / 10;
-        const rNext =
-          (queen.skills[BASE_STATS[(i + 1) % BASE_STATS.length]] ?? 0) / 10;
-        return sum + r * rNext;
-      }, 0) / BASE_STATS.length
-    : 0;
 
   return (
     <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">
@@ -67,33 +59,25 @@ export default function QueenStatsPanel() {
         >
           {queen ? queen.name : 'No queen selected'}
         </h3>
+        {queen && (
+          <div className="ml-auto flex items-center gap-3 text-xs font-mono text-[#aaa] flex-shrink-0">
+            <span>
+              🏆{' '}
+              {reachedFinaleProb !== null
+                ? `${(reachedFinaleProb * 100).toFixed(0)}%`
+                : '--'}
+            </span>
+            <span>
+              👑{' '}
+              {winProb !== null ? `${(winProb * 100).toFixed(0)}%` : '--'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mb-3">
         <div className="flex-shrink-0">
           <RadarChart queen={queen} size={110} />
-        </div>
-        <div className="flex-shrink-0 text-xs text-[#666] space-y-1">
-          <div>
-            Crown:{' '}
-            <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
-              {winProb !== null ? `${(winProb * 100).toFixed(1)}%` : '--'}
-            </span>
-          </div>
-          <div>
-            Finale:{' '}
-            <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
-              {reachedFinaleProb !== null
-                ? `${(reachedFinaleProb * 100).toFixed(1)}%`
-                : '--'}
-            </span>
-          </div>
-          <div>
-            Area:{' '}
-            <span className={queen ? 'text-[#aaa] font-mono' : 'text-[#444] font-mono'}>
-              {queen ? area.toFixed(2) : '--'}
-            </span>
-          </div>
         </div>
         <div className="flex-1 min-w-0 self-stretch">
           {queen && <TrajectoryChart compact height={110} />}
