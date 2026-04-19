@@ -12,7 +12,7 @@ const season10: SeasonData = {
     { id: 'cracker', name: 'Miz Cracker', skills: { comedy: 7, improv: 6, acting: 6, dance: 5, music: 5, design: 6, runway: 7, charisma: 6 }, lipSync: 6, color: '#ecc94b' },
     { id: 'monique', name: 'Monique Heart', skills: { comedy: 7, improv: 5, acting: 5, dance: 5, music: 5, design: 4, runway: 5, charisma: 7 }, lipSync: 5, color: '#d35400' },
     { id: 'vixen', name: 'The Vixen', skills: { comedy: 3, improv: 3, acting: 5, dance: 6, music: 5, design: 4, runway: 5, charisma: 5 }, lipSync: 5, color: '#c0392b' },
-    { id: 'mayhem', name: 'Mayhem Miller', skills: { comedy: 5, improv: 5, acting: 5, dance: 5, music: 5, design: 6, runway: 6, charisma: 5 }, lipSync: 5, color: '#34495e' },
+    { id: 'mayhem', name: 'Mayhem Miller', skills: { comedy: 5, improv: 5, acting: 5, dance: 5, music: 5, design: 6, runway: 6, charisma: 5 }, lipSync: 5, color: '#bdc3c7' },
     { id: 'blair', name: 'Blair St. Clair', skills: { comedy: 5, improv: 4, acting: 5, dance: 5, music: 6, design: 5, runway: 5, charisma: 5 }, lipSync: 4, color: '#f8b6cf' },
     { id: 'dusty', name: 'Dusty Ray Bottoms', skills: { comedy: 5, improv: 4, acting: 5, dance: 4, music: 4, design: 4, runway: 5, charisma: 5 }, lipSync: 4, color: '#6c5ce7' },
     { id: 'yuhua', name: 'Yuhua Hamasaki', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 5, runway: 5, charisma: 4 }, lipSync: 4, color: '#16a085' },

@@ -79,7 +79,7 @@ const season13: SeasonData = {
       name: 'Tamisha Iman',
       skills: { comedy: 3, improv: 3, acting: 4, dance: 4, music: 4, design: 5, runway: 6, charisma: 5 },
       lipSync: 4,
-      color: '#8b4513',
+      color: '#e0b0ff',
     },
     {
       id: 'joey',

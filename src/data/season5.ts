@@ -72,7 +72,7 @@ const season5: SeasonData = {
       name: 'Monica Beverly Hillz',
       skills: { comedy: 4, improv: 4, acting: 3, dance: 4, music: 4, design: 4, runway: 4, charisma: 4 },
       lipSync: 4,
-      color: '#5d4037',
+      color: '#b0bec5',
     },
     {
       id: 'honey',

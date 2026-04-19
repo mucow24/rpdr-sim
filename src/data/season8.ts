@@ -79,7 +79,7 @@ const season8: SeasonData = {
       name: 'Laila McQueen',
       skills: { comedy: 3, improv: 3, acting: 4, dance: 4, music: 3, design: 4, runway: 4, charisma: 4 },
       lipSync: 3,
-      color: '#2f4f4f',
+      color: '#c0c0c0',
     },
     {
       id: 'naysha',

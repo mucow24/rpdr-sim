@@ -16,7 +16,7 @@ const season17: SeasonData = {
     { id: 'arrietty', name: 'Arrietty', skills: { comedy: 4, improv: 4, acting: 4, dance: 5, music: 4, design: 6, runway: 6, charisma: 5 }, lipSync: 4, color: '#16a085' },
     { id: 'acacia', name: 'Acacia Forgot', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 4, runway: 5, charisma: 4 }, lipSync: 4, color: '#e67e22' },
     { id: 'hormona', name: 'Hormona Lisa', skills: { comedy: 5, improv: 4, acting: 5, dance: 4, music: 4, design: 4, runway: 5, charisma: 5 }, lipSync: 4, color: '#c0392b' },
-    { id: 'joella', name: 'Joella', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 4, runway: 5, charisma: 4 }, lipSync: 4, color: '#34495e' },
+    { id: 'joella', name: 'Joella', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 4, runway: 5, charisma: 4 }, lipSync: 4, color: '#3b82f6' },
     { id: 'lucky', name: 'Lucky Starzzz', skills: { comedy: 4, improv: 4, acting: 4, dance: 4, music: 4, design: 3, runway: 4, charisma: 4 }, lipSync: 3, color: '#f39c12' },
   ],
   episodes: [

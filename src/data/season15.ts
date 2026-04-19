@@ -16,14 +16,14 @@ const season15: SeasonData = {
       name: 'Anetra',
       skills: { comedy: 5, improv: 5, acting: 6, dance: 8, music: 5, design: 5, runway: 7, charisma: 7 },
       lipSync: 10,
-      color: '#191970',
+      color: '#a3e635',
     },
     {
       id: 'luxx',
       name: 'Luxx Noir London',
       skills: { comedy: 7, improv: 6, acting: 6, dance: 6, music: 5, design: 6, runway: 8, charisma: 7 },
       lipSync: 5,
-      color: '#2f4f4f',
+      color: '#d1d5db',
     },
     {
       id: 'mistress',
