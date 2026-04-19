@@ -25,6 +25,8 @@ const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
+const NEUTRAL_QUEEN_COLOR = '#888';
+
 const MARGIN = { top: 2, right: 16, bottom: 24, left: 16 };
 const NODE_WIDTH = 8;
 const PLACEMENT_GAP = 10;
@@ -52,6 +54,7 @@ export default function SeasonFlowChart() {
   const [dimExp, setDimExp] = useState(2);
   const [dimBase, setDimBase] = useState(0.04);
   const [dimCutoff, setDimCutoff] = useState(0.3);
+  const [useQueenColor, setUseQueenColor] = useState(true);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -182,12 +185,17 @@ export default function SeasonFlowChart() {
       }
     }
 
-    // -- Source column (name rows stacked tightly; flow bands SCALE-tall,
-    //    centered on each name; adjacent flow bands overlap). --
+    // -- Source column (name rows stacked tightly; flow bands SELECTED_BAR_H
+    //    tall, centered on each name; source ribbons pinch into this band on
+    //    the left edge and fan out to full SCALE on the ep 0 placement side).
+    //    Uniform across queens — the bar/ribbons are only *visible* for the
+    //    selected or hovered queen, but the geometry is consistent. --
+    const SELECTED_BAR_H = 19;
     const srcBands: Record<string, { y: number; h: number }> = {};
     for (let i = 0; i < queenOrder.length; i++) {
       const q = queenOrder[i];
-      srcBands[q.id] = { y: srcColOffsetY + i * SRC_ROW_H, h: SCALE };
+      const rowCenter = srcColOffsetY + i * SRC_ROW_H + SCALE / 2;
+      srcBands[q.id] = { y: rowCenter - SELECTED_BAR_H / 2, h: SELECTED_BAR_H };
     }
 
     // ============================================================
@@ -247,25 +255,29 @@ export default function SeasonFlowChart() {
       const qid = queen.id;
 
       // Source → ep 0: queen's source band splits into placement bands at ep 0.
+      // Source side is compressed to SELECTED_BAR_H so ribbons emerge from the
+      // queen's (select/hover-triggered) color bar; target side stays at full
+      // SCALE to land inside the ep 0 placement-node bands cleanly.
       for (let ti = 0; ti < CHART_PLACEMENTS.length; ti++) {
         const weight = flowData[qid][0][CHART_PLACEMENTS[ti]];
         if (weight < MIN_FLOW) continue;
-        const h = weight * SCALE;
+        const hSrc = weight * SELECTED_BAR_H;
+        const hTgt = weight * SCALE;
 
         const sY = srcCursor[qid];
-        srcCursor[qid] += h;
+        srcCursor[qid] += hSrc;
 
         const tY = inCursor[0][ti][qid];
         if (tY === undefined) continue;
-        inCursor[0][ti][qid] += h;
+        inCursor[0][ti][qid] += hTgt;
 
         allRibbons.push({
           queenId: qid,
-          srcX: SOURCE_COL_WIDTH - 16, srcY: sY, srcH: h,
-          tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: h,
+          srcX: SOURCE_COL_WIDTH - 28, srcY: sY, srcH: hSrc,
+          tgtX: colX(0) - NODE_WIDTH / 2, tgtY: tY, tgtH: hTgt,
           srcT: 1.0,
           tgtT: weight,
-          srcColor: queen.color,
+          srcColor: useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR,
           tgtColor: PLACEMENT_FLOW_COLORS[CHART_PLACEMENTS[ti]],
         });
       }
@@ -430,13 +442,6 @@ export default function SeasonFlowChart() {
       return dimBase + (1 - dimBase) * Math.pow(t / dimCutoff, dimExp);
     };
 
-    const glowColor = (c: string): string => {
-      const hsl = d3.hsl(c);
-      hsl.s *= 0.5;
-      hsl.opacity = 0.5;
-      return hsl.formatRgb();
-    };
-
     // Queen bands within nodes — opacity = dimOp(queen's probability at this
     // placement node), i.e. the normalized flow through the node.
     const bandGroup = g.append('g').attr('class', 'queen-bands');
@@ -457,7 +462,7 @@ export default function SeasonFlowChart() {
             .attr('data-queen', qid)
             .attr('data-t', t)
             .attr('data-color-placement', PLACEMENT_FLOW_COLORS[placementName])
-            .attr('data-color-queen', queen.color)
+            .attr('data-color-queen', useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR)
             .style('pointer-events', 'none');
         }
       }
@@ -492,6 +497,11 @@ export default function SeasonFlowChart() {
       .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 45)
       .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
 
+    // Queen color bars live BELOW the ribbons (ribbons can extend leftward
+    // into the bar area and appear to emerge from within the bar), while
+    // names live ABOVE the ribbons for readability.
+    const srcBarsGroup = g.append('g').attr('class', 'src-bars');
+
     const ribbonGroup = g.append('g').attr('class', 'ribbons');
 
     for (let i = 0; i < sortedRibbons.length; i++) {
@@ -518,10 +528,11 @@ export default function SeasonFlowChart() {
         .attr('gradientUnits', 'userSpaceOnUse')
         .attr('x1', r.srcX).attr('y1', 0)
         .attr('x2', r.tgtX).attr('y2', 0);
+      const qHoverColor = useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR;
       gradQ.append('stop').attr('offset', '0%')
-        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.srcT));
+        .attr('stop-color', qHoverColor).attr('stop-opacity', dimOp(r.srcT));
       gradQ.append('stop').attr('offset', '100%')
-        .attr('stop-color', queen.color).attr('stop-opacity', dimOp(r.tgtT));
+        .attr('stop-color', qHoverColor).attr('stop-opacity', dimOp(r.tgtT));
 
       const sel = isSelected(r.queenId);
       ribbonGroup.append('path')
@@ -538,25 +549,24 @@ export default function SeasonFlowChart() {
     const allPaths = ribbonGroup.selectAll<SVGPathElement, unknown>('path[data-queen]');
 
     // Helper: set ribbon opacities for hover highlight.
-    // Hover boosts the hovered queen without fading the selected queen.
+    // Selected queen always renders at 100% in the placement palette.
+    // A different hovered queen overlays on top in her own color at 50%.
     function setRibbonOpacity(highlightId: string | null) {
-      // Dim the selected queen when a *different* queen is being hovered, so
-      // the hovered comparison pops. Hovering the selected queen itself does
-      // nothing special — she stays in the placement palette at full opacity.
-      const hoveringOther = highlightId !== null && !isSelected(highlightId);
       allPaths.each(function () {
         const el = d3.select(this);
         const pq = el.attr('data-queen')!;
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        const visible = isSel || isHover;
-        const dimSelected = isSel && !isHover && hoveringOther;
-        el.attr('opacity', visible ? (dimSelected ? 0.3 : 1) : 0);
-        if (visible) {
-          // Queen-color gradient only when hovered and *not* also selected.
-          const useQueenGrad = isHover && !isSel;
-          const gradId = useQueenGrad ? el.attr('data-grad-q')! : el.attr('data-grad-p')!;
+        if (isSel) {
+          el.attr('opacity', 1);
+          const gradId = el.attr('data-grad-p')!;
           el.attr('fill', `url(#${gradId})`).attr('stroke', `url(#${gradId})`);
+        } else if (isHover) {
+          el.attr('opacity', 1);
+          const gradId = el.attr('data-grad-q')!;
+          el.attr('fill', `url(#${gradId})`).attr('stroke', `url(#${gradId})`);
+        } else {
+          el.attr('opacity', 0);
         }
       });
       allBands.each(function () {
@@ -565,16 +575,14 @@ export default function SeasonFlowChart() {
         const pt = parseFloat(el.attr('data-t') || '1');
         const isSel = isSelected(pq);
         const isHover = highlightId !== null && pq === highlightId;
-        const visible = isSel || isHover;
-        const dimSelected = isSel && !isHover && hoveringOther;
-        const baseOp = visible ? dimOp(pt) : 0;
-        el.attr('opacity', dimSelected ? baseOp * 0.3 : baseOp);
-        if (visible) {
-          const useQueenColor = isHover && !isSel;
-          const fill = useQueenColor
-            ? el.attr('data-color-queen')!
-            : el.attr('data-color-placement')!;
-          el.attr('fill', fill);
+        if (isSel) {
+          el.attr('opacity', dimOp(pt));
+          el.attr('fill', el.attr('data-color-placement')!);
+        } else if (isHover) {
+          el.attr('opacity', dimOp(pt));
+          el.attr('fill', el.attr('data-color-queen')!);
+        } else {
+          el.attr('opacity', 0);
         }
       });
       // Ensure hovered queen's ribbons and placement bars render above selected queen's.
@@ -604,32 +612,35 @@ export default function SeasonFlowChart() {
     // Only the invisible hit-area rect receives pointer events — the color bar
     // and name are pointer-events: none, so the 50px-tall overlapping bars
     // don't steal events from adjacent queens' tight hit areas.
-    const queenBars: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
+    const queenBars: Record<string, d3.Selection<SVGPathElement, unknown, null, undefined>> = {};
     const queenNames: Record<string, d3.Selection<SVGTextElement, unknown, null, undefined>> = {};
-    const queenUnderlines: Record<string, d3.Selection<SVGRectElement, unknown, null, undefined>> = {};
-    const queenLabelGroups: Record<string, d3.Selection<SVGGElement, unknown, null, undefined>> = {};
 
     function setHoverQueen(hoverId: string | null) {
       for (const q of queenOrder) {
         const bar = queenBars[q.id];
         const name = queenNames[q.id];
-        const underline = queenUnderlines[q.id];
-        if (!bar || !name || !underline) continue;
+        if (!bar || !name) continue;
         const sel = isSelected(q.id);
         const isHover = hoverId === q.id;
+        // Selected queen's bar stays at full opacity; a different hovered
+        // queen's bar overlays in her color at full opacity on top.
+        const barOp = sel || isHover ? 1.0 : 0;
+        bar.attr('opacity', barOp);
+        // When the bar is visible, name sits on top of it — flip to a
+        // light/dark fill for readability; otherwise use the queen's color.
         const on = sel || isHover;
-        bar.attr('opacity', on ? 1.0 : 0);
-        underline.attr('opacity', on ? 1.0 : 0);
-        name.style('text-shadow', on ? (() => { const gc = glowColor(q.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none');
+        const targetFill = on
+          ? name.attr('data-color-onbar')
+          : name.attr('data-color-default');
+        name.attr('fill', targetFill);
       }
     }
 
-    // Visuals (color bars, names, underlines, pin dots) live in a dedicated
-    // top-level group — separate from the per-queen hit-area groups below.
-    // The hovered queen's label sub-group is raised for z-order; we never
-    // reattach the hit-area group the pointer is currently over (doing so
-    // can cause the browser to drop the subsequent mouseleave).
-    const srcLabelsGroup = g.append('g').attr('class', 'src-labels');
+    // Name texts + pin dots live in a group rendered AFTER ribbonGroup so
+    // they stay on top of ribbons. Bars were rendered before ribbons (in
+    // srcBarsGroup) so the flow appears to emerge from within the bar.
+    const srcNamesGroup = g.append('g').attr('class', 'src-names')
+      .style('pointer-events', 'none');
 
     for (const queen of queenOrder) {
       const sb = srcBands[queen.id];
@@ -646,55 +657,64 @@ export default function SeasonFlowChart() {
         .attr('width', SOURCE_COL_WIDTH - 16 + MARGIN.left).attr('height', SRC_ROW_H)
         .attr('fill', 'transparent');
 
-      const labelGroup = srcLabelsGroup.append('g').style('pointer-events', 'none');
-      queenLabelGroups[queen.id] = labelGroup;
+      const barFill = useQueenColor ? queen.color : NEUTRAL_QUEEN_COLOR;
+      const nameOnBarColor = d3.hsl(barFill).l > 0.5 ? '#000' : '#fff';
 
-      // Color bar — rendered at full flow-band height, but only visible for
-      // selected or hovered queens.
-      const colorBar = labelGroup.append('rect')
-        .attr('x', SOURCE_COL_WIDTH - 22).attr('y', sb.y)
-        .attr('width', 6).attr('height', sb.h)
-        .attr('fill', queen.color).attr('opacity', sel ? 1.0 : 0).attr('rx', 1);
+      // Color bar — fixed width across all queens. Only visible when
+      // selected or hovered. Right edge meets the flow's straight left
+      // edge at SOURCE_COL_WIDTH - 28 — no overlap (the flow's gradient
+      // would mismatch the bar's solid fill) and no gap (flat right
+      // corners meet the flat flow edge). Drawn as a path so left
+      // corners get rounded and right corners stay flat.
+      const barLeft = -MARGIN.left;
+      const barRight = SOURCE_COL_WIDTH - 28;
+      const barTop = sb.y;
+      const barBot = sb.y + sb.h;
+      const rL = 7; // left-corner radius
+      const barPath = [
+        `M ${barLeft + rL} ${barTop}`,
+        `L ${barRight} ${barTop}`,
+        `L ${barRight} ${barBot}`,
+        `L ${barLeft + rL} ${barBot}`,
+        `Q ${barLeft} ${barBot} ${barLeft} ${barBot - rL}`,
+        `L ${barLeft} ${barTop + rL}`,
+        `Q ${barLeft} ${barTop} ${barLeft + rL} ${barTop}`,
+        'Z',
+      ].join(' ');
+      const colorBar = srcBarsGroup.append('path')
+        .attr('d', barPath)
+        .attr('fill', barFill)
+        .attr('opacity', sel ? 1.0 : 0);
       queenBars[queen.id] = colorBar;
 
-      // Queen name — always 100% opacity; subtle glow + underline on select/hover.
-      const nameText = labelGroup.append('text')
+      // Queen name — fill flips to light/dark when the bar is visible
+      // (selected or hovered), otherwise uses queen color. Sits above
+      // ribbons (srcNamesGroup is rendered after ribbonGroup).
+      const nameText = srcNamesGroup.append('text')
         .attr('x', SOURCE_COL_WIDTH - 30).attr('y', nameCenter)
         .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
-        .attr('fill', queen.color)
+        .attr('fill', sel ? nameOnBarColor : queen.color)
         .attr('font-size', numQueens > 10 ? '12px' : '15px')
         .attr('font-weight', '600')
         .attr('opacity', 1.0)
-        .style('text-shadow', sel ? (() => { const gc = glowColor(queen.color); return `0 0 4px ${gc}, 0 0 12px ${gc}, 0 0 20px ${gc}`; })() : 'none')
+        .attr('data-color-default', queen.color)
+        .attr('data-color-onbar', nameOnBarColor)
         .text(queen.name.split(' ')[0]);
       queenNames[queen.id] = nameText;
 
-      const nameBBox = nameText.node()!.getBBox();
-      const underline = labelGroup.append('rect')
-        .attr('x', nameBBox.x)
-        .attr('y', nameBBox.y + nameBBox.height + 1)
-        .attr('width', nameBBox.width)
-        .attr('height', 2)
-        .attr('fill', queen.color)
-        .attr('opacity', sel ? 1.0 : 0);
-      queenUnderlines[queen.id] = underline;
-
       // Yellow dot for queens with pins — ~20px left of the name.
       if (hasPins) {
-        labelGroup.append('circle')
+        const nameBBox = nameText.node()!.getBBox();
+        srcNamesGroup.append('circle')
           .attr('cx', nameBBox.x - 20).attr('cy', nameCenter)
           .attr('r', 2.5)
           .attr('fill', '#ffd700')
           .attr('opacity', 0.9);
       }
 
-      // Hover: reveal this queen's color bar + highlight ribbons. Raise the
-      // label sub-group (not the hit-area group) so the hovered bar sits on
-      // top of any overlapping selected bar without disturbing the element
-      // the pointer is currently over.
+      // Hover: reveal this queen's color bar + highlight ribbons.
       srcGroup
         .on('mouseenter', function () {
-          queenLabelGroups[queen.id]?.raise();
           setHoverQueen(queen.id);
           setRibbonOpacity(queen.id);
         })
@@ -931,10 +951,20 @@ export default function SeasonFlowChart() {
       }
     }
 
-  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, dimExp, dimBase, dimCutoff]);
+  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, dimExp, dimBase, dimCutoff, useQueenColor]);
 
   return (
     <div ref={containerRef}>
+      <div className="flex items-center gap-2 mb-2 text-xs text-[#888]">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={useQueenColor}
+            onChange={(e) => setUseQueenColor(e.target.checked)}
+          />
+          Use queen color
+        </label>
+      </div>
       {results ? (
         <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
       ) : (
