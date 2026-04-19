@@ -1,5 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
+
+type Status = { text: string; id: number };
 
 function downloadJson(filename: string, body: string) {
   const blob = new Blob([body], { type: 'application/json' });
@@ -37,6 +39,26 @@ export default function DataPage() {
   const queensInputRef = useRef<HTMLInputElement>(null);
   const seasonsInputRef = useRef<HTMLInputElement>(null);
 
+  const [queensStatus, setQueensStatus] = useState<Status | null>(null);
+  const [seasonsStatus, setSeasonsStatus] = useState<Status | null>(null);
+  const statusIdRef = useRef(0);
+  const queensTimerRef = useRef<number | null>(null);
+  const seasonsTimerRef = useRef<number | null>(null);
+
+  const showQueensStatus = (text: string) => {
+    if (queensTimerRef.current) window.clearTimeout(queensTimerRef.current);
+    const id = ++statusIdRef.current;
+    setQueensStatus({ text, id });
+    queensTimerRef.current = window.setTimeout(() => setQueensStatus(null), 3000);
+  };
+
+  const showSeasonsStatus = (text: string) => {
+    if (seasonsTimerRef.current) window.clearTimeout(seasonsTimerRef.current);
+    const id = ++statusIdRef.current;
+    setSeasonsStatus({ text, id });
+    seasonsTimerRef.current = window.setTimeout(() => setSeasonsStatus(null), 3000);
+  };
+
   const handleReloadQueens = () => {
     if (
       window.confirm(
@@ -57,12 +79,42 @@ export default function DataPage() {
     }
   };
 
+  const countQueensInJson = (json: string): number => {
+    try {
+      const parsed = JSON.parse(json) as Record<string, { queens?: unknown[] }>;
+      return Object.values(parsed).reduce(
+        (sum, s) => sum + (Array.isArray(s?.queens) ? s.queens.length : 0),
+        0,
+      );
+    } catch {
+      return 0;
+    }
+  };
+
+  const countQueensInParsed = (parsed: unknown): number => {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 0;
+    return Object.values(parsed as Record<string, { queens?: unknown[] }>).reduce(
+      (sum, s) => sum + (Array.isArray(s?.queens) ? s.queens.length : 0),
+      0,
+    );
+  };
+
+  const countSeasonsInParsed = (parsed: unknown): number => {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 0;
+    return Object.keys(parsed as Record<string, unknown>).length;
+  };
+
   const handleExportQueens = () => {
-    downloadJson('rpdr-queens.json', exportQueensJson());
+    const json = exportQueensJson();
+    downloadJson('rpdr-queens.json', json);
+    showQueensStatus(`✅ ${countQueensInJson(json)} queens successfully exported`);
   };
 
   const handleExportSeasons = () => {
-    downloadJson('rpdr-seasons.json', exportSeasonsJson());
+    const json = exportSeasonsJson();
+    downloadJson('rpdr-seasons.json', json);
+    const count = Object.keys(JSON.parse(json) as Record<string, unknown>).length;
+    showSeasonsStatus(`✅ ${count} seasons successfully exported`);
   };
 
   const handleImportQueens = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,7 +124,11 @@ export default function DataPage() {
     try {
       const parsed = await readFileAsJson(file);
       const ok = importQueensJson(parsed);
-      if (!ok) alert('Invalid queens JSON — no changes applied.');
+      if (!ok) {
+        alert('Invalid queens JSON — no changes applied.');
+        return;
+      }
+      showQueensStatus(`✅ ${countQueensInParsed(parsed)} queens successfully imported`);
     } catch {
       alert('Could not parse JSON file.');
     }
@@ -85,7 +141,11 @@ export default function DataPage() {
     try {
       const parsed = await readFileAsJson(file);
       const ok = importSeasonsJson(parsed);
-      if (!ok) alert('Invalid seasons JSON — no changes applied.');
+      if (!ok) {
+        alert('Invalid seasons JSON — no changes applied.');
+        return;
+      }
+      showSeasonsStatus(`✅ ${countSeasonsInParsed(parsed)} seasons successfully imported`);
     } catch {
       alert('Could not parse JSON file.');
     }
@@ -121,10 +181,21 @@ export default function DataPage() {
           />
           <button
             onClick={handleExportQueens}
-            className="text-xs text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-3 py-1.5 rounded transition-colors font-medium"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
           >
             Export queens JSON
           </button>
+        </div>
+        <div className="h-4 mt-3" aria-live="polite">
+          {queensStatus && (
+            <p
+              key={queensStatus.id}
+              className="text-xs text-emerald-400 leading-4"
+              style={{ animation: 'fadeOut 3s ease-out forwards' }}
+            >
+              {queensStatus.text}
+            </p>
+          )}
         </div>
       </section>
 
@@ -157,10 +228,21 @@ export default function DataPage() {
           />
           <button
             onClick={handleExportSeasons}
-            className="text-xs text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-3 py-1.5 rounded transition-colors font-medium"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
           >
             Export seasons JSON
           </button>
+        </div>
+        <div className="h-4 mt-3" aria-live="polite">
+          {seasonsStatus && (
+            <p
+              key={seasonsStatus.id}
+              className="text-xs text-emerald-400 leading-4"
+              style={{ animation: 'fadeOut 3s ease-out forwards' }}
+            >
+              {seasonsStatus.text}
+            </p>
+          )}
         </div>
       </section>
     </div>
