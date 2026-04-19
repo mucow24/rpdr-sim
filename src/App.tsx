@@ -5,10 +5,8 @@ import { useSimulation } from './engine/useSimulation';
 import Timeline from './components/timeline/Timeline';
 import QueenStatsPanel from './components/queens/QueenStatsPanel';
 import WinProbChart from './components/charts/WinProbChart';
-import EliminationHeatmap from './components/charts/EliminationHeatmap';
 import PlacementDistChart from './components/charts/PlacementDistChart';
 import DivergencePanel from './components/DivergencePanel';
-import TrajectoryChart from './components/charts/TrajectoryChart';
 import CalibratePage from './components/CalibratePage';
 import DataPage from './components/DataPage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
@@ -203,15 +201,15 @@ export default function App() {
           <DivergencePanel />
 
           <section className="mb-8 flex gap-4 items-stretch">
-            <div className="flex-shrink-0">
-              <PlacementGrid height={230} />
+            <div className="w-[440px] flex-shrink-0">
+              <PlacementGrid />
             </div>
             <div className="w-[440px] flex-shrink-0">
               <QueenStatsPanel />
             </div>
           </section>
 
-          <section className="mb-8">
+          <section className="mb-8 min-w-[896px]">
             <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
               Season Flow — click a queen to select, click placements to pin
             </h3>
@@ -224,11 +222,6 @@ export default function App() {
           </section>
 
           <section className="mb-8">
-            <TrajectoryChart height={350} />
-          </section>
-
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <EliminationHeatmap height={460} />
             <PlacementDistChart height={460} />
           </section>
 

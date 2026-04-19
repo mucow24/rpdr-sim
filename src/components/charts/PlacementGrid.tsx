@@ -1,17 +1,31 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { placementEpisodeLabels } from '../../engine/placementEpisodes';
 
 
-const MARGIN = { top: 32, right: 16, bottom: 16, left: 120 };
+const MARGIN = { top: 16, right: 0, bottom: 0, left: 75 };
 const Y_PADDING = 0.08;
 
-export default function PlacementGrid({
-  height = 230,
-}) {
+export default function PlacementGrid() {
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 680, height: 280 });
+
+  useEffect(() => {
+    const el = plotRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect && rect.width > 100 && rect.height > 50) {
+        setSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+      }
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
@@ -19,12 +33,10 @@ export default function PlacementGrid({
 
   const results = filteredResults ?? baselineResults;
 
-  // Cells are 2:1 (twice as wide as tall). y step = innerHeight / N, y bandwidth
-  // = step * (1 - Y_PADDING). x bandwidth = innerWidth / N (no padding). Setting
-  // x bandwidth = 2 × y bandwidth → innerWidth = 2 × innerHeight × (1 - Y_PADDING).
+  // Plot fills its parent (which stretches to match the sibling Queen card).
+  const { width, height } = size;
+  const innerWidth = width - MARGIN.left - MARGIN.right;
   const innerHeight = height - MARGIN.top - MARGIN.bottom;
-  const innerWidth = Math.round(innerHeight * (1 - Y_PADDING) * 2);
-  const width = MARGIN.left + innerWidth + MARGIN.right;
 
   useEffect(() => {
     if (!svgRef.current || !results) return;
@@ -316,11 +328,22 @@ export default function PlacementGrid({
   }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
 
   return (
-    <div>
-      <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
+    <div
+      ref={containerRef}
+      className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col"
+    >
+      <h3 className="text-sm font-medium text-[#ddd] mb-3">
         Placement Probability Grid
       </h3>
-      {results && <svg ref={svgRef} width={width} height={height} />}
+      <div ref={plotRef} className="flex-1 min-h-0">
+        {results ? (
+          <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+        ) : (
+          <div className="flex items-center justify-center text-[#444] h-full">
+            Running simulations...
+          </div>
+        )}
+      </div>
     </div>
   );
 }
