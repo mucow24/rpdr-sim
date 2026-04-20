@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, type Placement } from '../../engine/types';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS, PLACEMENT_PALETTE_BRIGHT as PLACEMENT_FLOW_COLORS } from './common/palette';
 import { useContainerWidth } from './common/useContainerSize';
+import { computeFlowData } from './seasonFlow/flowData';
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
@@ -47,6 +48,14 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     useStore();
   const results = filteredResults ?? baselineResults;
 
+  // Pure derivation of per-queen survival/flow/elim probabilities from
+  // (season, results). Independent of width / hover / selection — memoizing
+  // here means the d3 effect doesn't redo this on every resize or hover.
+  const flowDataMemo = useMemo(
+    () => (results ? computeFlowData(season, results) : null),
+    [season, results],
+  );
+
   // Layout heights (fixed scale; chart auto-sizes to fit whichever stack is taller).
   const numQueens = season.queens.length;
   const rectStackH =
@@ -80,44 +89,14 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       return;
     }
 
+    if (!flowDataMemo) return;
+    const { queenOrder, survival, flow: flowData, elimByEp } = flowDataMemo;
     const numEps = season.episodes.length;
     const innerW = width - MARGIN.left - MARGIN.right;
 
     const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    // -- Queen order (consistent stacking, best first) --
-    const queenOrder = [...season.queens].sort(
-      (a, b) => (results.winProb[b.id] ?? 0) - (results.winProb[a.id] ?? 0),
-    );
     const queenMap = new Map(season.queens.map((q) => [q.id, q]));
-
-    // -- Flow data (cumulative ELIM graveyard) --
-    const survival: Record<string, number[]> = {};
-    const flowData: Record<string, Record<string, number>[]> = {};
-    const elimByEp: Record<string, number[]> = {};
-
-    for (const q of season.queens) {
-      survival[q.id] = [];
-      flowData[q.id] = [];
-      elimByEp[q.id] = [];
-      let surv = 1.0;
-      let cumElim = 0;
-      for (let ep = 0; ep < numEps; ep++) {
-        survival[q.id][ep] = surv;
-        const dist = results.episodePlacements[ep]?.[q.id] ?? {};
-        const f: Record<string, number> = {};
-        // After Phase 1a, dist['BTM2'] is "BTM2 survived" — eliminated queens
-        // are encoded as ELIM in the placement byte and contribute to elim
-        // counts only, not to BTM2. So no subtraction is needed here.
-        for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
-        const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
-        elimByEp[q.id][ep] = elim;
-        f['ELIM'] = cumElim + elim;
-        flowData[q.id][ep] = f;
-        surv = Math.max(0, surv - elim);
-        cumElim += elim;
-      }
-    }
 
     // -- Horizontal layout --
     // Carrier (full-SCALE-height ribbon segment) runs from the right edge of
@@ -921,7 +900,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       }
     }
 
-  }, [results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
+  }, [flowDataMemo, results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
 
   return (
     <div ref={containerRef}>
