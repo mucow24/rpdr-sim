@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { BASE_STATS, isFinale, type BaseStat, type Placement } from '../../engine/types';
+import { BASE_STATS, isFinale, isPass, isRegular, type BaseStat, type Placement } from '../../engine/types';
 import { ARCHETYPES, ARCHETYPE_IDS, type ArchetypeId } from '../../data/archetypes';
 import PopoverBox from '../common/PopoverBox';
 import StatInput from '../common/StatInput';
@@ -101,9 +101,10 @@ export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
         {season.episodes.map((episode, idx) => {
           const hasCondition = conditionEpisodes.has(idx);
           const finale = isFinale(episode);
-          const effectiveWeights: Record<BaseStat, number> = finale
-            ? ({} as Record<BaseStat, number>)
-            : episode.weights ?? ARCHETYPES[episode.archetype].weights;
+          const pass = isPass(episode);
+          const effectiveWeights: Record<BaseStat, number> = isRegular(episode)
+            ? episode.weights ?? ARCHETYPES[episode.archetype].weights
+            : ({} as Record<BaseStat, number>);
 
           // Center on the flow chart's column for episode `idx`:
           //   center_x = (FLOW_EP0_BASE_PX + carrierWidth) + (W - 104) * i / N
@@ -133,7 +134,7 @@ export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
                     `}
                   >
                     <span className="text-base leading-none">
-                      {finale ? '👑' : (ARCHETYPES[episode.archetype]?.icon ?? '❓')}
+                      {finale ? '👑' : pass ? '⏭️' : (ARCHETYPES[(episode as { archetype: ArchetypeId }).archetype]?.icon ?? '❓')}
                     </span>
                     <span className="text-[10px] leading-none text-[#888] font-mono">
                       {finale ? 'Finale' : `Ep ${episode.number}`}
@@ -148,7 +149,7 @@ export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
                   episodeIndex={idx}
                   title={episode.challengeName}
                   finale={finale}
-                  archetype={finale ? null : episode.archetype}
+                  archetype={isRegular(episode) ? episode.archetype : null}
                   weights={effectiveWeights}
                   dimExp={dimExp}
                   dimCutoff={dimCutoff}

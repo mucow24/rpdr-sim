@@ -2,7 +2,10 @@ import type {
   Queen,
   BaseStat,
   EpisodeData,
+  RegularEpisode,
+  PassEpisode,
   FinaleEpisode,
+  FinaleType,
   Placement,
   EpisodeOutcome,
   EpisodeResult,
@@ -13,7 +16,7 @@ import type {
   SeasonData,
   RunFromStateOptions,
 } from './types';
-import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale } from './types';
+import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, isPass } from './types';
 import { ARCHETYPES } from '../data/archetypes';
 import { resolveRng, type Rng } from './rng';
 export type { RunFromStateOptions } from './types';
@@ -56,48 +59,6 @@ export function scoreQueen(
   return skill + gaussianRandom(rng, 0, noise);
 }
 
-/** Default finale handler: average-skill + gaussian noise, top score wins. */
-function runFinaleDefault(
-  episode: FinaleEpisode,
-  remaining: Map<string, Queen>,
-  finalRanks: Map<string, number>,
-  episodeResults: EpisodeResult[],
-  rng: Rng,
-): void {
-  const finalists = Array.from(remaining.values());
-  const finalistScores = finalists.map((q) => {
-    const avgSkill =
-      Object.values(q.skills).reduce((a, b) => a + b, 0) /
-      Object.values(q.skills).length;
-    return { queenId: q.id, score: avgSkill + gaussianRandom(rng, 0, 1.5) };
-  });
-  finalistScores.sort((a, b) => b.score - a.score);
-  for (let i = 0; i < finalistScores.length; i++) {
-    finalRanks.set(finalistScores[i].queenId, i + 1);
-  }
-
-  const winnerId = finalistScores[0]?.queenId ?? '';
-  const losers = finalistScores.slice(1).map((s) => s.queenId);
-
-  // Every finalist gets an outcome: winner = WIN, others = ELIM. Encoding ELIM
-  // here means downstream aggregation reads finale eliminations the same way
-  // it reads pre-finale eliminations — no special-cased finale derivation.
-  const placements = new Map<string, EpisodeOutcome>();
-  if (winnerId) placements.set(winnerId, 'WIN');
-  for (const id of losers) placements.set(id, 'ELIM');
-
-  episodeResults.push({
-    episodeNumber: episode.number,
-    placements,
-    lipSyncMatchup: ['', ''],
-    lipSyncWinner: '',
-    eliminated: '',
-  });
-  // Drain remaining — finale is the last episode by convention; safe defensive cleanup.
-  for (const id of losers) remaining.delete(id);
-  if (winnerId) remaining.delete(winnerId);
-}
-
 function assignPlacements(
   scores: { queenId: string; score: number }[],
 ): Map<string, EpisodeOutcome> {
@@ -129,6 +90,171 @@ function resolveLipSync(queenA: Queen, queenB: Queen, rng: Rng): string {
   return rng() < pA ? queenA.id : queenB.id;
 }
 
+// ── Episode handler dispatch ──────────────────────────────
+//
+// Each episode kind owns its own handler. Adding a new kind (custom finale
+// type, All Stars non-elim, immunity-aware regular) means writing one handler
+// and registering it — no new branches in `simulateOneSeason`.
+
+/** Mutable per-run state passed to every episode handler. */
+interface SimCtx {
+  queens: Queen[];
+  remaining: Map<string, Queen>;
+  rng: Rng;
+  noise: number;
+  /** Order in which queens were sashayed away — drives final-rank derivation. */
+  eliminationOrder: string[];
+  /** queenId -> 1-based rank. Winner = 1. Populated by the finale handler;
+   *  also derivable from `eliminationOrder` if no finale runs. */
+  finalRanks: Map<string, number>;
+  /** Append-only: one entry per episode this run. */
+  episodeResults: EpisodeResult[];
+}
+
+interface EpisodeHandler<E extends EpisodeData> {
+  apply(ep: E, ctx: SimCtx): void;
+}
+
+const regularHandler: EpisodeHandler<RegularEpisode> = {
+  apply(episode, ctx) {
+    const activeQueens = Array.from(ctx.remaining.values());
+    const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
+    const scores = activeQueens.map((q) => ({
+      queenId: q.id,
+      score: scoreQueen(q, weights, ctx.noise, ctx.rng),
+    }));
+    const placements = assignPlacements(scores);
+
+    // Non-elim episode: record placements, no lip sync, no removals.
+    if (episode.eliminated.length === 0) {
+      ctx.episodeResults.push({
+        episodeNumber: episode.number,
+        placements,
+        lipSyncMatchup: ['', ''],
+        lipSyncWinner: '',
+        eliminated: '',
+      });
+      return;
+    }
+
+    const bottom2 = Array.from(placements.entries())
+      .filter(([, p]) => p === 'BTM2')
+      .map(([id]) => id);
+
+    // Defensive: if fewer than 2 BTM2 queens (tiny field), no lipsync.
+    if (bottom2.length < 2) {
+      ctx.episodeResults.push({
+        episodeNumber: episode.number,
+        placements,
+        lipSyncMatchup: [bottom2[0] ?? '', bottom2[1] ?? ''],
+        lipSyncWinner: bottom2[0] ?? '',
+        eliminated: '',
+      });
+      return;
+    }
+
+    // Honor the season's recorded eliminations count: 1 = lipsync, 2 = double
+    // elim (both BTM2 go home — no lipsync). Without honoring this, a double-
+    // elim episode leaves an extra queen alive at finale and throws every
+    // subsequent placement off by one.
+    if (episode.eliminated.length >= 2) {
+      const [a, b] = bottom2;
+      placements.set(a, 'ELIM');
+      placements.set(b, 'ELIM');
+      ctx.remaining.delete(a);
+      ctx.remaining.delete(b);
+      ctx.eliminationOrder.push(a, b);
+      ctx.episodeResults.push({
+        episodeNumber: episode.number,
+        placements,
+        lipSyncMatchup: [a, b],
+        lipSyncWinner: '',
+        eliminated: a, // narrative convenience; both encoded as ELIM in placements
+      });
+      return;
+    }
+
+    const queenA = ctx.remaining.get(bottom2[0])!;
+    const queenB = ctx.remaining.get(bottom2[1])!;
+    const lipSyncWinner = resolveLipSync(queenA, queenB, ctx.rng);
+    const eliminated = lipSyncWinner === bottom2[0] ? bottom2[1] : bottom2[0];
+    placements.set(eliminated, 'ELIM');
+    ctx.remaining.delete(eliminated);
+    ctx.eliminationOrder.push(eliminated);
+
+    ctx.episodeResults.push({
+      episodeNumber: episode.number,
+      placements,
+      lipSyncMatchup: [bottom2[0], bottom2[1]],
+      lipSyncWinner,
+      eliminated,
+    });
+  },
+};
+
+const passHandler: EpisodeHandler<PassEpisode> = {
+  apply(episode, ctx) {
+    ctx.episodeResults.push({
+      episodeNumber: episode.number,
+      placements: new Map(),
+      lipSyncMatchup: ['', ''],
+      lipSyncWinner: '',
+      eliminated: '',
+    });
+  },
+};
+
+/** Default finale: average-skill + gaussian noise, top score wins. */
+function runFinaleDefault(episode: FinaleEpisode, ctx: SimCtx): void {
+  const finalists = Array.from(ctx.remaining.values());
+  const finalistScores = finalists.map((q) => {
+    const avgSkill =
+      Object.values(q.skills).reduce((a, b) => a + b, 0) /
+      Object.values(q.skills).length;
+    return { queenId: q.id, score: avgSkill + gaussianRandom(ctx.rng, 0, 1.5) };
+  });
+  finalistScores.sort((a, b) => b.score - a.score);
+  for (let i = 0; i < finalistScores.length; i++) {
+    ctx.finalRanks.set(finalistScores[i].queenId, i + 1);
+  }
+
+  const winnerId = finalistScores[0]?.queenId ?? '';
+  const losers = finalistScores.slice(1).map((s) => s.queenId);
+
+  // Winner = WIN, every other finalist = ELIM. Encoding ELIM here means
+  // aggregation reads finale eliminations the same way as pre-finale ones.
+  const placements = new Map<string, EpisodeOutcome>();
+  if (winnerId) placements.set(winnerId, 'WIN');
+  for (const id of losers) placements.set(id, 'ELIM');
+
+  ctx.episodeResults.push({
+    episodeNumber: episode.number,
+    placements,
+    lipSyncMatchup: ['', ''],
+    lipSyncWinner: '',
+    eliminated: '',
+  });
+  // Defensive drain — finale is the last episode by convention.
+  for (const id of losers) ctx.remaining.delete(id);
+  if (winnerId) ctx.remaining.delete(winnerId);
+}
+
+const finaleSubHandlers: Record<FinaleType, (ep: FinaleEpisode, ctx: SimCtx) => void> = {
+  default: runFinaleDefault,
+};
+
+const finaleHandler: EpisodeHandler<FinaleEpisode> = {
+  apply(episode, ctx) {
+    // Assign losing ranks from elimination order BEFORE finale dispatch, so
+    // even custom finale handlers don't have to re-derive them.
+    const totalQueens = ctx.queens.length;
+    for (let i = 0; i < ctx.eliminationOrder.length; i++) {
+      ctx.finalRanks.set(ctx.eliminationOrder[i], totalQueens - i);
+    }
+    finaleSubHandlers[episode.finaleType](episode, ctx);
+  },
+};
+
 /** Pure simulation — optionally seeded from a mid-season state. */
 function simulateOneSeason(
   queens: Queen[],
@@ -143,134 +269,45 @@ function simulateOneSeason(
     : new Map(queenMap);
   const episodeResults: EpisodeResult[] = midSeason ? [...midSeason.priorResults] : [];
   const eliminationOrder: string[] = [];
-
-  // Derive elimination order from prior results
   if (midSeason) {
     for (const pr of midSeason.priorResults) {
       if (pr.eliminated) eliminationOrder.push(pr.eliminated);
     }
   }
 
+  const ctx: SimCtx = {
+    queens,
+    remaining,
+    rng,
+    noise,
+    eliminationOrder,
+    finalRanks: new Map(),
+    episodeResults,
+  };
+
   const startIdx = midSeason?.startEpisodeIndex ?? 0;
-
-  // Final ranks (1 = winner). Built up: ranks N..2 from elimination order, rank 1+ from finale.
-  const finalRanks = new Map<string, number>();
-
   for (let epIdx = startIdx; epIdx < episodes.length; epIdx++) {
     const episode = episodes[epIdx];
-
-    if (isFinale(episode)) {
-      // Assign losing ranks from elimination order before finale dispatch.
-      const totalQueens = queens.length;
-      for (let i = 0; i < eliminationOrder.length; i++) {
-        finalRanks.set(eliminationOrder[i], totalQueens - i);
-      }
-      runFinaleDefault(episode, remaining, finalRanks, episodeResults, rng);
-      continue;
-    }
-
-    // Pass-through episodes (reunions, recaps, lip-sync smackdowns) have no
-    // maxi challenge and no elimination — skip scoring entirely and record
-    // an empty result so downstream aggregation sees no placements.
-    if (episode.archetype === 'pass') {
-      episodeResults.push({
-        episodeNumber: episode.number,
-        placements: new Map(),
-        lipSyncMatchup: ['', ''],
-        lipSyncWinner: '',
-        eliminated: '',
-      });
-      continue;
-    }
-
-    const activeQueens = Array.from(remaining.values());
-    const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
-    const scores = activeQueens.map((q) => ({
-      queenId: q.id,
-      score: scoreQueen(q, weights, noise, rng),
-    }));
-
-    const placements = assignPlacements(scores);
-
-    // Non-elimination episode: assign placements but skip lip sync
-    if (episode.eliminated.length === 0) {
-      episodeResults.push({
-        episodeNumber: episode.number,
-        placements,
-        lipSyncMatchup: ['', ''],
-        lipSyncWinner: '',
-        eliminated: '',
-      });
-      continue;
-    }
-
-    const bottom2 = Array.from(placements.entries())
-      .filter(([, p]) => p === 'BTM2')
-      .map(([id]) => id);
-
-    if (bottom2.length < 2) {
-      episodeResults.push({
-        episodeNumber: episode.number,
-        placements,
-        lipSyncMatchup: [bottom2[0] ?? '', bottom2[1] ?? ''],
-        lipSyncWinner: bottom2[0] ?? '',
-        eliminated: '',
-      });
-      continue;
-    }
-
-    // Honor the season's recorded number of eliminations: 1 = normal lipsync,
-    // 2 = double elimination (both BTM2 go home — no lipsync). Without this,
-    // a double-elim episode leaves an extra queen alive at finale, throwing
-    // every subsequent placement off by one.
-    if (episode.eliminated.length >= 2) {
-      const [a, b] = bottom2;
-      placements.set(a, 'ELIM');
-      placements.set(b, 'ELIM');
-      remaining.delete(a);
-      remaining.delete(b);
-      eliminationOrder.push(a, b);
-      episodeResults.push({
-        episodeNumber: episode.number,
-        placements,
-        lipSyncMatchup: [a, b],
-        lipSyncWinner: '',
-        eliminated: a, // narrative convenience; both queens encoded as ELIM in placements
-      });
-      continue;
-    }
-
-    const queenA = remaining.get(bottom2[0])!;
-    const queenB = remaining.get(bottom2[1])!;
-    const lipSyncWinner = resolveLipSync(queenA, queenB, rng);
-    const eliminated = lipSyncWinner === bottom2[0] ? bottom2[1] : bottom2[0];
-    placements.set(eliminated, 'ELIM');
-    remaining.delete(eliminated);
-    eliminationOrder.push(eliminated);
-
-    episodeResults.push({
-      episodeNumber: episode.number,
-      placements,
-      lipSyncMatchup: [bottom2[0], bottom2[1]],
-      lipSyncWinner,
-      eliminated,
-    });
+    if (isFinale(episode)) finaleHandler.apply(episode, ctx);
+    else if (isPass(episode)) passHandler.apply(episode, ctx);
+    else regularHandler.apply(episode, ctx);
   }
 
-  // If no finale episode was present, fall back to elimination-order-only ranks.
-  // (Any queens not yet ranked get the lowest non-eliminated ranks in arbitrary order.)
-  if (finalRanks.size === 0) {
+  // Fallback when no finale ran: derive ranks purely from elimination order,
+  // then assign any unranked-remaining queens the lowest non-eliminated
+  // ranks (arbitrary order — caller should have included a finale episode).
+  if (ctx.finalRanks.size === 0) {
     const totalQueens = queens.length;
     for (let i = 0; i < eliminationOrder.length; i++) {
-      finalRanks.set(eliminationOrder[i], totalQueens - i);
+      ctx.finalRanks.set(eliminationOrder[i], totalQueens - i);
     }
     let nextRank = 1;
     for (const id of remaining.keys()) {
-      if (!finalRanks.has(id)) finalRanks.set(id, nextRank++);
+      if (!ctx.finalRanks.has(id)) ctx.finalRanks.set(id, nextRank++);
     }
   }
 
-  return { episodeResults, finalRanks };
+  return { episodeResults, finalRanks: ctx.finalRanks };
 }
 
 // ── Compact buffer layout ──────────────────────────────────
@@ -405,8 +442,11 @@ export function runFromStatePartial(
   const priorResults: EpisodeResult[] = [];
   const allEliminated = new Set<string>();
   for (let i = 0; i < fromEpisode && i < numEpisodes; i++) {
-    priorResults.push(outcomeToEpisodeResult(episodes[i]));
-    for (const id of episodes[i].eliminated) allEliminated.add(id);
+    const ep = episodes[i];
+    priorResults.push(outcomeToEpisodeResult(ep));
+    if (!isPass(ep)) {
+      for (const id of ep.eliminated) allEliminated.add(id);
+    }
   }
 
   const midSeason: MidSeasonState = {
@@ -838,10 +878,18 @@ export function extractTrajectories(
 
 /** Convert an EpisodeData (domain model) to an EpisodeResult (simulation internal). */
 export function outcomeToEpisodeResult(ep: EpisodeData): EpisodeResult {
-  const placementMap = new Map<string, Placement>();
-  for (const [id, p] of Object.entries(ep.placements)) {
-    placementMap.set(id, p);
+  if (isPass(ep)) {
+    return {
+      episodeNumber: ep.number,
+      placements: new Map(),
+      lipSyncMatchup: ['', ''],
+      lipSyncWinner: '',
+      eliminated: '',
+    };
   }
+  const placementMap = new Map<string, EpisodeOutcome>(
+    Object.entries(ep.placements) as [string, Placement][],
+  );
 
   const btm2 = Object.entries(ep.placements)
     .filter(([, p]) => p === 'BTM2')
@@ -881,10 +929,10 @@ export function runFromState(
   const allEliminated = new Set<string>();
 
   for (let i = 0; i < fromEpisode && i < numEpisodes; i++) {
-    const epResult = outcomeToEpisodeResult(episodes[i]);
-    priorResults.push(epResult);
-    for (const id of episodes[i].eliminated) {
-      allEliminated.add(id);
+    const ep = episodes[i];
+    priorResults.push(outcomeToEpisodeResult(ep));
+    if (!isPass(ep)) {
+      for (const id of ep.eliminated) allEliminated.add(id);
     }
   }
 

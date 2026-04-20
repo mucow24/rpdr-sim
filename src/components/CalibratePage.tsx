@@ -2,7 +2,7 @@ import { useEffect, useState, type DragEvent } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
-  BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale,
+  BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale, isPass,
   type BaseStat, type Queen, type SeasonData, type Placement,
 } from '../engine/types';
 import { ARCHETYPES } from '../data/archetypes';
@@ -47,7 +47,7 @@ function getHeavyEpisodes(
   const eliminatedBefore = new Set<string>();
 
   for (const ep of season.episodes) {
-    if (isFinale(ep)) continue;
+    if (isFinale(ep) || isPass(ep)) continue;
 
     const alive = !eliminatedBefore.has(queenId);
     if (!alive) break; // queen is out; no later episode can match

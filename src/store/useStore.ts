@@ -4,7 +4,7 @@ import type {
   SeasonData, EpisodeData, Queen, Placement, SimulationResults,
   FilterCondition, TrajectoryPath, BaseStat,
 } from '../engine/types';
-import { isFinale } from '../engine/types';
+import { isFinale, isPass } from '../engine/types';
 import { type ArchetypeId } from '../data/archetypes';
 import { SEASON_PRESETS } from '../data/presets';
 import { migrateToV2 } from './migrate';
@@ -82,11 +82,15 @@ function cloneSeason(s: SeasonData): SeasonData {
   return {
     ...s,
     queens: s.queens.map((q) => ({ ...q, skills: { ...q.skills } })),
-    episodes: s.episodes.map((ep) => ({
-      ...ep,
-      placements: { ...ep.placements },
-      eliminated: [...ep.eliminated],
-    })),
+    episodes: s.episodes.map((ep) =>
+      isPass(ep)
+        ? { ...ep }
+        : {
+            ...ep,
+            placements: { ...ep.placements },
+            eliminated: [...ep.eliminated],
+          },
+    ),
   };
 }
 
@@ -174,9 +178,10 @@ export const useStore = create<AppState>()(persist((set, get) => ({
     set((s) => {
       const season = s.seasonsById[s.activeSeasonId];
       if (!season) return {};
-      if (isFinale(season.episodes[epIdx])) return {};
+      const target = season.episodes[epIdx];
+      if (isFinale(target) || isPass(target)) return {};
       const episodes = season.episodes.map((ep, i) => {
-        if (i !== epIdx || isFinale(ep)) return ep;
+        if (i !== epIdx || isFinale(ep) || isPass(ep)) return ep;
         // Changing archetype clears any per-episode weight override.
         const { weights: _drop, ...rest } = ep;
         void _drop;
@@ -195,9 +200,12 @@ export const useStore = create<AppState>()(persist((set, get) => ({
     set((s) => {
       const season = s.seasonsById[s.activeSeasonId];
       if (!season) return {};
-      if (isFinale(season.episodes[epIdx])) return {};
+      const target = season.episodes[epIdx];
+      if (isFinale(target) || isPass(target)) return {};
       const episodes = season.episodes.map((ep, i) =>
-        i === epIdx && !isFinale(ep) ? { ...ep, weights: { ...weights } } : ep,
+        i === epIdx && !isFinale(ep) && !isPass(ep)
+          ? { ...ep, weights: { ...weights } }
+          : ep,
       );
       return {
         seasonsById: { ...s.seasonsById, [s.activeSeasonId]: { ...season, episodes } },
@@ -270,11 +278,15 @@ export const useStore = create<AppState>()(persist((set, get) => ({
           ? {
               ...existing,
               name: preset.season.name,
-              episodes: preset.season.episodes.map((ep) => ({
-                ...ep,
-                placements: { ...ep.placements },
-                eliminated: [...ep.eliminated],
-              })),
+              episodes: preset.season.episodes.map((ep) =>
+                isPass(ep)
+                  ? { ...ep }
+                  : {
+                      ...ep,
+                      placements: { ...ep.placements },
+                      eliminated: [...ep.eliminated],
+                    },
+              ),
             }
           : cloneSeason(preset.season);
       }

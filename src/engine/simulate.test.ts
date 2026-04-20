@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { outcomeToEpisodeResult, runFromState, runBaseline, scoreQueen } from './simulate';
-import type { SeasonData, Queen, EpisodeData, Placement, BaseStat } from './types';
+import type { SeasonData, Queen, EpisodeData, Placement, BaseStat, RegularEpisode } from './types';
 import { ARCHETYPES, type ArchetypeId } from '../data/archetypes';
 import season5 from '../data/season5';
 
@@ -237,8 +237,9 @@ describe('runFromState', () => {
 describe('elimination integration', () => {
   test('BUG REPRO: queen eliminated in edited episode has 0% win probability', () => {
     const season = structuredClone(season5);
-    season.episodes[1].placements['jinkx'] = 'BTM2';
-    season.episodes[1].eliminated = ['jinkx'];
+    const ep1 = season.episodes[1] as RegularEpisode;
+    ep1.placements['jinkx'] = 'BTM2';
+    ep1.eliminated = ['jinkx'];
 
     const { results } = runFromState({
       season,
@@ -322,8 +323,9 @@ describe('elimination integration', () => {
 
   test('win probability shifts to survivors after what-if elimination', () => {
     const season = structuredClone(season5);
-    season.episodes[0].placements['alaska'] = 'BTM2';
-    season.episodes[0].eliminated = ['alaska'];
+    const ep0 = season.episodes[0] as RegularEpisode;
+    ep0.placements['alaska'] = 'BTM2';
+    ep0.eliminated = ['alaska'];
 
     const { results } = runFromState({
       season,
@@ -338,8 +340,9 @@ describe('elimination integration', () => {
 
   test('ROOT CAUSE: runBaseline ignores episode outcomes — eliminated queen can still win', () => {
     const season = structuredClone(season5);
-    season.episodes[1].placements['jinkx'] = 'BTM2';
-    season.episodes[1].eliminated = ['jinkx'];
+    const ep1 = season.episodes[1] as RegularEpisode;
+    ep1.placements['jinkx'] = 'BTM2';
+    ep1.eliminated = ['jinkx'];
 
     const { results: baselineResults } = runBaseline({
       season,

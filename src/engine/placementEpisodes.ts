@@ -1,5 +1,5 @@
 import type { SeasonData } from './types';
-import { isFinale } from './types';
+import { isFinale, isPass } from './types';
 import { ARCHETYPES } from '../data/archetypes';
 
 /** Emoji shown for a finale placement. Finales have no archetype, so we use
@@ -32,7 +32,7 @@ export function placementEpisodeLabels(season: SeasonData): {
 
   let cumElims = 0;
   for (const ep of season.episodes) {
-    if (isFinale(ep)) continue;
+    if (isFinale(ep) || isPass(ep)) continue;
     const n = ep.eliminated.length;
     const icon = ARCHETYPES[ep.archetype].icon;
     // Queens eliminated in this episode fill places

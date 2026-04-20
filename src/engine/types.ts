@@ -73,8 +73,7 @@ export type FinaleType = (typeof FINALE_TYPES)[number];
  *  determines the weighted mixture of base stats the challenge tests; weights
  *  are resolved via `ARCHETYPES[archetype].weights` at scoring time. */
 export interface RegularEpisode {
-  kind?: 'regular';                        // optional — defaults to regular
-  id?: string;
+  kind?: 'regular';                        // optional — absence implies regular
   number: number;
   archetype: ArchetypeId;                  // id into ARCHETYPES catalog
   challengeName: string;
@@ -84,10 +83,18 @@ export interface RegularEpisode {
   weights?: Record<BaseStat, number>;      // per-episode override; falls back to archetype weights
 }
 
+/** A pass-through episode (reunion, recap, lip-sync smackdown). No maxi
+ *  challenge, no elimination — sim records an empty result so downstream
+ *  aggregation sees no placements and no alive-set change. */
+export interface PassEpisode {
+  kind: 'pass';                            // required discriminant
+  number: number;
+  challengeName: string;
+}
+
 /** A finale episode. Its simulation mechanics are determined by finaleType. */
 export interface FinaleEpisode {
   kind: 'finale';                          // required discriminant
-  id?: string;
   number: number;
   finaleType: FinaleType;
   challengeName: string;                   // e.g. 'Grand Finale'
@@ -95,10 +102,18 @@ export interface FinaleEpisode {
   eliminated: string[];                    // sim-populated: non-winners
 }
 
-export type EpisodeData = RegularEpisode | FinaleEpisode;
+export type EpisodeData = RegularEpisode | PassEpisode | FinaleEpisode;
 
 export function isFinale(ep: EpisodeData): ep is FinaleEpisode {
   return ep.kind === 'finale';
+}
+
+export function isPass(ep: EpisodeData): ep is PassEpisode {
+  return ep.kind === 'pass';
+}
+
+export function isRegular(ep: EpisodeData): ep is RegularEpisode {
+  return ep.kind !== 'finale' && ep.kind !== 'pass';
 }
 
 /** A complete season: queens, episodes (with outcomes), loadable for any season */
