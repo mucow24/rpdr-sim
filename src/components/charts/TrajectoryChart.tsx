@@ -563,7 +563,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       title.text('');
       simcount.text('');
     }
-  }, [results, queen, width, height, season.episodes.length, fadeByElim, compact]);
+  }, [results, queen, width, height, season, fadeByElim, compact]);
 
   return (
     <div ref={containerRef} className="w-full relative">
