@@ -1,0 +1,1064 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`S5 placementDist data matches snapshot (rounded 6dp) 1`] = `
+{
+  "expectedPlaces": [
+    3.2,
+    3.271,
+    3.513,
+    5.358,
+    5.813,
+    6.464,
+    6.464,
+    8.876,
+    9.897,
+    10.024,
+    10.045,
+    10.121,
+    10.854,
+    11.1,
+  ],
+  "queenOrder": [
+    "alaska",
+    "jinkx",
+    "alyssa",
+    "detox",
+    "roxxxy",
+    "ivy",
+    "coco",
+    "lineysha",
+    "honey",
+    "jade",
+    "monica",
+    "vivienne",
+    "serena",
+    "penny",
+  ],
+  "segments": [
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.286,
+      },
+      {
+        "cumBefore": 0.286,
+        "place": 2,
+        "prob": 0.265,
+      },
+      {
+        "cumBefore": 0.551,
+        "place": 3,
+        "prob": 0.12,
+      },
+      {
+        "cumBefore": 0.671,
+        "place": 4,
+        "prob": 0.129,
+      },
+      {
+        "cumBefore": 0.8,
+        "place": 5,
+        "prob": 0.073,
+      },
+      {
+        "cumBefore": 0.873,
+        "place": 6,
+        "prob": 0.03,
+      },
+      {
+        "cumBefore": 0.903,
+        "place": 7,
+        "prob": 0.014,
+      },
+      {
+        "cumBefore": 0.917,
+        "place": 8,
+        "prob": 0.022,
+      },
+      {
+        "cumBefore": 0.939,
+        "place": 9,
+        "prob": 0.004,
+      },
+      {
+        "cumBefore": 0.943,
+        "place": 10,
+        "prob": 0.013,
+      },
+      {
+        "cumBefore": 0.956,
+        "place": 11,
+        "prob": 0.029,
+      },
+      {
+        "cumBefore": 0.985,
+        "place": 12,
+        "prob": 0.003,
+      },
+      {
+        "cumBefore": 0.988,
+        "place": 13,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0.988,
+        "place": 14,
+        "prob": 0.012,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.375,
+      },
+      {
+        "cumBefore": 0.375,
+        "place": 2,
+        "prob": 0.158,
+      },
+      {
+        "cumBefore": 0.533,
+        "place": 3,
+        "prob": 0.061,
+      },
+      {
+        "cumBefore": 0.594,
+        "place": 4,
+        "prob": 0.21,
+      },
+      {
+        "cumBefore": 0.804,
+        "place": 5,
+        "prob": 0.104,
+      },
+      {
+        "cumBefore": 0.908,
+        "place": 6,
+        "prob": 0.002,
+      },
+      {
+        "cumBefore": 0.91,
+        "place": 7,
+        "prob": 0.006,
+      },
+      {
+        "cumBefore": 0.916,
+        "place": 8,
+        "prob": 0.005,
+      },
+      {
+        "cumBefore": 0.921,
+        "place": 9,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0.921,
+        "place": 10,
+        "prob": 0.016,
+      },
+      {
+        "cumBefore": 0.937,
+        "place": 11,
+        "prob": 0.033,
+      },
+      {
+        "cumBefore": 0.97,
+        "place": 12,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0.97,
+        "place": 13,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0.97,
+        "place": 14,
+        "prob": 0.03,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.188,
+      },
+      {
+        "cumBefore": 0.188,
+        "place": 2,
+        "prob": 0.232,
+      },
+      {
+        "cumBefore": 0.42,
+        "place": 3,
+        "prob": 0.15,
+      },
+      {
+        "cumBefore": 0.57,
+        "place": 4,
+        "prob": 0.206,
+      },
+      {
+        "cumBefore": 0.776,
+        "place": 5,
+        "prob": 0.091,
+      },
+      {
+        "cumBefore": 0.867,
+        "place": 6,
+        "prob": 0.062,
+      },
+      {
+        "cumBefore": 0.929,
+        "place": 7,
+        "prob": 0.017,
+      },
+      {
+        "cumBefore": 0.946,
+        "place": 8,
+        "prob": 0.007,
+      },
+      {
+        "cumBefore": 0.953,
+        "place": 9,
+        "prob": 0.01,
+      },
+      {
+        "cumBefore": 0.963,
+        "place": 10,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0.963,
+        "place": 11,
+        "prob": 0.002,
+      },
+      {
+        "cumBefore": 0.965,
+        "place": 12,
+        "prob": 0.007,
+      },
+      {
+        "cumBefore": 0.972,
+        "place": 13,
+        "prob": 0.003,
+      },
+      {
+        "cumBefore": 0.975,
+        "place": 14,
+        "prob": 0.025,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.064,
+      },
+      {
+        "cumBefore": 0.064,
+        "place": 2,
+        "prob": 0.111,
+      },
+      {
+        "cumBefore": 0.175,
+        "place": 3,
+        "prob": 0.175,
+      },
+      {
+        "cumBefore": 0.35,
+        "place": 4,
+        "prob": 0.106,
+      },
+      {
+        "cumBefore": 0.456,
+        "place": 5,
+        "prob": 0.129,
+      },
+      {
+        "cumBefore": 0.585,
+        "place": 6,
+        "prob": 0.112,
+      },
+      {
+        "cumBefore": 0.697,
+        "place": 7,
+        "prob": 0.075,
+      },
+      {
+        "cumBefore": 0.772,
+        "place": 8,
+        "prob": 0.062,
+      },
+      {
+        "cumBefore": 0.834,
+        "place": 9,
+        "prob": 0.054,
+      },
+      {
+        "cumBefore": 0.888,
+        "place": 10,
+        "prob": 0.022,
+      },
+      {
+        "cumBefore": 0.91,
+        "place": 11,
+        "prob": 0.044,
+      },
+      {
+        "cumBefore": 0.954,
+        "place": 12,
+        "prob": 0.018,
+      },
+      {
+        "cumBefore": 0.972,
+        "place": 13,
+        "prob": 0.013,
+      },
+      {
+        "cumBefore": 0.985,
+        "place": 14,
+        "prob": 0.015,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.044,
+      },
+      {
+        "cumBefore": 0.044,
+        "place": 2,
+        "prob": 0.105,
+      },
+      {
+        "cumBefore": 0.149,
+        "place": 3,
+        "prob": 0.146,
+      },
+      {
+        "cumBefore": 0.295,
+        "place": 4,
+        "prob": 0.08,
+      },
+      {
+        "cumBefore": 0.375,
+        "place": 5,
+        "prob": 0.123,
+      },
+      {
+        "cumBefore": 0.498,
+        "place": 6,
+        "prob": 0.113,
+      },
+      {
+        "cumBefore": 0.611,
+        "place": 7,
+        "prob": 0.113,
+      },
+      {
+        "cumBefore": 0.724,
+        "place": 8,
+        "prob": 0.091,
+      },
+      {
+        "cumBefore": 0.815,
+        "place": 9,
+        "prob": 0.054,
+      },
+      {
+        "cumBefore": 0.869,
+        "place": 10,
+        "prob": 0.03,
+      },
+      {
+        "cumBefore": 0.899,
+        "place": 11,
+        "prob": 0.049,
+      },
+      {
+        "cumBefore": 0.948,
+        "place": 12,
+        "prob": 0.025,
+      },
+      {
+        "cumBefore": 0.973,
+        "place": 13,
+        "prob": 0.014,
+      },
+      {
+        "cumBefore": 0.987,
+        "place": 14,
+        "prob": 0.013,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.024,
+      },
+      {
+        "cumBefore": 0.024,
+        "place": 2,
+        "prob": 0.052,
+      },
+      {
+        "cumBefore": 0.076,
+        "place": 3,
+        "prob": 0.115,
+      },
+      {
+        "cumBefore": 0.191,
+        "place": 4,
+        "prob": 0.072,
+      },
+      {
+        "cumBefore": 0.263,
+        "place": 5,
+        "prob": 0.127,
+      },
+      {
+        "cumBefore": 0.39,
+        "place": 6,
+        "prob": 0.148,
+      },
+      {
+        "cumBefore": 0.538,
+        "place": 7,
+        "prob": 0.153,
+      },
+      {
+        "cumBefore": 0.691,
+        "place": 8,
+        "prob": 0.093,
+      },
+      {
+        "cumBefore": 0.784,
+        "place": 9,
+        "prob": 0.064,
+      },
+      {
+        "cumBefore": 0.848,
+        "place": 10,
+        "prob": 0.023,
+      },
+      {
+        "cumBefore": 0.871,
+        "place": 11,
+        "prob": 0.046,
+      },
+      {
+        "cumBefore": 0.917,
+        "place": 12,
+        "prob": 0.032,
+      },
+      {
+        "cumBefore": 0.949,
+        "place": 13,
+        "prob": 0.045,
+      },
+      {
+        "cumBefore": 0.994,
+        "place": 14,
+        "prob": 0.006,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.016,
+      },
+      {
+        "cumBefore": 0.016,
+        "place": 2,
+        "prob": 0.059,
+      },
+      {
+        "cumBefore": 0.075,
+        "place": 3,
+        "prob": 0.128,
+      },
+      {
+        "cumBefore": 0.203,
+        "place": 4,
+        "prob": 0.081,
+      },
+      {
+        "cumBefore": 0.284,
+        "place": 5,
+        "prob": 0.142,
+      },
+      {
+        "cumBefore": 0.426,
+        "place": 6,
+        "prob": 0.145,
+      },
+      {
+        "cumBefore": 0.571,
+        "place": 7,
+        "prob": 0.104,
+      },
+      {
+        "cumBefore": 0.675,
+        "place": 8,
+        "prob": 0.094,
+      },
+      {
+        "cumBefore": 0.769,
+        "place": 9,
+        "prob": 0.057,
+      },
+      {
+        "cumBefore": 0.826,
+        "place": 10,
+        "prob": 0.037,
+      },
+      {
+        "cumBefore": 0.863,
+        "place": 11,
+        "prob": 0.052,
+      },
+      {
+        "cumBefore": 0.915,
+        "place": 12,
+        "prob": 0.03,
+      },
+      {
+        "cumBefore": 0.945,
+        "place": 13,
+        "prob": 0.023,
+      },
+      {
+        "cumBefore": 0.968,
+        "place": 14,
+        "prob": 0.032,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.003,
+      },
+      {
+        "cumBefore": 0.003,
+        "place": 2,
+        "prob": 0.007,
+      },
+      {
+        "cumBefore": 0.01,
+        "place": 3,
+        "prob": 0.039,
+      },
+      {
+        "cumBefore": 0.049,
+        "place": 4,
+        "prob": 0.025,
+      },
+      {
+        "cumBefore": 0.074,
+        "place": 5,
+        "prob": 0.04,
+      },
+      {
+        "cumBefore": 0.114,
+        "place": 6,
+        "prob": 0.095,
+      },
+      {
+        "cumBefore": 0.209,
+        "place": 7,
+        "prob": 0.113,
+      },
+      {
+        "cumBefore": 0.322,
+        "place": 8,
+        "prob": 0.116,
+      },
+      {
+        "cumBefore": 0.438,
+        "place": 9,
+        "prob": 0.19,
+      },
+      {
+        "cumBefore": 0.628,
+        "place": 10,
+        "prob": 0.063,
+      },
+      {
+        "cumBefore": 0.691,
+        "place": 11,
+        "prob": 0.072,
+      },
+      {
+        "cumBefore": 0.763,
+        "place": 12,
+        "prob": 0.101,
+      },
+      {
+        "cumBefore": 0.864,
+        "place": 13,
+        "prob": 0.095,
+      },
+      {
+        "cumBefore": 0.959,
+        "place": 14,
+        "prob": 0.041,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0.004,
+      },
+      {
+        "cumBefore": 0.004,
+        "place": 3,
+        "prob": 0.018,
+      },
+      {
+        "cumBefore": 0.022,
+        "place": 4,
+        "prob": 0.023,
+      },
+      {
+        "cumBefore": 0.045,
+        "place": 5,
+        "prob": 0.043,
+      },
+      {
+        "cumBefore": 0.088,
+        "place": 6,
+        "prob": 0.064,
+      },
+      {
+        "cumBefore": 0.152,
+        "place": 7,
+        "prob": 0.078,
+      },
+      {
+        "cumBefore": 0.23,
+        "place": 8,
+        "prob": 0.081,
+      },
+      {
+        "cumBefore": 0.311,
+        "place": 9,
+        "prob": 0.074,
+      },
+      {
+        "cumBefore": 0.385,
+        "place": 10,
+        "prob": 0.159,
+      },
+      {
+        "cumBefore": 0.544,
+        "place": 11,
+        "prob": 0.122,
+      },
+      {
+        "cumBefore": 0.666,
+        "place": 12,
+        "prob": 0.109,
+      },
+      {
+        "cumBefore": 0.775,
+        "place": 13,
+        "prob": 0.106,
+      },
+      {
+        "cumBefore": 0.881,
+        "place": 14,
+        "prob": 0.119,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0.001,
+      },
+      {
+        "cumBefore": 0.001,
+        "place": 3,
+        "prob": 0.013,
+      },
+      {
+        "cumBefore": 0.014,
+        "place": 4,
+        "prob": 0.022,
+      },
+      {
+        "cumBefore": 0.036,
+        "place": 5,
+        "prob": 0.021,
+      },
+      {
+        "cumBefore": 0.057,
+        "place": 6,
+        "prob": 0.051,
+      },
+      {
+        "cumBefore": 0.108,
+        "place": 7,
+        "prob": 0.08,
+      },
+      {
+        "cumBefore": 0.188,
+        "place": 8,
+        "prob": 0.101,
+      },
+      {
+        "cumBefore": 0.289,
+        "place": 9,
+        "prob": 0.128,
+      },
+      {
+        "cumBefore": 0.417,
+        "place": 10,
+        "prob": 0.125,
+      },
+      {
+        "cumBefore": 0.542,
+        "place": 11,
+        "prob": 0.117,
+      },
+      {
+        "cumBefore": 0.659,
+        "place": 12,
+        "prob": 0.12,
+      },
+      {
+        "cumBefore": 0.779,
+        "place": 13,
+        "prob": 0.107,
+      },
+      {
+        "cumBefore": 0.886,
+        "place": 14,
+        "prob": 0.114,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0.002,
+      },
+      {
+        "cumBefore": 0.002,
+        "place": 3,
+        "prob": 0.017,
+      },
+      {
+        "cumBefore": 0.019,
+        "place": 4,
+        "prob": 0.018,
+      },
+      {
+        "cumBefore": 0.037,
+        "place": 5,
+        "prob": 0.034,
+      },
+      {
+        "cumBefore": 0.071,
+        "place": 6,
+        "prob": 0.063,
+      },
+      {
+        "cumBefore": 0.134,
+        "place": 7,
+        "prob": 0.084,
+      },
+      {
+        "cumBefore": 0.218,
+        "place": 8,
+        "prob": 0.083,
+      },
+      {
+        "cumBefore": 0.301,
+        "place": 9,
+        "prob": 0.095,
+      },
+      {
+        "cumBefore": 0.396,
+        "place": 10,
+        "prob": 0.12,
+      },
+      {
+        "cumBefore": 0.516,
+        "place": 11,
+        "prob": 0.1,
+      },
+      {
+        "cumBefore": 0.616,
+        "place": 12,
+        "prob": 0.141,
+      },
+      {
+        "cumBefore": 0.757,
+        "place": 13,
+        "prob": 0.131,
+      },
+      {
+        "cumBefore": 0.888,
+        "place": 14,
+        "prob": 0.112,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0.002,
+      },
+      {
+        "cumBefore": 0.002,
+        "place": 3,
+        "prob": 0.007,
+      },
+      {
+        "cumBefore": 0.009,
+        "place": 4,
+        "prob": 0.015,
+      },
+      {
+        "cumBefore": 0.024,
+        "place": 5,
+        "prob": 0.032,
+      },
+      {
+        "cumBefore": 0.056,
+        "place": 6,
+        "prob": 0.05,
+      },
+      {
+        "cumBefore": 0.106,
+        "place": 7,
+        "prob": 0.06,
+      },
+      {
+        "cumBefore": 0.166,
+        "place": 8,
+        "prob": 0.091,
+      },
+      {
+        "cumBefore": 0.257,
+        "place": 9,
+        "prob": 0.109,
+      },
+      {
+        "cumBefore": 0.366,
+        "place": 10,
+        "prob": 0.162,
+      },
+      {
+        "cumBefore": 0.528,
+        "place": 11,
+        "prob": 0.155,
+      },
+      {
+        "cumBefore": 0.683,
+        "place": 12,
+        "prob": 0.105,
+      },
+      {
+        "cumBefore": 0.788,
+        "place": 13,
+        "prob": 0.106,
+      },
+      {
+        "cumBefore": 0.894,
+        "place": 14,
+        "prob": 0.106,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 3,
+        "prob": 0.004,
+      },
+      {
+        "cumBefore": 0.004,
+        "place": 4,
+        "prob": 0.005,
+      },
+      {
+        "cumBefore": 0.009,
+        "place": 5,
+        "prob": 0.022,
+      },
+      {
+        "cumBefore": 0.031,
+        "place": 6,
+        "prob": 0.03,
+      },
+      {
+        "cumBefore": 0.061,
+        "place": 7,
+        "prob": 0.06,
+      },
+      {
+        "cumBefore": 0.121,
+        "place": 8,
+        "prob": 0.082,
+      },
+      {
+        "cumBefore": 0.203,
+        "place": 9,
+        "prob": 0.108,
+      },
+      {
+        "cumBefore": 0.311,
+        "place": 10,
+        "prob": 0.09,
+      },
+      {
+        "cumBefore": 0.401,
+        "place": 11,
+        "prob": 0.08,
+      },
+      {
+        "cumBefore": 0.481,
+        "place": 12,
+        "prob": 0.185,
+      },
+      {
+        "cumBefore": 0.666,
+        "place": 13,
+        "prob": 0.192,
+      },
+      {
+        "cumBefore": 0.858,
+        "place": 14,
+        "prob": 0.142,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0.002,
+      },
+      {
+        "cumBefore": 0.002,
+        "place": 3,
+        "prob": 0.007,
+      },
+      {
+        "cumBefore": 0.009,
+        "place": 4,
+        "prob": 0.008,
+      },
+      {
+        "cumBefore": 0.017,
+        "place": 5,
+        "prob": 0.019,
+      },
+      {
+        "cumBefore": 0.036,
+        "place": 6,
+        "prob": 0.035,
+      },
+      {
+        "cumBefore": 0.071,
+        "place": 7,
+        "prob": 0.043,
+      },
+      {
+        "cumBefore": 0.114,
+        "place": 8,
+        "prob": 0.072,
+      },
+      {
+        "cumBefore": 0.186,
+        "place": 9,
+        "prob": 0.053,
+      },
+      {
+        "cumBefore": 0.239,
+        "place": 10,
+        "prob": 0.14,
+      },
+      {
+        "cumBefore": 0.379,
+        "place": 11,
+        "prob": 0.099,
+      },
+      {
+        "cumBefore": 0.478,
+        "place": 12,
+        "prob": 0.124,
+      },
+      {
+        "cumBefore": 0.602,
+        "place": 13,
+        "prob": 0.165,
+      },
+      {
+        "cumBefore": 0.767,
+        "place": 14,
+        "prob": 0.233,
+      },
+    ],
+  ],
+  "winProbs": [
+    0.286,
+    0.375,
+    0.188,
+    0.064,
+    0.044,
+    0.024,
+    0.016,
+    0.003,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+  ],
+}
+`;

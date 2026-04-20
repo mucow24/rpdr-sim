@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { placementEpisodeLabels } from '../../engine/placementEpisodes';
 import { useContainerSize } from './common/useContainerSize';
+import { computePlacementGridData } from './placementGrid/placementGridData';
 
 
 const MARGIN = { top: 16, right: 0, bottom: 0, left: 75 };
@@ -33,30 +34,13 @@ export default function PlacementGrid() {
       .append('g')
       .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    // Sort queens by argmax(placement probability) ascending (mode at top of
-    // grid goes to 1st place), with expected placement as a tiebreaker.
-    const argmaxPlace = (id: string) => {
-      const dist = results.placementDist[id] ?? [];
-      let best = 1;
-      let bestP = -Infinity;
-      for (let i = 1; i < dist.length; i++) {
-        if ((dist[i] ?? 0) > bestP) {
-          bestP = dist[i] ?? 0;
-          best = i;
-        }
-      }
-      return best;
-    };
-    const expectedPlace = (id: string) => {
-      const dist = results.placementDist[id] ?? [];
-      return dist.reduce((sum, p, i) => sum + p * i, 0);
-    };
-    const sortedQueens = [...season.queens].sort((a, b) => {
-      const am = argmaxPlace(a.id);
-      const bm = argmaxPlace(b.id);
-      if (am !== bm) return am - bm;
-      return expectedPlace(a.id) - expectedPlace(b.id);
-    });
+    // Sort order + per-row brightness math live in placementGridData (unit
+    // tested). The gradient-stop sequence below still lives here because it
+    // depends on the chart's coordinate transforms.
+    const { rows } = computePlacementGridData(season, results);
+    const sortedQueens = rows.map((r) => r.queen);
+    const brightnessByQueen = new Map(rows.map((r) => [r.queen.id, r.brightness]));
+    const argmaxByQueen = new Map(rows.map((r) => [r.queen.id, r.argmaxPlace]));
 
     const numQueens = sortedQueens.length;
     // Places 1..N, rendered right-to-left so place 1 is rightmost.
@@ -141,10 +125,8 @@ export default function PlacementGrid() {
     const cellBg = '#000';
     for (const queen of sortedQueens) {
       const dist = results.placementDist[queen.id] ?? [];
+      const brightnessMap = brightnessByQueen.get(queen.id) ?? {};
 
-      // Row-normalize: brightest cell in each row is the queen's most likely
-      // placement; every other cell is scaled relative to it.
-      const rowMax = d3.max(placesRightToLeft, (p) => dist[p] ?? 0) ?? 0;
       const rowY = y(queen.id) ?? 0;
       const rowH = y.bandwidth();
 
@@ -157,26 +139,13 @@ export default function PlacementGrid() {
         .attr('rx', 2)
         .attr('fill', cellBg);
 
-      // Find argmax cell — rendered as a crisp solid block; left/right of it
-      // fade smoothly into its edges.
-      let argmaxPlace = placesRightToLeft[0];
-      let argmaxProb = -Infinity;
-      for (const p of placesRightToLeft) {
-        const pp = dist[p] ?? 0;
-        if (pp > argmaxProb) {
-          argmaxProb = pp;
-          argmaxPlace = p;
-        }
-      }
+      // Argmax place already computed in placementGridData.
+      const argmaxPlace = argmaxByQueen.get(queen.id) ?? placesRightToLeft[0];
       const cellW = x.bandwidth();
       const argmaxX = x(argmaxPlace) ?? 0;
       const argmaxRight = argmaxX + cellW;
 
-      const brightnessAt = (p: number) => {
-        const prob = dist[p] ?? 0;
-        const normalized = rowMax > 0 ? prob / rowMax : 0;
-        return normalized * normalized;
-      };
+      const brightnessAt = (p: number) => brightnessMap[p] ?? 0;
 
       // Single row-wide gradient: stops at cell centers on either side of the
       // argmax plus two stops (at 1.0) bracketing the argmax cell edges to

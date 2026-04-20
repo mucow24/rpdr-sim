@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { isFinale, isPass } from '../../engine/types';
+import { computeHeatmapData } from './heatmap/heatmapData';
 
 
 const MARGIN = { top: 24, right: 16, bottom: 40, left: 120 };
@@ -33,16 +33,14 @@ export default function EliminationHeatmap({
       .append('g')
       .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    const episodes = season.episodes.map((e) => e.number);
-    const finaleEpNums = new Set(
-      season.episodes.filter((e) => isFinale(e)).map((e) => e.number),
-    );
+    // Pure data derivation lives in computeHeatmapData (unit tested).
+    const {
+      queenOrder: sortedQueens,
+      episodeNumbers: episodes,
+      finaleEpNumbers: finaleEpNums,
+      cells,
+    } = computeHeatmapData(season, results);
     const epLabel = (n: number) => (finaleEpNums.has(n) ? 'Finale' : `Ep ${n}`);
-
-    // Sort queens by win probability (best at top)
-    const sortedQueens = [...season.queens].sort(
-      (a, b) => (results.winProb[b.id] ?? 0) - (results.winProb[a.id] ?? 0),
-    );
 
     const x = d3
       .scaleBand<number>()
@@ -116,31 +114,22 @@ export default function EliminationHeatmap({
       .style('pointer-events', 'none')
       .style('z-index', '100');
 
-    // Which episodes are non-elimination? Finales count as elim episodes
-    // (they eliminate everyone but the winner). Pass-throughs count as
-    // non-elim (no maxi challenge, no one goes home).
-    const nonElimEpisodes = new Set(
-      season.episodes
-        .filter((e) => isPass(e) || (!isFinale(e) && e.eliminated.length === 0))
-        .map((e) => e.number),
-    );
-
     // Non-elim cell colors
     const nonElimBg = '#141828';
     const nonElimX = '#2a3050';
 
     // Cells
-    for (const queen of sortedQueens) {
+    for (let qi = 0; qi < sortedQueens.length; qi++) {
+      const queen = sortedQueens[qi];
       const isFaded =
         selectedQueenId !== null && selectedQueenId !== queen.id;
 
       for (let epIdx = 0; epIdx < episodes.length; epIdx++) {
         const ep = episodes[epIdx];
-        const elim = results.elimProbByEpisode[epIdx]?.[queen.id] ?? 0;
-        const alive = results.aliveProbByEpisode[epIdx]?.[queen.id] ?? 0;
-        // Conditional sashay risk: P(eliminated this ep | alive entering it)
-        const prob = alive > 0 ? elim / alive : 0;
-        const isNonElim = nonElimEpisodes.has(ep);
+        const cell = cells[qi][epIdx];
+        const prob = cell.risk;
+        const alive = cell.alive;
+        const isNonElim = cell.isNonElim;
 
         const cx = (x(ep) ?? 0) + x.bandwidth() / 2;
         const cy = (y(queen.id) ?? 0) + y.bandwidth() / 2;
