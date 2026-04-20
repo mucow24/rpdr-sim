@@ -66,23 +66,28 @@ export default function QueenStatsPanel() {
         >
           {queen ? queen.name : 'No queen selected'}
         </h3>
-        {queen && (
-          <div className="ml-auto flex items-center gap-3 text-xs font-mono text-[#aaa] flex-shrink-0">
-            <span title="Queen power - average stat value">
-              💪 {avgStat.toFixed(1)}
+        <div className="ml-auto flex items-center gap-3 text-xs font-mono text-[#aaa] flex-shrink-0">
+          <span title="Queen power - average stat value">
+            💪{' '}
+            <span className="inline-block w-6 text-left tabular-nums align-middle -ml-[3px]">
+              {queen ? avgStat.toFixed(1) : '--'}
             </span>
-            <span title="Probability of being in finale">
-              🏆{' '}
-              {reachedFinaleProb !== null
+          </span>
+          <span title="Probability of being in finale">
+            🏆{' '}
+            <span className="inline-block w-6 text-left tabular-nums align-middle -ml-[3px]">
+              {queen && reachedFinaleProb !== null
                 ? `${(reachedFinaleProb * 100).toFixed(0)}%`
                 : '--'}
             </span>
-            <span title="Probability of winning the crown">
-              👑{' '}
-              {winProb !== null ? `${(winProb * 100).toFixed(0)}%` : '--'}
+          </span>
+          <span title="Probability of winning the crown">
+            👑{' '}
+            <span className="inline-block w-6 text-left tabular-nums align-middle -ml-[3px]">
+              {queen && winProb !== null ? `${(winProb * 100).toFixed(0)}%` : '--'}
             </span>
-          </div>
-        )}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 mb-3">
@@ -90,7 +95,7 @@ export default function QueenStatsPanel() {
           <RadarChart queen={queen} size={110} />
         </div>
         <div className="flex-1 min-w-0 self-stretch">
-          {queen && <TrajectoryChart compact height={110} />}
+          <TrajectoryChart compact height={110} />
         </div>
       </div>
 
