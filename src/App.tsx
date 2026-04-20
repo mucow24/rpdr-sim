@@ -30,6 +30,12 @@ export default function App() {
 
   const [simInput, setSimInput] = useState(numSimulations.toLocaleString());
   const [pendingSeasonId, setPendingSeasonId] = useState(activeSeasonId);
+  const [showDist, setShowDist] = useState(
+    () => localStorage.getItem('rpdr-sim-show-dist') === '1',
+  );
+  useEffect(() => {
+    localStorage.setItem('rpdr-sim-show-dist', showDist ? '1' : '0');
+  }, [showDist]);
   // Shared with Timeline so episode boxes stay aligned with flow-chart columns.
   const carrierWidth = 75;
 
@@ -199,7 +205,11 @@ export default function App() {
 
           <section className="mb-4 flex gap-4 items-stretch w-[900px]">
             <div className="flex-1 min-w-0">
-              <PlacementGrid />
+              {showDist ? (
+                <PlacementDistChart onSwitch={() => setShowDist(false)} />
+              ) : (
+                <PlacementGrid onSwitch={() => setShowDist(true)} />
+              )}
             </div>
             <div className="w-[440px] flex-shrink-0">
               <QueenStatsPanel />
@@ -217,10 +227,6 @@ export default function App() {
           </section>
 
           <DivergencePanel />
-
-          <section className="mb-4">
-            <PlacementDistChart height={460} />
-          </section>
 
           <footer className="text-center text-[#333] text-xs pb-8">
             Powered by {numSimulations.toLocaleString()} Monte Carlo simulations. May the best woman win.

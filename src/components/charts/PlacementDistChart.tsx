@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { useContainerWidth } from './common/useContainerSize';
+import { useContainerSize } from './common/useContainerSize';
 import { computePlacementDistData } from './placementDist/placementDistData';
 
 
-const MARGIN = { top: 24, right: 50, bottom: 40, left: 120 };
+const MARGIN = { top: 4, right: 42, bottom: 18, left: 72 };
 
 // Final-rank palette (1st = gold, 2nd = silver, 3rd = bronze, then darker
 // shades for descending finishes). Keyed by 1-based final place; index 0 is a
@@ -30,11 +30,13 @@ const PLACEMENT_COLORS = [
   '#1e1e1e', // 14th
 ];
 
-export default function PlacementDistChart({
-  height = 460,
-}) {
+interface Props {
+  onSwitch?: () => void;
+}
+
+export default function PlacementDistChart({ onSwitch }: Props = {}) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const { containerRef, width } = useContainerWidth(520);
+  const { containerRef: plotRef, width, height } = useContainerSize({ width: 400, height: 280 });
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
@@ -90,7 +92,7 @@ export default function PlacementDistChart({
       .call(
         d3.axisLeft(y).tickFormat((id) => {
           const q = season.queens.find((q) => q.id === id);
-          return q?.name.split(' ')[0] ?? id;
+          return (q?.name.split(' ')[0] ?? id).toUpperCase();
         }),
       )
       .call((g) => g.select('.domain').remove())
@@ -102,7 +104,9 @@ export default function PlacementDistChart({
             const q = season.queens.find((q) => q.id === id);
             return q?.color ?? '#888';
           })
-          .attr('font-size', '11px')
+          .attr('font-size', '10px')
+          .attr('font-weight', 'bold')
+          .attr('font-family', 'monospace')
           .style('cursor', 'pointer')
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
@@ -173,12 +177,16 @@ export default function PlacementDistChart({
       // Win % label at the end of the bar
       if (winProb > 0.01) {
         const totalCum = segments.reduce((s, seg) => s + seg.prob, 0);
-        g.append('text')
+        const label = g.append('text')
           .attr('x', x(totalCum) + 6)
-          .attr('y', (y(queen.id) ?? 0) + y.bandwidth() / 2 + 4)
+          .attr('y', (y(queen.id) ?? 0) + y.bandwidth() / 2)
+          .attr('dominant-baseline', 'middle')
           .attr('fill', '#666')
           .attr('font-size', '10px')
-          .text(`👑 ${(winProb * 100).toFixed(0)}%`);
+          .attr('font-weight', 'bold')
+          .attr('font-family', 'monospace');
+        label.append('tspan').attr('dy', '-0.1em').text('👑');
+        label.append('tspan').attr('dy', '0.1em').text(` ${(winProb * 100).toFixed(0)}%`);
       }
     }
 
@@ -188,11 +196,40 @@ export default function PlacementDistChart({
   }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
 
   return (
-    <div ref={containerRef}>
-      <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-        Placement Distribution
-      </h3>
-      {results && <svg ref={svgRef} width={width} height={height} />}
+    <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">
+      <div className="flex items-center mb-1">
+        <h3 className="text-sm font-medium text-[#ddd]">
+          Placement Distribution
+        </h3>
+        {onSwitch && (
+          <button
+            onClick={onSwitch}
+            title="Switch to Placement Probability Grid"
+            className="ml-auto text-[#666] hover:text-[#ddd] transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="17 1 21 5 17 9" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <polyline points="7 23 3 19 7 15" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+            </svg>
+          </button>
+        )}
+      </div>
+      <div ref={plotRef} className="flex-1 min-h-0 relative">
+        {results ? (
+          <svg
+            ref={svgRef}
+            width={width}
+            height={height}
+            className="absolute inset-0"
+          />
+        ) : (
+          <div className="flex items-center justify-center text-[#444] h-full">
+            Running simulations...
+          </div>
+        )}
+      </div>
     </div>
   );
 }
