@@ -36,6 +36,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('rpdr-sim-show-dist', showDist ? '1' : '0');
   }, [showDist]);
+  const [debug, setDebug] = useState(
+    () => localStorage.getItem('rpdr-sim-debug') === '1',
+  );
+  useEffect(() => {
+    localStorage.setItem('rpdr-sim-debug', debug ? '1' : '0');
+  }, [debug]);
   // Shared with Timeline so episode boxes stay aligned with flow-chart columns.
   const carrierWidth = 75;
 
@@ -172,6 +178,15 @@ export default function App() {
               </span>
             )}
             <span className="ml-auto" />
+            <label className="flex items-center gap-1.5 text-sm text-[#888] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={debug}
+                onChange={(e) => setDebug(e.target.checked)}
+                className="accent-amber-500"
+              />
+              Debug
+            </label>
             <input
               type="text"
               value={simInput}
@@ -222,7 +237,7 @@ export default function App() {
               <h3 className="text-sm font-medium text-[#ddd] mb-3">
                 Season Flow — click a queen to select, click placements to pin
               </h3>
-              <Timeline carrierWidth={carrierWidth} />
+              <Timeline carrierWidth={carrierWidth} debug={debug} />
               <SeasonFlowChart carrierWidth={carrierWidth} />
             </div>
           </section>

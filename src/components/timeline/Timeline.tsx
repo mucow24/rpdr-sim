@@ -42,7 +42,7 @@ const FLOW_EP0_BASE_PX = 64;
 const FLOW_HORIZ_RESERVED_PX = 104;
 const BOX_PX = 48;
 
-export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
+export default function Timeline({ carrierWidth, debug = false }: { carrierWidth: number; debug?: boolean }) {
   const season = useStore(selectCurrentSeason);
   const { conditions, updateEpisodeArchetype, updateEpisodeWeights } =
     useStore();
@@ -56,47 +56,49 @@ export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
 
   return (
     <div className="w-full pt-4 pb-[5px] overflow-visible">
-      <div className="flex items-center gap-4 mb-3 text-xs text-[#888]">
-        <div className="flex items-center gap-2">
-          <label>Popover dim exp</label>
-          <input
-            type="range"
-            min={0}
-            max={5}
-            step={0.05}
-            value={dimExp}
-            onChange={(e) => setDimExp(parseFloat(e.target.value))}
-            className="w-48"
-          />
-          <span className="font-mono text-[#ccc] w-10">{dimExp.toFixed(2)}</span>
+      {debug && (
+        <div className="flex items-center gap-4 mb-3 text-xs text-[#888]">
+          <div className="flex items-center gap-2">
+            <label>Popover dim exp</label>
+            <input
+              type="range"
+              min={0}
+              max={5}
+              step={0.05}
+              value={dimExp}
+              onChange={(e) => setDimExp(parseFloat(e.target.value))}
+              className="w-48"
+            />
+            <span className="font-mono text-[#ccc] w-10">{dimExp.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label>Popover dim cutoff</label>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.02}
+              value={dimCutoff}
+              onChange={(e) => setDimCutoff(parseFloat(e.target.value))}
+              className="w-48"
+            />
+            <span className="font-mono text-[#ccc] w-10">{dimCutoff.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label>Popover dim floor</label>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.02}
+              value={dimFloor}
+              onChange={(e) => setDimFloor(parseFloat(e.target.value))}
+              className="w-48"
+            />
+            <span className="font-mono text-[#ccc] w-10">{dimFloor.toFixed(2)}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label>Popover dim cutoff</label>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.02}
-            value={dimCutoff}
-            onChange={(e) => setDimCutoff(parseFloat(e.target.value))}
-            className="w-48"
-          />
-          <span className="font-mono text-[#ccc] w-10">{dimCutoff.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label>Popover dim floor</label>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.02}
-            value={dimFloor}
-            onChange={(e) => setDimFloor(parseFloat(e.target.value))}
-            className="w-48"
-          />
-          <span className="font-mono text-[#ccc] w-10">{dimFloor.toFixed(2)}</span>
-        </div>
-      </div>
+      )}
       <div className="relative w-full" style={{ height: BOX_PX }}>
         {season.episodes.map((episode, idx) => {
           const hasCondition = conditionEpisodes.has(idx);
@@ -120,6 +122,7 @@ export default function Timeline({ carrierWidth }: { carrierWidth: number }) {
             >
               <PopoverBox
                 width={360}
+                persistOnClickOutside={debug}
                 renderTrigger={({ isOpen, toggle }) => (
                   <button
                     onClick={toggle}
