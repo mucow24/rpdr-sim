@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { PLACEMENTS } from '../../engine/types';
 import { PLACEMENT_PALETTE } from './common/palette';
 import { useContainerWidth } from './common/useContainerSize';
+import {
+  CHART_PLACEMENTS,
+  computeTrajectoryData,
+  type TrajectoryEpData,
+} from './trajectory/trajectoryData';
 
 // Local override on top of the canonical palette: ELIM is lifted from
 // #8b0000 to a brighter red so it stays readable on the dark panel
@@ -15,33 +19,17 @@ const PLACEMENT_COLORS: Record<string, string> = {
   ELIM: '#b22222',
 };
 
-// Placements including ELIM at the bottom of the chart. Each per-episode
-// distribution folds cumulative elimination into ELIM so probabilities sum to 1.
-const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
-
 const MARGIN = { top: 24, right: 50, bottom: 48, left: 60 };
 const MARGIN_COMPACT = { top: 4, right: 6, bottom: 18, left: 28 };
 
-/**
- * Given a discrete placement distribution, find the y-position for a given percentile.
- * Interpolates between placement levels for smooth band edges.
- */
-function percentileY(
-  dist: Record<string, number>,
-  p: number,
-  yPositions: number[],
-): number {
-  let cumProb = 0;
-  for (let i = 0; i < CHART_PLACEMENTS.length; i++) {
-    const prevCum = cumProb;
-    cumProb += dist[CHART_PLACEMENTS[i]] ?? 0;
-    if (cumProb >= p - 1e-9) {
-      if (i === 0 || prevCum >= p - 1e-9) return yPositions[i];
-      const frac = (p - prevCum) / (cumProb - prevCum);
-      return yPositions[i - 1] + frac * (yPositions[i] - yPositions[i - 1]);
-    }
-  }
-  return yPositions[yPositions.length - 1];
+/** Fractional placement index → pixel y via linear interpolation between
+ *  adjacent entries in `yPositions`. The data module returns percentile
+ *  indices; here the chart turns them into y pixels. */
+function indexToY(idx: number, yPositions: number[]): number {
+  const lo = Math.floor(idx);
+  const hi = Math.min(lo + 1, yPositions.length - 1);
+  const frac = idx - lo;
+  return yPositions[lo] + frac * (yPositions[hi] - yPositions[lo]);
 }
 
 type TrajectoryChartProps = {
@@ -150,57 +138,25 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .text(p);
     }
 
-    // Compute survival probability at each episode
-    // survival[ep] = fraction of runs where queen is still alive at episode ep
-    const survival: number[] = [];
-    for (let epIdx = 0; epIdx < numEpisodes; epIdx++) {
-      let cumElim = 0;
-      for (let e = 0; e < epIdx; e++) {
-        cumElim += results.elimProbByEpisode[e]?.[queen.id] ?? 0;
-      }
-      survival.push(Math.max(0, 1 - cumElim));
-    }
-
-    // Compute per-episode data: percentiles, mode, and survival
-    type EpData = {
-      ep: number;
-      dist: Record<string, number>;
+    // Probability derivation (survival + per-ep distribution + percentile
+    // fractional indices) lives in computeTrajectoryData. This component
+    // converts percentile indices to pixel y via `indexToY`.
+    const { epData: rawEpData } = computeTrajectoryData(season, results, queen.id);
+    type EpData = TrajectoryEpData & {
       medianY: number;
-      survival: number;
-      p005: number; p05: number; p25: number; p75: number; p95: number; p995: number;
+      p005Y: number; p05Y: number; p25Y: number;
+      p75Y: number; p95Y: number; p995Y: number;
     };
-
-    const epData: EpData[] = [];
-    for (let epIdx = 0; epIdx < numEpisodes; epIdx++) {
-      const epPlacements = results.episodePlacements[epIdx];
-      if (!epPlacements) break;
-      const rawDist = epPlacements[queen.id] ?? {};
-      const elim = results.elimProbByEpisode[epIdx]?.[queen.id] ?? 0;
-      const surv = survival[epIdx];
-      if (surv < 1e-3) break;
-
-      // Per-episode conditional distribution (given alive at start of episode).
-      // Sums to 1. ELIM represents only this episode's elimination probability —
-      // prior eliminations are visualized separately via the survival-fade overlay.
-      // After Phase 1a, rawDist['BTM2'] already excludes eliminated queens
-      // (they're encoded as ELIM in the placement byte), so no subtraction needed.
-      const dist: Record<string, number> = {};
-      for (const p of PLACEMENTS) dist[p] = rawDist[p] ?? 0;
-      dist['ELIM'] = elim / surv;
-
-      epData.push({
-        ep: epIdx + 1,
-        dist,
-        survival: surv,
-        medianY: percentileY(dist, 0.5, yPositions),
-        p005: percentileY(dist, 0.005, yPositions),
-        p05: percentileY(dist, 0.05, yPositions),
-        p25: percentileY(dist, 0.25, yPositions),
-        p75: percentileY(dist, 0.75, yPositions),
-        p95: percentileY(dist, 0.95, yPositions),
-        p995: percentileY(dist, 0.995, yPositions),
-      });
-    }
+    const epData: EpData[] = rawEpData.map((e) => ({
+      ...e,
+      medianY: indexToY(e.median, yPositions),
+      p005Y: indexToY(e.p005, yPositions),
+      p05Y: indexToY(e.p05, yPositions),
+      p25Y: indexToY(e.p25, yPositions),
+      p75Y: indexToY(e.p75, yPositions),
+      p95Y: indexToY(e.p95, yPositions),
+      p995Y: indexToY(e.p995, yPositions),
+    }));
 
     if (epData.length === 0) return;
 
@@ -225,11 +181,13 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       return `url(#${id})`;
     }
 
-    // Bands: widest first, smooth curves
+    // Bands: widest first, smooth curves. Y-pixel fields are `p…Y` (added by
+    // this component); `p…` on the raw epData hold fractional placement
+    // indices used by the data module.
     const bands: { y0Key: keyof EpData; y1Key: keyof EpData; baseOpacity: number; id: string }[] = [
-      { y0Key: 'p995', y1Key: 'p005', baseOpacity: 0.08, id: 'band99' },
-      { y0Key: 'p95', y1Key: 'p05', baseOpacity: 0.15, id: 'band90' },
-      { y0Key: 'p75', y1Key: 'p25', baseOpacity: 0.35, id: 'band50' },
+      { y0Key: 'p995Y', y1Key: 'p005Y', baseOpacity: 0.08, id: 'band99' },
+      { y0Key: 'p95Y', y1Key: 'p05Y', baseOpacity: 0.15, id: 'band90' },
+      { y0Key: 'p75Y', y1Key: 'p25Y', baseOpacity: 0.35, id: 'band50' },
     ];
 
     for (const band of bands) {

@@ -1,9 +1,10 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
-import { selectCurrentSeason } from './selectors';
+import { selectBaselineSeason, selectCurrentSeason } from './selectors';
 import { migrateToV2 } from './migrate';
 import { SEASON_PRESETS } from '../data/presets';
 import { isRegular } from '../engine/types';
+import type { FilterCondition } from '../engine/types';
 
 beforeEach(() => {
   // Reset store to initial state before each test
@@ -379,3 +380,143 @@ describe('migrateToV2', () => {
     expect(migrateToV2(payload, 2)).toBe(payload);
   });
 });
+
+// ── Filter condition actions ────────────────────────────────
+
+describe('addCondition', () => {
+  test('appends a new condition', () => {
+    const { addCondition } = useStore.getState();
+    const c: FilterCondition = { episodeIndex: 0, queenIndex: 1, placement: 0 };
+    addCondition(c);
+    expect(useStore.getState().conditions).toEqual([c]);
+  });
+
+  test('replaces an existing condition at the same (episodeIndex, queenIndex)', () => {
+    // This dedup is the only reason addCondition needs filter logic rather
+    // than a plain push — every (ep, queen) slot holds at most one pin.
+    const { addCondition } = useStore.getState();
+    addCondition({ episodeIndex: 0, queenIndex: 1, placement: 0 });
+    addCondition({ episodeIndex: 0, queenIndex: 1, placement: 4 });
+    expect(useStore.getState().conditions).toEqual([
+      { episodeIndex: 0, queenIndex: 1, placement: 4 },
+    ]);
+  });
+
+  test('leaves unrelated conditions alone', () => {
+    const { addCondition } = useStore.getState();
+    const a: FilterCondition = { episodeIndex: 0, queenIndex: 1, placement: 0 };
+    const b: FilterCondition = { episodeIndex: 1, queenIndex: 2, placement: 4 };
+    addCondition(a);
+    addCondition(b);
+    expect(useStore.getState().conditions).toEqual([a, b]);
+  });
+});
+
+describe('removeCondition', () => {
+  test('removes the targeted (episodeIndex, queenIndex) pair', () => {
+    const { addCondition, removeCondition } = useStore.getState();
+    addCondition({ episodeIndex: 0, queenIndex: 1, placement: 0 });
+    addCondition({ episodeIndex: 1, queenIndex: 2, placement: 4 });
+    removeCondition(0, 1);
+    expect(useStore.getState().conditions).toEqual([
+      { episodeIndex: 1, queenIndex: 2, placement: 4 },
+    ]);
+  });
+
+  test('is a no-op when the pair is not present', () => {
+    const { addCondition, removeCondition } = useStore.getState();
+    const c: FilterCondition = { episodeIndex: 0, queenIndex: 1, placement: 0 };
+    addCondition(c);
+    removeCondition(5, 5);
+    expect(useStore.getState().conditions).toEqual([c]);
+  });
+});
+
+describe('clearConditions', () => {
+  test('empties conditions AND nulls filteredResults + matchCount + totalRuns', () => {
+    // Important: filter-derived state must reset too — a lingering stale
+    // filteredResults after "clear all pins" would mislead the UI.
+    const fake = {
+      numSimulations: 1, winProbByEpisode: [], aliveProbByEpisode: [],
+      elimProbByEpisode: [], placementDist: {}, reachedFinaleProb: {},
+      winProb: {}, episodePlacements: [],
+    };
+    useStore.setState({
+      conditions: [{ episodeIndex: 0, queenIndex: 1, placement: 0 }],
+      filteredResults: fake,
+      filterMatchCount: 50,
+      filterTotalRuns: 100,
+    });
+    useStore.getState().clearConditions();
+    const s = useStore.getState();
+    expect(s.conditions).toEqual([]);
+    expect(s.filteredResults).toBeNull();
+    expect(s.filterMatchCount).toBeNull();
+    expect(s.filterTotalRuns).toBeNull();
+  });
+});
+
+// ── selectBaselineSeason ────────────────────────────────────
+
+describe('selectBaselineSeason', () => {
+  test('returns the base season even when overrides exist', () => {
+    // Baseline runs must NOT reflect pending what-if overrides — filtering
+    // happens post-hoc against the baseline buffer.
+    const { updateEpisodeOutcome } = useStore.getState();
+    updateEpisodeOutcome(3, { placements: { jinkx: 'WIN' }, eliminated: ['roxxxy'] });
+    const baseline = selectBaselineSeason(useStore.getState());
+    const raw = useStore.getState().seasonsById['season5'];
+    expect(baseline).toBe(raw); // same reference — no override layer
+    if (!isRegular(baseline.episodes[3])) throw new Error('expected regular ep at 3');
+    expect(baseline.episodes[3].eliminated).not.toEqual(['roxxxy']);
+  });
+
+  test('throws on unknown active season (invariant guard)', () => {
+    useStore.setState({ activeSeasonId: 'nope-does-not-exist' });
+    expect(() => selectBaselineSeason(useStore.getState())).toThrow();
+  });
+});
+
+// ── updateEpisodeWeights ────────────────────────────────────
+
+describe('updateEpisodeWeights', () => {
+  test('stores a per-episode weight override and clears sim results', () => {
+    const fake = {
+      numSimulations: 1, winProbByEpisode: [], aliveProbByEpisode: [],
+      elimProbByEpisode: [], placementDist: {}, reachedFinaleProb: {},
+      winProb: {}, episodePlacements: [],
+    };
+    useStore.setState({ baselineResults: fake, filteredResults: fake, filterMatchCount: 1, filterTotalRuns: 1 });
+    const weights = {
+      comedy: 10, improv: 0, acting: 0, dance: 0,
+      music: 0, design: 0, runway: 0, charisma: 0,
+    };
+    useStore.getState().updateEpisodeWeights(0, weights);
+    const s = useStore.getState();
+    const ep = s.seasonsById['season5'].episodes[0];
+    if (!isRegular(ep)) throw new Error('expected regular ep at 0');
+    expect(ep.weights).toEqual(weights);
+    // Sim results invalidated, because the next run should use the new weights.
+    expect(s.baselineResults).toBeNull();
+    expect(s.filteredResults).toBeNull();
+    expect(s.filterMatchCount).toBeNull();
+    expect(s.filterTotalRuns).toBeNull();
+  });
+
+  test('is a no-op on finale and pass episodes (archetype/weights do not apply)', () => {
+    // Find a finale ep in any preset (season episodes end with a finale).
+    const s0 = useStore.getState().seasonsById['season5'];
+    const finaleIdx = s0.episodes.findIndex((e) => e.kind === 'finale');
+    expect(finaleIdx).toBeGreaterThan(-1);
+    const before = s0.episodes[finaleIdx];
+    useStore.getState().updateEpisodeWeights(finaleIdx, {
+      comedy: 1, improv: 0, acting: 0, dance: 0,
+      music: 0, design: 0, runway: 0, charisma: 0,
+    });
+    const after = useStore.getState().seasonsById['season5'].episodes[finaleIdx];
+    expect(after).toEqual(before);
+  });
+});
+
+// The persist partialize shape is tested in useStore.persist.test.ts
+// (separate file so it can use the happy-dom env for localStorage access).

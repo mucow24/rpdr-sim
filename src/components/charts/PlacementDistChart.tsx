@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { useContainerWidth } from './common/useContainerSize';
+import { computePlacementDistData } from './placementDist/placementDistData';
 
 
 const MARGIN = { top: 24, right: 50, bottom: 40, left: 120 };
@@ -53,14 +54,10 @@ export default function PlacementDistChart({
       .append('g')
       .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    // Sort queens by expected placement (best at top)
-    const sortedQueens = [...season.queens].sort((a, b) => {
-      const distA = results.placementDist[a.id] ?? [];
-      const distB = results.placementDist[b.id] ?? [];
-      const expectedA = distA.reduce((sum, p, i) => sum + p * i, 0);
-      const expectedB = distB.reduce((sum, p, i) => sum + p * i, 0);
-      return expectedA - expectedB;
-    });
+    // Pure data derivation: sort by expected placement and precompute
+    // stacked-bar segments. See placementDistData.test.ts for invariants.
+    const { queens: rows } = computePlacementDistData(season, results);
+    const sortedQueens = rows.map((r) => r.queen);
 
     const x = d3.scaleLinear().domain([0, 1]).range([0, innerWidth]);
 
@@ -126,35 +123,32 @@ export default function PlacementDistChart({
       .style('pointer-events', 'none')
       .style('z-index', '100');
 
-    // Stacked bars
-    for (const queen of sortedQueens) {
-      const dist = results.placementDist[queen.id] ?? [];
+    // Stacked bars — segments + cumBefore precomputed in placementDistData.
+    for (const row of rows) {
+      const { queen, segments, winProb } = row;
       const isFaded =
         selectedQueenId !== null && selectedQueenId !== queen.id;
 
-      let cumX = 0;
-      for (let place = 1; place < dist.length; place++) {
-        const prob = dist[place];
-        if (prob < 0.001) continue;
-
-        const barWidth = x(prob) - x(0);
+      for (const seg of segments) {
+        if (seg.prob < 0.001) continue;
+        const barWidth = x(seg.prob) - x(0);
 
         g.append('rect')
-          .attr('x', x(cumX))
+          .attr('x', x(seg.cumBefore))
           .attr('y', y(queen.id) ?? 0)
           .attr('width', barWidth)
           .attr('height', y.bandwidth())
-          .attr('fill', PLACEMENT_COLORS[place] ?? '#333')
+          .attr('fill', PLACEMENT_COLORS[seg.place] ?? '#333')
           .attr('opacity', isFaded ? 0.25 : 1)
-          .attr('rx', place === 1 ? 2 : 0)
+          .attr('rx', seg.place === 1 ? 2 : 0)
           .style('cursor', 'pointer')
           .on('mouseenter', (event) => {
             const suffix =
-              place === 1
+              seg.place === 1
                 ? 'st'
-                : place === 2
+                : seg.place === 2
                   ? 'nd'
-                  : place === 3
+                  : seg.place === 3
                     ? 'rd'
                     : 'th';
             tooltip
@@ -162,7 +156,7 @@ export default function PlacementDistChart({
               .style('left', `${event.clientX + 12}px`)
               .style('top', `${event.clientY - 10}px`)
               .html(
-                `<strong>${queen.name}</strong><br/>${place}${suffix} place: ${(prob * 100).toFixed(1)}%`,
+                `<strong>${queen.name}</strong><br/>${seg.place}${suffix} place: ${(seg.prob * 100).toFixed(1)}%`,
               );
           })
           .on('mousemove', (event) => {
@@ -174,15 +168,13 @@ export default function PlacementDistChart({
             tooltip.style('display', 'none');
           })
           .on('click', () => setSelectedQueenId(queen.id));
-
-        cumX += prob;
       }
 
       // Win % label at the end of the bar
-      const winProb = dist[1] ?? 0;
       if (winProb > 0.01) {
+        const totalCum = segments.reduce((s, seg) => s + seg.prob, 0);
         g.append('text')
-          .attr('x', x(cumX) + 6)
+          .attr('x', x(totalCum) + 6)
           .attr('y', (y(queen.id) ?? 0) + y.bandwidth() / 2 + 4)
           .attr('fill', '#666')
           .attr('font-size', '10px')

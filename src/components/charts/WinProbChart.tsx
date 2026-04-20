@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { isFinale } from '../../engine/types';
 import { useContainerWidth } from './common/useContainerSize';
+import { computeWinProbData, type LinePoint } from './winProb/winProbData';
 
 
 function getMargin(width: number) {
@@ -35,29 +36,14 @@ export default function WinProbChart({ height = 400 }) {
       .append('g')
       .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    const episodes = season.episodes.map((e) => e.number);
-    const queenIds = season.queens.map((q) => q.id);
+    // Probability derivation + queen sort happen in winProbData — pure fn,
+    // unit-tested separately. This component owns only layout and interactivity.
+    const { episodeNumbers: episodes, lines, baselineLines } = computeWinProbData(
+      season,
+      results,
+      filteredResults && baselineResults ? baselineResults : null,
+    );
     const lastIdx = episodes.length - 1;
-
-    // Build line data: each queen's P(alive) trajectory. Positioning is by
-    // array index (so non-sequential episode numbers don't stretch the axis);
-    // episode numbers are used only for tick labels.
-    type LinePoint = { idx: number; prob: number };
-    const lines: { queenId: string; points: LinePoint[] }[] = queenIds.map(
-      (qid) => {
-        const epPoints = episodes.map((_, i) => ({
-          idx: i,
-          prob: results.aliveProbByEpisode[i]?.[qid] ?? 0,
-        }));
-        return { queenId: qid, points: epPoints };
-      },
-    );
-
-    // Sort by overall win prob (strongest on top in legend)
-    lines.sort(
-      (a, b) =>
-        (results.winProb[b.queenId] ?? 0) - (results.winProb[a.queenId] ?? 0),
-    );
 
     const x = d3.scaleLinear().domain([0, lastIdx]).range([0, innerWidth]);
     const y = d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]);
@@ -114,16 +100,7 @@ export default function WinProbChart({ height = 400 }) {
     const queenMap = new Map(season.queens.map((q) => [q.id, q]));
 
     // Ghost baseline lines if we have divergent results
-    if (filteredResults && baselineResults) {
-      const baselineLines: { queenId: string; points: LinePoint[] }[] =
-        queenIds.map((qid) => {
-          const epPoints = episodes.map((_, i) => ({
-            idx: i,
-            prob: baselineResults.aliveProbByEpisode[i]?.[qid] ?? 0,
-          }));
-          return { queenId: qid, points: epPoints };
-        });
-
+    if (baselineLines) {
       for (const { queenId, points } of baselineLines) {
         const queen = queenMap.get(queenId);
         if (!queen) continue;
