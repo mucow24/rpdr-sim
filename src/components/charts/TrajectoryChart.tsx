@@ -172,29 +172,55 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
     // Reveal-from-left animation. Gate on user-selection changes (not on
     // effective queen, width, or toggle changes) — this way clicking a queen
     // always animates, even when that queen was already the fallback.
-    const ANIM_DURATION_MS = 900;
+    //
+    // Two-phase reveal: phase 1 wipes in the bands + median line, phase 2
+    // follows with the dotted survival line. Each phase has the same duration.
+    const ANIM_DURATION_MS = 700;
     const selectionChanged = prevSelectedIdRef.current !== selectedQueenId;
     prevSelectedIdRef.current = selectedQueenId;
     if (selectionChanged) {
       animRef.current = { queenId: queen.id, startTime: performance.now() };
     }
 
-    // Group containing the animated chart content (bands + median + survival).
-    // Grid, axes, labels, and hover overlays stay on `g` so they're not clipped.
+    // Group containing the animated bands + median. Grid, axes, labels, and
+    // hover overlays stay on `g` so they're not clipped. Survival line lives
+    // in its own group so it can animate on a separate schedule.
     const contentG = g.append('g');
+    const survivalG = g.append('g');
 
     const anim = animRef.current;
     const elapsed = anim && anim.queenId === queen.id ? performance.now() - anim.startTime : Infinity;
-    if (elapsed < ANIM_DURATION_MS) {
-      // Resume the in-flight animation at whatever width the clip would have
-      // had at `elapsed` into an easeCubicOut curve, then linearly finish the
-      // remainder. This keeps the wipe visibly continuous across re-renders.
-      const t = elapsed / ANIM_DURATION_MS;
-      const eased = 1 - Math.pow(1 - t, 3);
-      const startW = innerWidth * eased;
-      const remaining = ANIM_DURATION_MS - elapsed;
+    const idSafe = queen.id.replace(/[^a-z0-9]/gi, '');
 
-      const clipId = `traj-reveal-${queen.id.replace(/[^a-z0-9]/gi, '')}`;
+    // Applies a left-to-right clip reveal to `node`, with the wipe running
+    // from phaseStart to phaseStart + ANIM_DURATION_MS on the shared timeline.
+    // Resumes mid-flight on re-renders (width settles, toggle flips) instead
+    // of snapping to fully-drawn.
+    function applyRevealClip(
+      node: d3.Selection<SVGGElement, unknown, null, undefined>,
+      phaseStart: number,
+      clipId: string,
+    ) {
+      const phaseEnd = phaseStart + ANIM_DURATION_MS;
+      if (elapsed >= phaseEnd) return; // already done — no clip needed
+
+      let startW: number;
+      let delay: number;
+      let remaining: number;
+      if (elapsed < phaseStart) {
+        // Haven't entered this phase yet — hold at width 0, then wipe.
+        startW = 0;
+        delay = phaseStart - elapsed;
+        remaining = ANIM_DURATION_MS;
+      } else {
+        // In-flight — resume where an easeCubicOut curve would currently be.
+        const t = (elapsed - phaseStart) / ANIM_DURATION_MS;
+        const eased = 1 - Math.pow(1 - t, 3);
+        startW = innerWidth * eased;
+        delay = 0;
+        remaining = phaseEnd - elapsed;
+      }
+
       const clipRect = defs
         .append('clipPath')
         .attr('id', clipId)
@@ -203,13 +229,17 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .attr('y', -4)
         .attr('width', startW)
         .attr('height', innerHeight + 8);
-      contentG.attr('clip-path', `url(#${clipId})`);
+      node.attr('clip-path', `url(#${clipId})`);
       clipRect
         .transition()
+        .delay(delay)
         .duration(remaining)
         .ease(d3.easeLinear)
         .attr('width', innerWidth);
     }
+
+    applyRevealClip(contentG, 0, `traj-reveal-${idSafe}`);
+    applyRevealClip(survivalG, ANIM_DURATION_MS, `traj-reveal-surv-${idSafe}`);
 
     // Build a horizontal gradient that fades opacity by survival at each episode
     function makeSurvivalGradient(id: string, baseOpacity: number): string {
@@ -302,7 +332,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       .y((d) => yRight(d.survival))
       .curve(d3.curveMonotoneX);
 
-    contentG.append('path')
+    survivalG.append('path')
       .datum(epData)
       .attr('d', survivalLine)
       .attr('fill', 'none')
