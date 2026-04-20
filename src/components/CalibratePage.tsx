@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
@@ -69,6 +69,94 @@ function getHeavyEpisodes(
   return rows;
 }
 
+function TooltipShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="absolute left-0 top-full mt-1 z-50 bg-amber-500/20 border border-amber-500/40 rounded shadow-xl p-2 pointer-events-none w-max backdrop-blur-[10px]">
+      {children}
+    </div>
+  );
+}
+
+function QueenChip({ entry }: { entry: RosterEntry }) {
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30">
+      <span
+        className="w-2 h-2 rounded-full flex-shrink-0"
+        style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
+      />
+      <span className="text-amber-300 whitespace-nowrap">{entry.queen.name}</span>
+      <span className="text-amber-500/60 text-[10px]">{seasonAbbrev(entry.seasonId)}</span>
+    </div>
+  );
+}
+
+// Evenly-spaced sample of up to `n` entries across the list. Deterministic.
+function sampleEntries(entries: RosterEntry[], n: number): RosterEntry[] {
+  if (entries.length <= n) return entries;
+  const out: RosterEntry[] = [];
+  for (let i = 0; i < n; i++) {
+    const idx = Math.round((i * (entries.length - 1)) / (n - 1));
+    out.push(entries[idx]);
+  }
+  return out;
+}
+
+function QueenGrid({ entries }: { entries: RosterEntry[] }) {
+  return (
+    <div className="flex flex-col gap-1 w-max">
+      {entries.map((entry) => (
+        <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
+      ))}
+    </div>
+  );
+}
+
+function ScoreSampleTooltip({ entries }: { entries: RosterEntry[] }) {
+  const sample = sampleEntries(entries, 4);
+  return (
+    <TooltipShell>
+      <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
+        Example queens with this score
+      </div>
+      {sample.length === 0 ? (
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
+          No queens at this score
+        </div>
+      ) : (
+        <QueenGrid entries={sample} />
+      )}
+    </TooltipShell>
+  );
+}
+
+// Brighter tooltip-only shades for placements that read as too dim on the
+// amber-tinted tooltip surface.
+const TOOLTIP_PLACEMENT_OVERRIDES: Record<string, string> = {
+  HIGH: '#4fc3ff',
+  SAFE: '#cccccc',
+  LOW: '#f2c09a',
+};
+
+// Text-only override (bg/border still derive from the base color).
+const TOOLTIP_PLACEMENT_FG_OVERRIDES: Record<string, string> = {
+  BTM2: '#ff9f95',
+};
+
+interface PlacementBadgeStyle {
+  bg: string;
+  fg: string;
+  border: string;
+}
+
+function tooltipBadgeStyle(p: PlacementOrElim): PlacementBadgeStyle {
+  if (p === 'ELIM') {
+    return { bg: '#4a0000', fg: '#ff9999', border: '#8b0000' };
+  }
+  const c = TOOLTIP_PLACEMENT_OVERRIDES[p] ?? PLACEMENT_COLORS[p];
+  const fg = TOOLTIP_PLACEMENT_FG_OVERRIDES[p] ?? c;
+  return { bg: c + '33', fg, border: c + '66' };
+}
+
 function HistoryTooltip({
   rows,
   sameScoreQueens,
@@ -77,12 +165,9 @@ function HistoryTooltip({
   sameScoreQueens: RosterEntry[];
 }) {
   return (
-    <div
-      className="absolute left-0 top-full mt-1 z-50 bg-[#121218] border border-[#2a2a3a] rounded shadow-xl p-2 pointer-events-none"
-      style={{ minWidth: 220 }}
-    >
+    <TooltipShell>
       {rows.length === 0 ? (
-        <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
           No heavy-weight episodes for this stat
         </div>
       ) : (
@@ -90,54 +175,45 @@ function HistoryTooltip({
           <tbody>
             {rows.map((row) => (
               <tr key={row.epNumber}>
-                <td className="text-[#ccc] whitespace-nowrap">
-                  <span className="text-[#666]">Ep {row.epNumber}</span>{' '}
+                <td className="text-amber-300 whitespace-nowrap">
+                  <span className="text-amber-500/60">Ep {row.epNumber}</span>{' '}
                   {row.challengeName} {row.icon}
                 </td>
                 <td>
-                  <span
-                    className="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                    style={{
-                      backgroundColor: PLACEMENT_COLORS[row.placement] + '33',
-                      color: PLACEMENT_COLORS[row.placement],
-                      border: `1px solid ${PLACEMENT_COLORS[row.placement]}66`,
-                    }}
-                  >
-                    {row.placement}
-                  </span>
+                  {(() => {
+                    const bs = tooltipBadgeStyle(row.placement);
+                    return (
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                        style={{
+                          backgroundColor: bs.bg,
+                          color: bs.fg,
+                          border: `1px solid ${bs.border}`,
+                        }}
+                      >
+                        {row.placement}
+                      </span>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <div className="border-t border-[#2a2a3a] mt-2 pt-2">
-        <div className="text-[9px] uppercase tracking-wide text-[#555] mb-1 px-1 whitespace-nowrap">
+      <div className="border-t border-amber-500/30 mt-2 pt-2">
+        <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
           Same score, other seasons
         </div>
         {sameScoreQueens.length === 0 ? (
-          <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+          <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
             No matches in other seasons
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-1">
-            {sameScoreQueens.map((entry) => (
-              <div
-                key={queenUid(entry.seasonId, entry.queen.id)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] bg-[#1a1a24] border border-[#2a2a3a]"
-              >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
-                />
-                <span className="text-[#ccc] whitespace-nowrap">{entry.queen.name}</span>
-                <span className="text-[#555] text-[9px]">{seasonAbbrev(entry.seasonId)}</span>
-              </div>
-            ))}
-          </div>
+          <QueenGrid entries={sameScoreQueens} />
         )}
       </div>
-    </div>
+    </TooltipShell>
   );
 }
 
@@ -194,6 +270,7 @@ export default function CalibratePage() {
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
   const [hoveredUid, setHoveredUid] = useState<string | null>(null);
+  const [hoveredScore, setHoveredScore] = useState<number | null>(null);
 
   useEffect(() => {
     for (const key of LEGACY_STORAGE_KEYS) {
@@ -222,11 +299,17 @@ export default function CalibratePage() {
   const scoreRows = Array.from({ length: 10 }, (_, i) => 10 - i); // [10, 9, 8, ..., 1]
 
   const entriesByScore = new Map<number, RosterEntry[]>();
-  for (const score of scoreRows) entriesByScore.set(score, []);
+  const allEntriesByScore = new Map<number, RosterEntry[]>();
+  for (const score of scoreRows) {
+    entriesByScore.set(score, []);
+    allEntriesByScore.set(score, []);
+  }
   for (const entry of roster) {
-    if (!enabledSet.has(entry.seasonId)) continue;
     const val = getStatValue(entry.queen, selectedStat);
-    entriesByScore.get(val)?.push(entry);
+    allEntriesByScore.get(val)?.push(entry);
+    if (enabledSet.has(entry.seasonId)) {
+      entriesByScore.get(val)?.push(entry);
+    }
   }
 
   const sameScoreSample = useMemo(() => {
@@ -252,6 +335,8 @@ export default function CalibratePage() {
   const handleDragStart = (e: DragEvent, entry: RosterEntry) => {
     e.dataTransfer.setData('text/plain', queenUid(entry.seasonId, entry.queen.id));
     e.dataTransfer.effectAllowed = 'move';
+    setHoveredUid(null);
+    setHoveredScore(null);
   };
 
   const handleDrop = (e: DragEvent, targetScore: number) => {
@@ -340,9 +425,20 @@ export default function CalibratePage() {
                   : 'bg-[#111118]'
               }`}
             >
-              <span className="text-sm font-mono font-bold w-6 text-right flex-shrink-0 text-amber-400 pt-1">
-                {score}
-              </span>
+              <div
+                className="relative w-6 flex-shrink-0 pt-1"
+                onMouseEnter={() => setHoveredScore(score)}
+                onMouseLeave={() =>
+                  setHoveredScore((cur) => (cur === score ? null : cur))
+                }
+              >
+                <span className="block text-sm font-mono font-bold text-right text-amber-400 cursor-help">
+                  {score}
+                </span>
+                {hoveredScore === score && (
+                  <ScoreSampleTooltip entries={allEntriesByScore.get(score) ?? []} />
+                )}
+              </div>
               <span className="text-[10px] text-[#444] w-6 flex-shrink-0 pt-1.5">
                 {entries.length}
               </span>
