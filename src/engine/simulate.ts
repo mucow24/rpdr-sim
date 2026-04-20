@@ -4,6 +4,7 @@ import type {
   EpisodeData,
   FinaleEpisode,
   Placement,
+  EpisodeOutcome,
   EpisodeResult,
   SimulationRun,
   SimulationResults,
@@ -78,8 +79,12 @@ function runFinaleDefault(
   const winnerId = finalistScores[0]?.queenId ?? '';
   const losers = finalistScores.slice(1).map((s) => s.queenId);
 
-  const placements = new Map<string, Placement>();
+  // Every finalist gets an outcome: winner = WIN, others = ELIM. Encoding ELIM
+  // here means downstream aggregation reads finale eliminations the same way
+  // it reads pre-finale eliminations — no special-cased finale derivation.
+  const placements = new Map<string, EpisodeOutcome>();
   if (winnerId) placements.set(winnerId, 'WIN');
+  for (const id of losers) placements.set(id, 'ELIM');
 
   episodeResults.push({
     episodeNumber: episode.number,
@@ -95,10 +100,10 @@ function runFinaleDefault(
 
 function assignPlacements(
   scores: { queenId: string; score: number }[],
-): Map<string, Placement> {
+): Map<string, EpisodeOutcome> {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
   const n = sorted.length;
-  const placements = new Map<string, Placement>();
+  const placements = new Map<string, EpisodeOutcome>();
 
   for (let i = 0; i < n; i++) {
     let placement: Placement;
@@ -220,6 +225,8 @@ function simulateOneSeason(
     // every subsequent placement off by one.
     if (episode.eliminated.length >= 2) {
       const [a, b] = bottom2;
+      placements.set(a, 'ELIM');
+      placements.set(b, 'ELIM');
       remaining.delete(a);
       remaining.delete(b);
       eliminationOrder.push(a, b);
@@ -228,7 +235,7 @@ function simulateOneSeason(
         placements,
         lipSyncMatchup: [a, b],
         lipSyncWinner: '',
-        eliminated: a, // buffer can only encode one — the other is reconstructed at finale aggregation if needed
+        eliminated: a, // narrative convenience; both queens encoded as ELIM in placements
       });
       continue;
     }
@@ -237,6 +244,7 @@ function simulateOneSeason(
     const queenB = remaining.get(bottom2[1])!;
     const lipSyncWinner = resolveLipSync(queenA, queenB, rng);
     const eliminated = lipSyncWinner === bottom2[0] ? bottom2[1] : bottom2[0];
+    placements.set(eliminated, 'ELIM');
     remaining.delete(eliminated);
     eliminationOrder.push(eliminated);
 
@@ -266,13 +274,17 @@ function simulateOneSeason(
 }
 
 // ── Compact buffer layout ──────────────────────────────────
-// Per run: [placements][eliminated][finalPlace]
-//   placements: numEpisodes × numQueens bytes (PLACEMENT_INDEX or 255)
-//   eliminated: numEpisodes bytes (queen index or 255)
+// Per run: [placements][finalPlace]
+//   placements: numEpisodes × numQueens bytes (PLACEMENT_INDEX 0..5 or 255)
 //   finalPlace: numQueens bytes (1-based place)
+//
+// Phase 1a dropped a separate `eliminated: numEpisodes` section — eliminations
+// are now encoded as ELIM (5) directly in the placements bytes, removing both
+// the double-elim reconstruction need (both losers get ELIM) and the
+// finale-derivation need (finale losers get ELIM in their finale slot).
 
 export function bytesPerRun(numQueens: number, numEpisodes: number): number {
-  return numEpisodes * numQueens + numEpisodes + numQueens;
+  return numEpisodes * numQueens + numQueens;
 }
 
 function writeRunToBuffer(
@@ -285,7 +297,6 @@ function writeRunToBuffer(
 ) {
   const stride = bytesPerRun(numQueens, numEpisodes);
   const base = offset * stride;
-  const queenIndex = new Map(queenIds.map((id, i) => [id, i]));
 
   // Placements section: numEpisodes × numQueens
   for (let ep = 0; ep < numEpisodes; ep++) {
@@ -301,19 +312,8 @@ function writeRunToBuffer(
     }
   }
 
-  // Eliminated section: numEpisodes
-  const elimBase = base + numEpisodes * numQueens;
-  for (let ep = 0; ep < numEpisodes; ep++) {
-    const epResult = run.episodeResults[ep];
-    if (epResult && epResult.eliminated) {
-      buf[elimBase + ep] = queenIndex.get(epResult.eliminated) ?? 255;
-    } else {
-      buf[elimBase + ep] = 255;
-    }
-  }
-
   // Final placements section: numQueens
-  const fpBase = elimBase + numEpisodes;
+  const fpBase = base + numEpisodes * numQueens;
   for (let qi = 0; qi < numQueens; qi++) {
     const place = run.finalRanks.get(queenIds[qi]);
     buf[fpBase + qi] = place ?? 255;
@@ -450,57 +450,26 @@ export function aggregateFromBuffer(
   const placementDistCounts = Array.from({ length: numQueens }, () => new Int32Array(numQueens + 1));
   const winCounts = new Int32Array(numQueens);
 
-  // Single pass over all runs — run-first for cache locality
+  // Single pass over all runs — run-first for cache locality.
+  // ELIM is now encoded directly in the placement byte (5), so there's no
+  // separate elim section to read, no double-elim reconstruction, and no
+  // finale-derivation: a queen is "alive at start of ep N" iff her placement
+  // byte at ep N is not 255, and she's "eliminated this ep" iff her byte is ELIM.
   for (let r = 0; r < totalRuns; r++) {
     const base = r * stride;
-    const elimBase = base + numEpisodes * numQueens;
-    const fpBase = elimBase + numEpisodes;
-
-    // Track eliminations as we go through episodes
-    const eliminated = new Set<number>();
+    const fpBase = base + numEpisodes * numQueens;
 
     for (let ep = 0; ep < numEpisodes; ep++) {
-      // Alive queens accumulate win probability
+      const epBase = base + ep * numQueens;
       for (let qi = 0; qi < numQueens; qi++) {
-        if (!eliminated.has(qi)) {
-          aliveCountsPerEp[ep][qi]++;
-          if (buffer[fpBase + qi] === 1) winCountsPerEp[ep][qi]++;
-        }
-      }
-
-      // Episode placements
-      for (let qi = 0; qi < numQueens; qi++) {
-        const pIdx = buffer[base + ep * numQueens + qi];
-        if (pIdx !== 255 && pIdx <= 4) {
+        const pIdx = buffer[epBase + qi];
+        if (pIdx === 255) continue;
+        aliveCountsPerEp[ep][qi]++;
+        if (buffer[fpBase + qi] === 1) winCountsPerEp[ep][qi]++;
+        if (pIdx === ELIM_PLACEMENT) {
+          elimCountsPerEp[ep][qi]++;
+        } else if (pIdx <= 4) {
           placeCountsPerEp[ep][qi * 5 + pIdx]++;
-        }
-      }
-
-      // Elimination in this episode
-      const elimInEp = buffer[elimBase + ep];
-      if (elimInEp !== 255) {
-        elimCountsPerEp[ep][elimInEp]++;
-        eliminated.add(elimInEp);
-        // Double elim: the second eliminated queen isn't in the elim byte
-        // (which only fits one). She's the OTHER queen with BTM2 placement
-        // this episode.
-        const seasonEp = episodes[ep];
-        if (!isFinale(seasonEp) && seasonEp.eliminated.length >= 2) {
-          for (let qi = 0; qi < numQueens; qi++) {
-            if (qi !== elimInEp && buffer[base + ep * numQueens + qi] === 4) {
-              elimCountsPerEp[ep][qi]++;
-              eliminated.add(qi);
-              break;
-            }
-          }
-        }
-      } else if (isFinale(episodes[ep])) {
-        // Finale: every alive non-winner is "eliminated" at the finale.
-        // The buffer's single eliminated byte can't encode N losers, so derive here.
-        for (let qi = 0; qi < numQueens; qi++) {
-          if (!eliminated.has(qi) && buffer[fpBase + qi] !== 1) {
-            elimCountsPerEp[ep][qi]++;
-          }
         }
       }
     }
@@ -575,62 +544,37 @@ export function aggregateFromBuffer(
   };
 }
 
-/** Get indices of runs matching all conditions. */
+/** Get indices of runs matching all conditions.
+ *  After Phase 1a every condition (placement 0..4 or ELIM=5) is just an exact
+ *  equality check on the placement byte at (episode, queen). BTM2 pins
+ *  naturally exclude eliminated queens (their byte is ELIM, not BTM2), and
+ *  ELIM pins naturally cover both losers in a double-elim. */
 export function getMatchingIndices(
   buffer: Uint8Array,
   totalRuns: number,
   conditions: FilterCondition[],
   numQueens: number,
   numEpisodes: number,
-  episodes?: EpisodeData[],
 ): number[] {
   const stride = bytesPerRun(numQueens, numEpisodes);
   const matchingIndices: number[] = [];
-  // Precompute which episodes are double-elims so the ELIM filter can match
-  // either of the two queens that went home (the buffer's single elim byte
-  // can only encode one).
-  const isDoubleElim = episodes
-    ? episodes.map((ep) => !isFinale(ep) && ep.eliminated.length >= 2)
-    : null;
   for (let r = 0; r < totalRuns; r++) {
     const base = r * stride;
-    const elimBase = base + numEpisodes * numQueens;
-    const fpBase = elimBase + numEpisodes;
+    const fpBase = base + numEpisodes * numQueens;
     let matches = true;
     for (const cond of conditions) {
       if (cond.episodeIndex === OUTCOME_EPISODE_INDEX) {
-        // Outcome condition: WIN (placement 0) means finalPlace === 1
+        // Outcome condition: WIN (placement 0) means finalPlace === 1.
+        // ELIM in outcome = didn't win.
         const finalPlace = buffer[fpBase + cond.queenIndex];
         if (cond.placement === 0) {
           if (finalPlace !== 1) { matches = false; break; }
         } else {
-          // ELIM in outcome = didn't win
           if (finalPlace === 1) { matches = false; break; }
-        }
-      } else if (cond.placement === ELIM_PLACEMENT) {
-        const elimByte = buffer[elimBase + cond.episodeIndex];
-        const isPrimary = elimByte === cond.queenIndex;
-        // For double-elim episodes, the second eliminated queen isn't in the
-        // elim byte but does have a BTM2 placement byte and an elim byte that
-        // *isn't* her own (i.e. the episode had some elimination at all).
-        const isSecondary =
-          !isPrimary &&
-          isDoubleElim !== null &&
-          isDoubleElim[cond.episodeIndex] &&
-          elimByte !== 255 &&
-          buffer[base + cond.episodeIndex * numQueens + cond.queenIndex] === 4;
-        if (!isPrimary && !isSecondary) {
-          matches = false;
-          break;
         }
       } else {
         const val = buffer[base + cond.episodeIndex * numQueens + cond.queenIndex];
         if (val !== cond.placement) {
-          matches = false;
-          break;
-        }
-        // BTM2 pin means "survived the lip sync" — exclude if this queen was eliminated
-        if (cond.placement === 4 && buffer[elimBase + cond.episodeIndex] === cond.queenIndex) {
           matches = false;
           break;
         }
@@ -654,7 +598,7 @@ export function filterAndAggregate(
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
 
-  const matchingIndices = getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes, episodes);
+  const matchingIndices = getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes);
 
   if (matchingIndices.length === 0) {
     // Return empty results
@@ -671,27 +615,32 @@ export function filterAndAggregate(
     return { results: empty, matchCount: 0 };
   }
 
-  // Reconstruct SimulationRuns from matching buffer rows
+  // Reconstruct SimulationRuns from matching buffer rows. ELIM is now in the
+  // placement byte directly, so the `eliminated` narrative field is recovered
+  // by finding the (first) queen with ELIM in this episode — for double-elim
+  // both queens have ELIM, both surface as BTM2 in the lip-sync matchup, and
+  // `eliminated` is the first one encountered.
   const runs: SimulationRun[] = [];
   for (const r of matchingIndices) {
     const base = r * stride;
-    const elimBase = base + numEpisodes * numQueens;
-    const fpBase = elimBase + numEpisodes;
+    const fpBase = base + numEpisodes * numQueens;
 
     const episodeResults: EpisodeResult[] = [];
     for (let ep = 0; ep < numEpisodes; ep++) {
-      const placements = new Map<string, Placement>();
+      const placements = new Map<string, EpisodeOutcome>();
       const btm2: string[] = [];
+      let eliminated = '';
       for (let qi = 0; qi < numQueens; qi++) {
         const pIdx = buffer[base + ep * numQueens + qi];
-        if (pIdx !== 255 && pIdx <= 4) {
-          const p = INDEX_PLACEMENT[pIdx];
-          placements.set(queenIds[qi], p);
-          if (p === 'BTM2') btm2.push(queenIds[qi]);
+        if (pIdx === 255) continue;
+        const p = INDEX_PLACEMENT[pIdx];
+        placements.set(queenIds[qi], p);
+        if (p === 'BTM2') btm2.push(queenIds[qi]);
+        else if (p === 'ELIM') {
+          btm2.push(queenIds[qi]); // a queen who became ELIM was BTM2 first
+          if (!eliminated) eliminated = queenIds[qi];
         }
       }
-      const elimIdx = buffer[elimBase + ep];
-      const eliminated = elimIdx !== 255 ? queenIds[elimIdx] : '';
       episodeResults.push({
         episodeNumber: ep + 1,
         placements,
@@ -744,23 +693,13 @@ function aggregateResults(
     }
 
     for (const run of runs) {
+      // Eliminations are encoded uniformly as ELIM in the placements map
+      // (single, double, finale all collapse to the same shape) — no special
+      // cases needed.
       const eliminatedBefore = new Set<string>();
       for (let e = 0; e < ep && e < run.episodeResults.length; e++) {
-        const er = run.episodeResults[e];
-        if (er.eliminated) {
-          eliminatedBefore.add(er.eliminated);
-          // Double elim: also count the other BTM2 queen as eliminated this
-          // prior episode (the EpisodeResult only carries one `eliminated`
-          // string, so we recover the second from the placements map).
-          const seasonEp = episodes[e];
-          if (seasonEp && !isFinale(seasonEp) && seasonEp.eliminated.length >= 2) {
-            for (const [qid, p] of er.placements) {
-              if (p === 'BTM2' && qid !== er.eliminated) {
-                eliminatedBefore.add(qid);
-                break;
-              }
-            }
-          }
+        for (const [qid, p] of run.episodeResults[e].placements) {
+          if (p === 'ELIM') eliminatedBefore.add(qid);
         }
       }
 
@@ -773,32 +712,11 @@ function aggregateResults(
       }
 
       if (ep < run.episodeResults.length) {
-        const epResult = run.episodeResults[ep];
-        if (epResult.eliminated) elimCounts[epResult.eliminated]++;
-        for (const [qid, p] of epResult.placements) {
-          if (placeCounts[qid]) placeCounts[qid][p]++;
-        }
-        // Double elim: count the second BTM2 queen for this episode too.
-        const seasonEp = episodes[ep];
-        if (
-          seasonEp &&
-          !isFinale(seasonEp) &&
-          seasonEp.eliminated.length >= 2 &&
-          epResult.eliminated
-        ) {
-          for (const [qid, p] of epResult.placements) {
-            if (p === 'BTM2' && qid !== epResult.eliminated) {
-              elimCounts[qid]++;
-              break;
-            }
-          }
-        }
-        // Finale: every alive non-winner is "eliminated" at the finale.
-        if (isFinale(episodes[ep])) {
-          for (const id of queenIds) {
-            if (!eliminatedBefore.has(id) && run.finalRanks.get(id) !== 1) {
-              elimCounts[id]++;
-            }
+        for (const [qid, p] of run.episodeResults[ep].placements) {
+          if (p === 'ELIM') {
+            elimCounts[qid] = (elimCounts[qid] ?? 0) + 1;
+          } else if (placeCounts[qid]) {
+            placeCounts[qid][p]++;
           }
         }
       }
@@ -878,11 +796,10 @@ export function extractTrajectories(
   numQueens: number,
   numEpisodes: number,
   conditions: FilterCondition[],
-  episodes?: EpisodeData[],
 ): { paths: TrajectoryPath[]; scannedRuns: number } {
   const stride = bytesPerRun(numQueens, numEpisodes);
   const runIndices = conditions.length > 0
-    ? getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes, episodes)
+    ? getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes)
     : null; // null = scan all runs
 
   const pathCounts = new Map<string, number>();

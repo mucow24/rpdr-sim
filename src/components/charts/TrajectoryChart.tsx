@@ -195,11 +195,11 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       // Per-episode conditional distribution (given alive at start of episode).
       // Sums to 1. ELIM represents only this episode's elimination probability —
       // prior eliminations are visualized separately via the survival-fade overlay.
+      // After Phase 1a, rawDist['BTM2'] already excludes eliminated queens
+      // (they're encoded as ELIM in the placement byte), so no subtraction needed.
       const dist: Record<string, number> = {};
       for (const p of PLACEMENTS) dist[p] = rawDist[p] ?? 0;
-      const elimCond = elim / surv;
-      dist['BTM2'] = Math.max(0, dist['BTM2'] - elimCond);
-      dist['ELIM'] = elimCond;
+      dist['ELIM'] = elim / surv;
 
       epData.push({
         ep: epIdx + 1,

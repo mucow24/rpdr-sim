@@ -124,7 +124,6 @@ describe('golden: season 5 baseline', () => {
       season5.queens.length,
       season5.episodes.length,
       [],
-      season5.episodes,
     );
     expect({ scannedRuns, paths: paths.slice(0, 20) }).toMatchSnapshot();
   });
@@ -165,7 +164,6 @@ describe('golden: season 13 baseline', () => {
       season13.queens.length,
       season13.episodes.length,
       [],
-      season13.episodes,
     );
     expect({ scannedRuns, paths: paths.slice(0, 20) }).toMatchSnapshot();
   });

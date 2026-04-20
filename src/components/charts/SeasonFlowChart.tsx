@@ -136,10 +136,12 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
         survival[q.id][ep] = surv;
         const dist = results.episodePlacements[ep]?.[q.id] ?? {};
         const f: Record<string, number> = {};
+        // After Phase 1a, dist['BTM2'] is "BTM2 survived" — eliminated queens
+        // are encoded as ELIM in the placement byte and contribute to elim
+        // counts only, not to BTM2. So no subtraction is needed here.
         for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
         const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
         elimByEp[q.id][ep] = elim;
-        f['BTM2'] = Math.max(0, f['BTM2'] - elim);
         f['ELIM'] = cumElim + elim;
         flowData[q.id][ep] = f;
         surv = Math.max(0, surv - elim);
