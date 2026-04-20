@@ -48,6 +48,32 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     useStore();
   const results = filteredResults ?? baselineResults;
 
+  // Hover handlers live inside the structural effect (which doesn't re-run on
+  // selection change, so the chart stays cheap to interact with). They read
+  // current selection state via this ref instead of closing over selectedQueenId
+  // directly — refreshed every render so effects always see the latest value.
+  const selectedQueenIdRef = useRef(selectedQueenId);
+  selectedQueenIdRef.current = selectedQueenId;
+
+  // Geometry stash: the structural effect builds layout + ribbon geometry and
+  // writes it here; the selection/pins effect reads from it to rebuild the
+  // small, selection-specific overlays without re-doing the expensive work.
+  type GeomStash = {
+    g: d3.Selection<SVGGElement, unknown, null, undefined>;
+    overlayGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+    nodes: { y: number; h: number }[][];
+    srcBands: Record<string, { y: number; h: number }>;
+    queenOrder: { id: string; color: string; name: string }[];
+    queenMap: Map<string, { id: string; color: string; name: string }>;
+    colX: (col: number) => number;
+    numCols: number;
+    innerW: number;
+    survival: Record<string, number[]>;
+    elimByEp: Record<string, number[]>;
+    pinDotsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+  };
+  const geomRef = useRef<GeomStash | null>(null);
+
   // Pure derivation of per-queen survival/flow/elim probabilities from
   // (season, results). Independent of width / hover / selection — memoizing
   // here means the d3 effect doesn't redo this on every resize or hover.
@@ -362,13 +388,17 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
 
 
     // ============ RENDER ============
-
-    // Display fallback: if nothing globally selected, highlight the first
-    // queen so the chart isn't completely undifferentiated. Don't write this
-    // back to the store — it would auto-select a queen page-wide on first load.
-    const selId = selectedQueenId;
-
-    const isSelected = (qid: string) => qid === selId;
+    //
+    // Structural rendering below does NOT depend on selectedQueenId or
+    // conditions — those are consumed by the second effect further down. That
+    // split keeps selection changes cheap: ~70 DOM ops instead of the ~5000
+    // DOM creations required for ribbons/gradients/bands.
+    //
+    // Hover handlers DO depend on the current selection (to decide whether
+    // a hovered queen overlays on top of the selected queen) — they read
+    // selectedQueenIdRef.current at event time so they stay fresh even though
+    // the handler closure was captured at structural-effect run time.
+    const isSelected = (qid: string) => qid === selectedQueenIdRef.current;
 
     // Episode labels (below ELIM row, centered on each episode's column)
     const elimPi = CHART_PLACEMENTS.length - 1;
@@ -434,12 +464,12 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
           const queen = queenMap.get(qid);
           if (!queen) continue;
           const t = band.h / SCALE;
-          const sel = isSelected(qid);
+          // Default hidden — selection effect sets opacity for selected queen.
           bandGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', band.y)
             .attr('width', NODE_WIDTH).attr('height', Math.max(band.h, 0.5))
             .attr('fill', PLACEMENT_FLOW_COLORS[placementName])
-            .attr('opacity', sel ? dimOp(t) : 0)
+            .attr('opacity', 0)
             .attr('data-queen', qid)
             .attr('data-t', t)
             .attr('data-color-placement', PLACEMENT_FLOW_COLORS[placementName])
@@ -513,13 +543,13 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       gradQ.append('stop').attr('offset', '100%')
         .attr('stop-color', qHoverColor).attr('stop-opacity', dimOp(r.tgtT));
 
-      const sel = isSelected(r.queenId);
+      // Default hidden — selection effect raises the selected queen's ribbons.
       ribbonGroup.append('path')
         .attr('d', ribbonPath(r.srcX, r.srcY, r.srcY + r.srcH, r.tgtX, r.tgtY, r.tgtY + r.tgtH))
         .attr('fill', `url(#${gradIdP})`)
         .attr('stroke', `url(#${gradIdP})`)
         .attr('stroke-width', 0.3)
-        .attr('opacity', sel ? 1 : 0)
+        .attr('opacity', 0)
         .attr('data-queen', r.queenId)
         .attr('data-grad-p', gradIdP)
         .attr('data-grad-q', gradIdQ);
@@ -575,13 +605,6 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       }
     }
 
-    // Track which queens have pins (conditions)
-    const queensWithPins = new Set<string>();
-    for (const c of conditions) {
-      const q = season.queens[c.queenIndex];
-      if (q) queensWithPins.add(q.id);
-    }
-
     // Source emitters + labels (click to select).
     // Flow bands overlap between adjacent queens (SRC_ROW_H < SCALE), but we
     // only render a visible color bar for the selected or hovered queen, so
@@ -610,11 +633,13 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     const srcNamesGroup = g.append('g').attr('class', 'src-names')
       .style('pointer-events', 'none');
 
+    // Container for yellow pin dots on queen names. Populated by the
+    // selection/pins effect; cleared + rebuilt on conditions change.
+    const pinDotsGroup = srcNamesGroup.append('g').attr('class', 'pin-dots');
+
     for (const queen of queenOrder) {
       const sb = srcBands[queen.id];
       const nameCenter = sb.y + sb.h / 2;
-      const sel = isSelected(queen.id);
-      const hasPins = queensWithPins.has(queen.id);
 
       const srcGroup = g.append('g')
         .style('cursor', 'pointer');
@@ -627,39 +652,32 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
 
       const nameColor = queen.color;
 
-      // Queen name — always rendered in the queen's color. Sits above
-      // ribbons (srcNamesGroup is rendered after ribbonGroup). When selected,
-      // the name renders bold with a subtle queen-colored glow filter (not
-      // applied on mere hover — that's reserved for the underline).
+      // Queen name — always rendered in the queen's color. Font-weight is
+      // toggled bold by the selection effect. Yellow pin dots + underline
+      // visibility are also controlled there.
       const nameText = srcNamesGroup.append('text')
+        .attr('class', 'src-name')
+        .attr('data-queen', queen.id)
         .attr('x', SOURCE_COL_WIDTH - 38).attr('y', nameCenter)
         .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
         .attr('fill', nameColor)
         .attr('font-size', numQueens > 10 ? '12px' : '15px')
-        .attr('font-weight', sel ? '800' : '600')
+        .attr('font-weight', '600')
         .attr('opacity', 1.0)
         .text(queen.name.split(' ')[0]);
       queenNames[queen.id] = nameText;
 
-      // Underline — shown only when selected or hovered. Spans the text
-      // width, positioned just below the baseline, in the queen's color.
+      // Underline — hidden by default. Selection effect shows it for the
+      // selected queen; hover handler flickers it for the hovered queen.
       const nameBBox = nameText.node()!.getBBox();
       const underline = srcBarsGroup.append('rect')
+        .attr('class', 'src-underline')
+        .attr('data-queen', queen.id)
         .attr('x', nameBBox.x).attr('y', nameBBox.y + nameBBox.height + 1)
         .attr('width', nameBBox.width).attr('height', 2)
         .attr('fill', nameColor)
-        .attr('opacity', sel ? 1.0 : 0);
+        .attr('opacity', 0);
       queenBars[queen.id] = underline;
-
-      // Yellow dot for queens with pins — ~20px left of the name.
-      if (hasPins) {
-        const nameBBox = nameText.node()!.getBBox();
-        srcNamesGroup.append('circle')
-          .attr('cx', nameBBox.x - 20).attr('cy', nameCenter)
-          .attr('r', 2.5)
-          .attr('fill', '#ffd700')
-          .attr('opacity', 0.9);
-      }
 
       // Hover: reveal this queen's color bar + highlight ribbons.
       srcGroup
@@ -676,30 +694,124 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
         });
     }
 
-    // Placement pin overlays — rendered on top of everything
-    const selectedQueen = selId ? queenMap.get(selId) ?? null : null;
-    const selectedQueenIdx = selectedQueen
-      ? season.queens.findIndex(q => q.id === selectedQueen.id)
-      : -1;
+    // Empty container for pin overlays — populated by the selection/pins effect.
+    const overlayGroup = g.append('g').attr('class', 'pin-overlays');
 
-    // Build a set of existing pins for selected queen
+    // Stash geometry for the selection/pins effect.
+    geomRef.current = {
+      g,
+      overlayGroup,
+      nodes,
+      srcBands,
+      queenOrder,
+      queenMap,
+      colX,
+      numCols,
+      innerW,
+      survival,
+      elimByEp,
+      pinDotsGroup,
+    };
+
+  }, [flowDataMemo, results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, setSelectedQueenId, clearConditions, carrierWidth]);
+
+  // Selection + pins effect: cheap updates to the already-drawn DOM.
+  //   - Toggles ribbon / band opacities
+  //   - Toggles name font-weight + underline opacity
+  //   - Rebuilds yellow pin dots next to queen names
+  //   - Rebuilds per-placement pin overlays (halo + click overlay + X mark)
+  // Runs AFTER the structural effect on any render that re-did structure
+  // (they share layout deps), and independently when selectedQueenId or
+  // conditions change.
+  useEffect(() => {
+    const geom = geomRef.current;
+    if (!geom || !svgRef.current || !results) return;
+    const {
+      g, overlayGroup, nodes, srcBands, queenOrder, queenMap,
+      colX, numCols, innerW, survival, elimByEp, pinDotsGroup,
+    } = geom;
+
+    const dimOp = (t: number): number => {
+      if (DIM_CUTOFF <= 0 || t >= DIM_CUTOFF) return 1;
+      return DIM_BASE + (1 - DIM_BASE) * Math.pow(t / DIM_CUTOFF, DIM_EXP);
+    };
+
+    const selId = selectedQueenId;
+    const isSelected = (qid: string) => qid === selId;
+
+    // -- Ribbon opacities (selected queen on, others off) -------------------
+    const svgSel = d3.select(svgRef.current);
+    svgSel.selectAll<SVGPathElement, unknown>('.ribbons path[data-queen]').each(function () {
+      const el = d3.select(this);
+      const pq = el.attr('data-queen');
+      if (isSelected(pq)) {
+        el.attr('opacity', 1);
+        const gradId = el.attr('data-grad-p');
+        el.attr('fill', `url(#${gradId})`).attr('stroke', `url(#${gradId})`);
+      } else {
+        el.attr('opacity', 0);
+      }
+    });
+
+    // -- Queen band opacities ------------------------------------------------
+    svgSel.selectAll<SVGRectElement, unknown>('.queen-bands rect[data-queen]').each(function () {
+      const el = d3.select(this);
+      const pq = el.attr('data-queen');
+      const pt = parseFloat(el.attr('data-t') || '1');
+      if (isSelected(pq)) {
+        el.attr('opacity', dimOp(pt));
+        el.attr('fill', el.attr('data-color-placement')!);
+      } else {
+        el.attr('opacity', 0);
+      }
+    });
+
+    // -- Name weight / underline visibility ---------------------------------
+    svgSel.selectAll<SVGTextElement, unknown>('text.src-name').each(function () {
+      const el = d3.select(this);
+      el.attr('font-weight', isSelected(el.attr('data-queen')) ? '800' : '600');
+    });
+    svgSel.selectAll<SVGRectElement, unknown>('rect.src-underline').each(function () {
+      const el = d3.select(this);
+      el.attr('opacity', isSelected(el.attr('data-queen')) ? 1 : 0);
+    });
+
+    // -- Yellow pin dots (any queen with at least one pin) ------------------
+    pinDotsGroup.selectAll('*').remove();
+    const queensWithPins = new Set<string>();
+    for (const c of conditions) {
+      const q = season.queens[c.queenIndex];
+      if (q) queensWithPins.add(q.id);
+    }
+    for (const queen of queenOrder) {
+      if (!queensWithPins.has(queen.id)) continue;
+      const nameText = svgSel.select<SVGTextElement>(`text.src-name[data-queen="${queen.id}"]`);
+      const nameNode = nameText.node();
+      if (!nameNode) continue;
+      const bbox = nameNode.getBBox();
+      const sb = srcBands[queen.id];
+      const nameCenter = sb.y + sb.h / 2;
+      pinDotsGroup.append('circle')
+        .attr('cx', bbox.x - 20).attr('cy', nameCenter)
+        .attr('r', 2.5)
+        .attr('fill', '#ffd700')
+        .attr('opacity', 0.9);
+    }
+
+    // -- Placement pin overlays (only for selected queen) -------------------
+    overlayGroup.selectAll('*').remove();
+    const selectedQueen = selId ? queenMap.get(selId) ?? null : null;
+    if (!selectedQueen) return;
+    const selectedQueenIdx = season.queens.findIndex((q) => q.id === selectedQueen.id);
+
     const pinSet = new Set<string>();
-    if (selectedQueen) {
-      for (const c of conditions) {
-        if (c.queenIndex === selectedQueenIdx) {
-          pinSet.add(`${c.episodeIndex}:${c.placement}`);
-        }
+    for (const c of conditions) {
+      if (c.queenIndex === selectedQueenIdx) {
+        pinSet.add(`${c.episodeIndex}:${c.placement}`);
       }
     }
 
-    const overlayGroup = g.append('g').attr('class', 'pin-overlays');
-
     for (let col = 0; col < numCols; col++) {
-      // Finale ELIM means "didn't win the season" — route through the
-      // OUTCOME_EPISODE_INDEX sentinel so the filter's outcome path handles it.
-      // The finale episode itself never writes a single eliminated queen byte
-      // (multiple losers don't fit), so a regular ELIM-byte filter would
-      // produce zero matches.
       const isFinaleCol = isFinale(season.episodes[col]);
 
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
@@ -712,195 +824,182 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
         const condEpIdx = isFinaleCol && placementName === 'ELIM' ? OUTCOME_EPISODE_INDEX : col;
         const isPinned = pinSet.has(`${condEpIdx}:${placementNum}`);
 
-        if (selectedQueen) {
-          // Yellow glow halo for pinned nodes — rendered first so the
-          // clickable overlay and X sit on top. Source rect is fully opaque
-          // so the drop-shadow halo is bright.
-          if (isPinned) {
-            overlayGroup.append('rect')
-              .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
-              .attr('width', NODE_WIDTH).attr('height', node.h)
-              .attr('fill', '#ffd700').attr('opacity', 1)
-              .attr('rx', 1)
-              .attr('filter', 'url(#pin-glow)')
-              .style('pointer-events', 'none');
-          }
-
-          // Clickable overlay — always transparent; the halo above is what
-          // shows pin state visually.
-          const overlay = overlayGroup.append('rect')
+        if (isPinned) {
+          overlayGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
-            .attr('fill', 'transparent')
-            .attr('opacity', 0)
+            .attr('fill', '#ffd700').attr('opacity', 1)
             .attr('rx', 1)
-            .style('cursor', 'pointer');
+            .attr('filter', 'url(#pin-glow)')
+            .style('pointer-events', 'none');
+        }
 
-          overlay
-            .on('mouseenter', function (event) {
-              if (!isPinned) {
-                d3.select(this).attr('fill', PLACEMENT_COLORS[placementName]).attr('opacity', 0.35);
-              }
+        const overlay = overlayGroup.append('rect')
+          .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
+          .attr('width', NODE_WIDTH).attr('height', node.h)
+          .attr('fill', 'transparent')
+          .attr('opacity', 0)
+          .attr('rx', 1)
+          .style('cursor', 'pointer');
 
-              g.select('.flow-tooltip').remove();
+        overlay
+          .on('mouseenter', function (event) {
+            if (!isPinned) {
+              d3.select(this).attr('fill', PLACEMENT_COLORS[placementName]).attr('opacity', 0.35);
+            }
 
-              const [mx, my] = d3.pointer(event, g.node());
-              const qid = selectedQueen!.id;
-              const dist = results.episodePlacements[col]?.[qid] ?? {};
-              const elimProb = elimByEp[qid]?.[col] ?? 0;
-              const surv = survival[qid]?.[col] ?? 0;
-              const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
-              const noRoutes = !isPinned && rawProb < 0.001;
-              const priorElim = Math.max(0, Math.min(1, 1 - surv));
+            g.select('.flow-tooltip').remove();
 
-              const ttTextW = 65;
-              const ttBarW = 34;
-              const ttW = ttTextW + ttBarW;
-              const lineH = 12;
-              const numRows = CHART_PLACEMENTS.length + 1; // +1 for P.ELIM
-              const ttH = 22 + numRows * lineH;
-              const rawX = mx + 12;
-              const flipLeft = rawX + ttW > innerW;
-              const initX = flipLeft ? mx - ttW - 12 : rawX;
-              const initY = Math.min(my - 8, placementAreaH - ttH - 4);
-              const tt = g.append('g').attr('class', 'flow-tooltip')
-                .style('pointer-events', 'none')
-                .attr('transform', `translate(${initX},${initY})`);
+            const [mx, my] = d3.pointer(event, g.node());
+            const qid = selectedQueen.id;
+            const dist = results.episodePlacements[col]?.[qid] ?? {};
+            const elimProb = elimByEp[qid]?.[col] ?? 0;
+            const surv = survival[qid]?.[col] ?? 0;
+            const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
+            const noRoutes = !isPinned && rawProb < 0.001;
+            const priorElim = Math.max(0, Math.min(1, 1 - surv));
 
-              tt.append('rect').attr('class', 'tt-bg')
-                .attr('width', ttW).attr('height', ttH)
-                .attr('rx', 4)
-                .attr('fill', '#1a1a24').attr('stroke', '#2a2a3a').attr('stroke-width', 1);
+            const ttTextW = 65;
+            const ttBarW = 34;
+            const ttW = ttTextW + ttBarW;
+            const lineH = 12;
+            const numRows = CHART_PLACEMENTS.length + 1;
+            const ttH = 22 + numRows * lineH;
+            const rawX = mx + 12;
+            const flipLeft = rawX + ttW > innerW;
+            const initX = flipLeft ? mx - ttW - 12 : rawX;
+            const initY = Math.min(my - 8, placementAreaH - ttH - 4);
+            const tt = g.append('g').attr('class', 'flow-tooltip')
+              .style('pointer-events', 'none')
+              .attr('transform', `translate(${initX},${initY})`);
 
-              tt.append('text').attr('class', 'tt-title')
-                .attr('x', 6).attr('y', 14)
-                .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
-                .text(`${isFinale(season.episodes[col]) ? 'Finale' : `Ep ${season.episodes[col].number}`} / ${placementName}`);
+            tt.append('rect').attr('class', 'tt-bg')
+              .attr('width', ttW).attr('height', ttH)
+              .attr('rx', 4)
+              .attr('fill', '#1a1a24').attr('stroke', '#2a2a3a').attr('stroke-width', 1);
 
-              CHART_PLACEMENTS.forEach((p, idx) => {
-                const prob = p === 'ELIM' ? elimProb : surv * (dist[p] ?? 0);
-                const rowRaw = p === 'ELIM' ? elimProb : (dist[p] ?? 0);
-                const rowDead = rowRaw < 0.001;
-                const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
-                tt.append('text')
-                  .attr('x', 6).attr('y', 27 + idx * lineH)
-                  .attr('fill', p === 'ELIM' ? '#b22222' : PLACEMENT_COLORS[p])
-                  .attr('font-size', '9px').attr('font-family', 'monospace')
-                  .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-                  .text(`${p.padEnd(6)} ${valStr}`);
-              });
+            tt.append('text').attr('class', 'tt-title')
+              .attr('x', 6).attr('y', 14)
+              .attr('fill', PLACEMENT_COLORS[placementName]).attr('font-size', '9px').attr('font-weight', 'bold')
+              .text(`${isFinale(season.episodes[col]) ? 'Finale' : `Ep ${season.episodes[col].number}`} / ${placementName}`);
 
+            CHART_PLACEMENTS.forEach((p, idx) => {
+              const prob = p === 'ELIM' ? elimProb : surv * (dist[p] ?? 0);
+              const rowRaw = p === 'ELIM' ? elimProb : (dist[p] ?? 0);
+              const rowDead = rowRaw < 0.001;
+              const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
               tt.append('text')
-                .attr('x', 6).attr('y', 27 + CHART_PLACEMENTS.length * lineH)
-                .attr('fill', '#666')
+                .attr('x', 6).attr('y', 27 + idx * lineH)
+                .attr('fill', p === 'ELIM' ? '#b22222' : PLACEMENT_COLORS[p])
                 .attr('font-size', '9px').attr('font-family', 'monospace')
                 .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-                .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
-
-              type BarSeg = { key: string; value: number; color: string };
-              const barInput: BarSeg[] = [
-                { key: 'WIN', value: surv * (dist['WIN'] ?? 0), color: PLACEMENT_COLORS['WIN'] },
-                { key: 'HIGH', value: surv * (dist['HIGH'] ?? 0), color: PLACEMENT_COLORS['HIGH'] },
-                { key: 'SAFE', value: surv * (dist['SAFE'] ?? 0), color: PLACEMENT_COLORS['SAFE'] },
-                { key: 'LOW', value: surv * (dist['LOW'] ?? 0), color: PLACEMENT_COLORS['LOW'] },
-                { key: 'BTM2', value: surv * (dist['BTM2'] ?? 0), color: PLACEMENT_COLORS['BTM2'] },
-                { key: 'ELIM', value: elimProb, color: PLACEMENT_COLORS['ELIM'] },
-                { key: 'P.ELIM', value: priorElim, color: '#333' },
-              ];
-
-              const statsH = numRows * lineH;
-              const barW = 20;
-              const barX = ttTextW + (ttBarW - barW) / 2;
-              const barY = 19;
-              const barH = statsH - 2;
-              const barTotal = barInput.reduce((s, d) => s + d.value, 0);
-
-              if (barTotal > 0) {
-                const barG = tt.append('g').attr('opacity', isPinned || noRoutes ? 0.2 : 1);
-                let yOff = 0;
-                for (const d of barInput) {
-                  if (d.value < 0.001) continue;
-                  const segH = (d.value / barTotal) * barH;
-                  barG.append('rect')
-                    .attr('x', barX).attr('y', barY + yOff)
-                    .attr('width', barW).attr('height', segH)
-                    .attr('fill', d.color);
-                  yOff += segH;
-                }
-                barG.append('rect')
-                  .attr('x', barX).attr('y', barY)
-                  .attr('width', barW).attr('height', barH)
-                  .attr('fill', 'none')
-                  .attr('stroke', '#3e5d78').attr('stroke-width', 1);
-              }
-
-              if (isPinned || noRoutes) {
-                tt.append('text')
-                  .attr('x', ttW / 2).attr('y', 19 + statsH / 2)
-                  .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-                  .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
-                  .attr('font-size', '11px').attr('font-weight', 'bold')
-                  .attr('font-family', 'monospace')
-                  .text(noRoutes ? 'NO SIM RESULTS' : 'PINNED');
-              }
-            })
-            .on('mousemove', function (event) {
-              const tt = g.select('.flow-tooltip');
-              if (tt.empty()) return;
-              const [mx, my] = d3.pointer(event, g.node());
-              const ttW = 65 + 34;
-              const ttH = 22 + (CHART_PLACEMENTS.length + 1) * 12;
-              const rawX = mx + 12;
-              const flipLeft = rawX + ttW > innerW;
-              const ttX = flipLeft ? mx - ttW - 12 : rawX;
-              const ttY = Math.min(my - 8, placementAreaH - ttH - 4);
-              tt.attr('transform', `translate(${ttX},${ttY})`);
-            })
-            .on('mouseleave', function () {
-              if (!isPinned) {
-                d3.select(this).attr('fill', 'transparent').attr('opacity', 0);
-              }
-              g.select('.flow-tooltip').remove();
-            })
-            .on('click', () => {
-              if (isPinned) {
-                removeCondition(condEpIdx, selectedQueenIdx);
-              } else {
-                // Don't pin if queen has ~0 probability for this placement
-                const qid = selectedQueen!.id;
-                const dist = results.episodePlacements[col]?.[qid] ?? {};
-                const prob = placementName === 'ELIM'
-                  ? (elimByEp[qid]?.[col] ?? 0)
-                  : (dist[placementName] ?? 0);
-                if (prob < 0.001) return;
-                addCondition({
-                  episodeIndex: condEpIdx,
-                  queenIndex: selectedQueenIdx,
-                  placement: placementNum,
-                });
-              }
+                .text(`${p.padEnd(6)} ${valStr}`);
             });
 
-          // Big bold X on pinned nodes — centered on the node (a pinned node
-          // carries 100% of the queen's flow, so the node height = the band
-          // height). Black fill + yellow stroke for high contrast on any
-          // placement color.
-          if (isPinned) {
-            overlayGroup.append('text')
-              .attr('x', colX(col)).attr('y', node.y + node.h / 2)
-              .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-              .attr('fill', '#000')
-              .attr('stroke', '#ffd700').attr('stroke-width', 1.5)
-              .attr('paint-order', 'stroke')
-              .attr('font-size', '22px').attr('font-weight', '900')
-              .style('pointer-events', 'none')
-              .text('\u2715');
-          }
+            tt.append('text')
+              .attr('x', 6).attr('y', 27 + CHART_PLACEMENTS.length * lineH)
+              .attr('fill', '#666')
+              .attr('font-size', '9px').attr('font-family', 'monospace')
+              .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
+              .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
+
+            type BarSeg = { key: string; value: number; color: string };
+            const barInput: BarSeg[] = [
+              { key: 'WIN', value: surv * (dist['WIN'] ?? 0), color: PLACEMENT_COLORS['WIN'] },
+              { key: 'HIGH', value: surv * (dist['HIGH'] ?? 0), color: PLACEMENT_COLORS['HIGH'] },
+              { key: 'SAFE', value: surv * (dist['SAFE'] ?? 0), color: PLACEMENT_COLORS['SAFE'] },
+              { key: 'LOW', value: surv * (dist['LOW'] ?? 0), color: PLACEMENT_COLORS['LOW'] },
+              { key: 'BTM2', value: surv * (dist['BTM2'] ?? 0), color: PLACEMENT_COLORS['BTM2'] },
+              { key: 'ELIM', value: elimProb, color: PLACEMENT_COLORS['ELIM'] },
+              { key: 'P.ELIM', value: priorElim, color: '#333' },
+            ];
+
+            const statsH = numRows * lineH;
+            const barW = 20;
+            const barX = ttTextW + (ttBarW - barW) / 2;
+            const barY = 19;
+            const barH = statsH - 2;
+            const barTotal = barInput.reduce((s, d) => s + d.value, 0);
+
+            if (barTotal > 0) {
+              const barG = tt.append('g').attr('opacity', isPinned || noRoutes ? 0.2 : 1);
+              let yOff = 0;
+              for (const d of barInput) {
+                if (d.value < 0.001) continue;
+                const segH = (d.value / barTotal) * barH;
+                barG.append('rect')
+                  .attr('x', barX).attr('y', barY + yOff)
+                  .attr('width', barW).attr('height', segH)
+                  .attr('fill', d.color);
+                yOff += segH;
+              }
+              barG.append('rect')
+                .attr('x', barX).attr('y', barY)
+                .attr('width', barW).attr('height', barH)
+                .attr('fill', 'none')
+                .attr('stroke', '#3e5d78').attr('stroke-width', 1);
+            }
+
+            if (isPinned || noRoutes) {
+              tt.append('text')
+                .attr('x', ttW / 2).attr('y', 19 + statsH / 2)
+                .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+                .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
+                .attr('font-size', '11px').attr('font-weight', 'bold')
+                .attr('font-family', 'monospace')
+                .text(noRoutes ? 'NO SIM RESULTS' : 'PINNED');
+            }
+          })
+          .on('mousemove', function (event) {
+            const tt = g.select('.flow-tooltip');
+            if (tt.empty()) return;
+            const [mx, my] = d3.pointer(event, g.node());
+            const ttW = 65 + 34;
+            const ttH = 22 + (CHART_PLACEMENTS.length + 1) * 12;
+            const rawX = mx + 12;
+            const flipLeft = rawX + ttW > innerW;
+            const ttX = flipLeft ? mx - ttW - 12 : rawX;
+            const ttY = Math.min(my - 8, placementAreaH - ttH - 4);
+            tt.attr('transform', `translate(${ttX},${ttY})`);
+          })
+          .on('mouseleave', function () {
+            if (!isPinned) {
+              d3.select(this).attr('fill', 'transparent').attr('opacity', 0);
+            }
+            g.select('.flow-tooltip').remove();
+          })
+          .on('click', () => {
+            if (isPinned) {
+              removeCondition(condEpIdx, selectedQueenIdx);
+            } else {
+              const qid = selectedQueen.id;
+              const dist = results.episodePlacements[col]?.[qid] ?? {};
+              const prob = placementName === 'ELIM'
+                ? (elimByEp[qid]?.[col] ?? 0)
+                : (dist[placementName] ?? 0);
+              if (prob < 0.001) return;
+              addCondition({
+                episodeIndex: condEpIdx,
+                queenIndex: selectedQueenIdx,
+                placement: placementNum,
+              });
+            }
+          });
+
+        if (isPinned) {
+          overlayGroup.append('text')
+            .attr('x', colX(col)).attr('y', node.y + node.h / 2)
+            .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+            .attr('fill', '#000')
+            .attr('stroke', '#ffd700').attr('stroke-width', 1.5)
+            .attr('paint-order', 'stroke')
+            .attr('font-size', '22px').attr('font-weight', '900')
+            .style('pointer-events', 'none')
+            .text('\u2715');
         }
       }
     }
-
-  }, [flowDataMemo, results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
+  }, [selectedQueenId, conditions, flowDataMemo, results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, carrierWidth, addCondition, removeCondition]);
 
   return (
     <div ref={containerRef}>
