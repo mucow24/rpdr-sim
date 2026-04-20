@@ -197,9 +197,7 @@ export default function App() {
             </button>
           </div>
 
-          <DivergencePanel />
-
-          <section className="mb-8 flex gap-4 items-stretch w-[900px]">
+          <section className="mb-4 flex gap-4 items-stretch w-[900px]">
             <div className="flex-1 min-w-0">
               <PlacementGrid />
             </div>
@@ -208,7 +206,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="mb-8 w-[900px]">
+          <section className="mb-4 w-[900px]">
             <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4">
               <h3 className="text-sm font-medium text-[#ddd] mb-3">
                 Season Flow — click a queen to select, click placements to pin
@@ -218,7 +216,9 @@ export default function App() {
             </div>
           </section>
 
-          <section className="mb-8">
+          <DivergencePanel />
+
+          <section className="mb-4">
             <PlacementDistChart height={460} />
           </section>
 
