@@ -71,7 +71,7 @@ function getHeavyEpisodes(
 
 function TooltipShell({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute left-0 top-full mt-1 z-50 bg-[#121218] border border-[#2a2a3a] rounded shadow-xl p-2 pointer-events-none w-max">
+    <div className="absolute left-0 top-full mt-1 z-50 bg-amber-500/20 border border-amber-500/40 rounded shadow-xl p-2 pointer-events-none w-max backdrop-blur-[10px]">
       {children}
     </div>
   );
@@ -79,13 +79,13 @@ function TooltipShell({ children }: { children: ReactNode }) {
 
 function QueenChip({ entry }: { entry: RosterEntry }) {
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24] border border-[#2a2a3a]">
+    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30">
       <span
         className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
       />
-      <span className="text-[#ccc] whitespace-nowrap">{entry.queen.name}</span>
-      <span className="text-[#555] text-[10px]">{seasonAbbrev(entry.seasonId)}</span>
+      <span className="text-amber-300 whitespace-nowrap">{entry.queen.name}</span>
+      <span className="text-amber-500/60 text-[10px]">{seasonAbbrev(entry.seasonId)}</span>
     </div>
   );
 }
@@ -115,11 +115,11 @@ function ScoreSampleTooltip({ entries }: { entries: RosterEntry[] }) {
   const sample = sampleEntries(entries, 4);
   return (
     <TooltipShell>
-      <div className="text-[9px] uppercase tracking-wide text-[#555] mb-1 px-1 whitespace-nowrap">
+      <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
         Example queens with this score
       </div>
       {sample.length === 0 ? (
-        <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
           No queens at this score
         </div>
       ) : (
@@ -127,6 +127,34 @@ function ScoreSampleTooltip({ entries }: { entries: RosterEntry[] }) {
       )}
     </TooltipShell>
   );
+}
+
+// Brighter tooltip-only shades for placements that read as too dim on the
+// amber-tinted tooltip surface.
+const TOOLTIP_PLACEMENT_OVERRIDES: Record<string, string> = {
+  HIGH: '#4fc3ff',
+  SAFE: '#cccccc',
+  LOW: '#f2c09a',
+};
+
+// Text-only override (bg/border still derive from the base color).
+const TOOLTIP_PLACEMENT_FG_OVERRIDES: Record<string, string> = {
+  BTM2: '#ff9f95',
+};
+
+interface PlacementBadgeStyle {
+  bg: string;
+  fg: string;
+  border: string;
+}
+
+function tooltipBadgeStyle(p: PlacementOrElim): PlacementBadgeStyle {
+  if (p === 'ELIM') {
+    return { bg: '#4a0000', fg: '#ff9999', border: '#8b0000' };
+  }
+  const c = TOOLTIP_PLACEMENT_OVERRIDES[p] ?? PLACEMENT_COLORS[p];
+  const fg = TOOLTIP_PLACEMENT_FG_OVERRIDES[p] ?? c;
+  return { bg: c + '33', fg, border: c + '66' };
 }
 
 function HistoryTooltip({
@@ -139,7 +167,7 @@ function HistoryTooltip({
   return (
     <TooltipShell>
       {rows.length === 0 ? (
-        <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
           No heavy-weight episodes for this stat
         </div>
       ) : (
@@ -147,33 +175,38 @@ function HistoryTooltip({
           <tbody>
             {rows.map((row) => (
               <tr key={row.epNumber}>
-                <td className="text-[#ccc] whitespace-nowrap">
-                  <span className="text-[#666]">Ep {row.epNumber}</span>{' '}
+                <td className="text-amber-300 whitespace-nowrap">
+                  <span className="text-amber-500/60">Ep {row.epNumber}</span>{' '}
                   {row.challengeName} {row.icon}
                 </td>
                 <td>
-                  <span
-                    className="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                    style={{
-                      backgroundColor: PLACEMENT_COLORS[row.placement] + '33',
-                      color: PLACEMENT_COLORS[row.placement],
-                      border: `1px solid ${PLACEMENT_COLORS[row.placement]}66`,
-                    }}
-                  >
-                    {row.placement}
-                  </span>
+                  {(() => {
+                    const bs = tooltipBadgeStyle(row.placement);
+                    return (
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                        style={{
+                          backgroundColor: bs.bg,
+                          color: bs.fg,
+                          border: `1px solid ${bs.border}`,
+                        }}
+                      >
+                        {row.placement}
+                      </span>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <div className="border-t border-[#2a2a3a] mt-2 pt-2">
-        <div className="text-[9px] uppercase tracking-wide text-[#555] mb-1 px-1 whitespace-nowrap">
+      <div className="border-t border-amber-500/30 mt-2 pt-2">
+        <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
           Same score, other seasons
         </div>
         {sameScoreQueens.length === 0 ? (
-          <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+          <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
             No matches in other seasons
           </div>
         ) : (
@@ -302,6 +335,8 @@ export default function CalibratePage() {
   const handleDragStart = (e: DragEvent, entry: RosterEntry) => {
     e.dataTransfer.setData('text/plain', queenUid(entry.seasonId, entry.queen.id));
     e.dataTransfer.effectAllowed = 'move';
+    setHoveredUid(null);
+    setHoveredScore(null);
   };
 
   const handleDrop = (e: DragEvent, targetScore: number) => {
