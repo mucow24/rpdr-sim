@@ -30,7 +30,6 @@ describe('persist partialize', () => {
       'seasonsById',
       'activeSeasonId',
       'currentEpisodeOverrides',
-      'selectedQueenId',
       'enabledCalibrateSeasons',
       'numSimulations',
     ]);

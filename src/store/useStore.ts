@@ -450,7 +450,6 @@ export const useStore = create<AppState>()(persist((set, get) => ({
     seasonsById: s.seasonsById,
     activeSeasonId: s.activeSeasonId,
     currentEpisodeOverrides: s.currentEpisodeOverrides,
-    selectedQueenId: s.selectedQueenId,
     enabledCalibrateSeasons: s.enabledCalibrateSeasons,
     numSimulations: s.numSimulations,
   }),
