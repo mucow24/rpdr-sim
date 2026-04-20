@@ -61,7 +61,6 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
   type GeomStash = {
     g: d3.Selection<SVGGElement, unknown, null, undefined>;
     overlayGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
-    srcNamesGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
     nodes: { y: number; h: number }[][];
     srcBands: Record<string, { y: number; h: number }>;
     queenOrder: { id: string; color: string; name: string }[];
@@ -702,7 +701,6 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     geomRef.current = {
       g,
       overlayGroup,
-      srcNamesGroup,
       nodes,
       srcBands,
       queenOrder,
@@ -729,7 +727,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     const geom = geomRef.current;
     if (!geom || !svgRef.current || !results) return;
     const {
-      g, overlayGroup, srcNamesGroup, nodes, srcBands, queenOrder, queenMap,
+      g, overlayGroup, nodes, srcBands, queenOrder, queenMap,
       colX, numCols, innerW, survival, elimByEp, pinDotsGroup,
     } = geom;
 
