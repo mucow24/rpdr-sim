@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
@@ -69,7 +69,13 @@ function getHeavyEpisodes(
   return rows;
 }
 
-function HistoryTooltip({ rows }: { rows: HeavyEpisodeRow[] }) {
+function HistoryTooltip({
+  rows,
+  sameScoreQueens,
+}: {
+  rows: HeavyEpisodeRow[];
+  sameScoreQueens: RosterEntry[];
+}) {
   return (
     <div
       className="absolute left-0 top-full mt-1 z-50 bg-[#121218] border border-[#2a2a3a] rounded shadow-xl p-2 pointer-events-none"
@@ -105,6 +111,32 @@ function HistoryTooltip({ rows }: { rows: HeavyEpisodeRow[] }) {
           </tbody>
         </table>
       )}
+      <div className="border-t border-[#2a2a3a] mt-2 pt-2">
+        <div className="text-[9px] uppercase tracking-wide text-[#555] mb-1 px-1 whitespace-nowrap">
+          Same score, other seasons
+        </div>
+        {sameScoreQueens.length === 0 ? (
+          <div className="text-[10px] text-[#666] italic px-1 py-0.5 whitespace-nowrap">
+            No matches in other seasons
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-1">
+            {sameScoreQueens.map((entry) => (
+              <div
+                key={queenUid(entry.seasonId, entry.queen.id)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] bg-[#1a1a24] border border-[#2a2a3a]"
+              >
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
+                />
+                <span className="text-[#ccc] whitespace-nowrap">{entry.queen.name}</span>
+                <span className="text-[#555] text-[9px]">{seasonAbbrev(entry.seasonId)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -196,6 +228,26 @@ export default function CalibratePage() {
     const val = getStatValue(entry.queen, selectedStat);
     entriesByScore.get(val)?.push(entry);
   }
+
+  const sameScoreSample = useMemo(() => {
+    if (!hoveredUid || selectedStat === 'lipSync') return [] as RosterEntry[];
+    const hovered = roster.find(
+      (r) => queenUid(r.seasonId, r.queen.id) === hoveredUid,
+    );
+    if (!hovered) return [] as RosterEntry[];
+    const score = getStatValue(hovered.queen, selectedStat);
+    const pool = roster.filter(
+      (r) =>
+        r.seasonId !== hovered.seasonId &&
+        getStatValue(r.queen, selectedStat) === score,
+    );
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredUid, selectedStat]);
 
   const handleDragStart = (e: DragEvent, entry: RosterEntry) => {
     e.dataTransfer.setData('text/plain', queenUid(entry.seasonId, entry.queen.id));
@@ -330,6 +382,7 @@ export default function CalibratePage() {
                             entry.queen.id,
                             selectedStat as BaseStat,
                           )}
+                          sameScoreQueens={sameScoreSample}
                         />
                       )}
                     </div>
