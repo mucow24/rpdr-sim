@@ -79,7 +79,7 @@ describe('golden: season 5 baseline', () => {
         placement: PLACEMENT_INDEX.WIN,
       },
     ];
-    const out = filterAndAggregate(buffer, N, conditions, season5.queens, season5.episodes);
+    const out = filterAndAggregate(buffer, N, conditions, season5);
     expect({
       matchCount: out.matchCount,
       results: roundResults(out.results),
@@ -94,7 +94,7 @@ describe('golden: season 5 baseline', () => {
         placement: PLACEMENT_INDEX.BTM2,
       },
     ];
-    const out = filterAndAggregate(buffer, N, conditions, season5.queens, season5.episodes);
+    const out = filterAndAggregate(buffer, N, conditions, season5);
     expect({
       matchCount: out.matchCount,
       results: roundResults(out.results),
@@ -109,7 +109,7 @@ describe('golden: season 5 baseline', () => {
         placement: ELIM_PLACEMENT,
       },
     ];
-    const out = filterAndAggregate(buffer, N, conditions, season5.queens, season5.episodes);
+    const out = filterAndAggregate(buffer, N, conditions, season5);
     expect({
       matchCount: out.matchCount,
       results: roundResults(out.results),
@@ -117,14 +117,7 @@ describe('golden: season 5 baseline', () => {
   });
 
   test('trajectories: jinkx unfiltered matches snapshot', () => {
-    const { paths, scannedRuns } = extractTrajectories(
-      buffer,
-      N,
-      queenIndex(season5, 'jinkx'),
-      season5.queens.length,
-      season5.episodes.length,
-      [],
-    );
+    const { paths, scannedRuns } = extractTrajectories(buffer, N, season5, 'jinkx', []);
     expect({ scannedRuns, paths: paths.slice(0, 20) }).toMatchSnapshot();
   });
 });
@@ -149,7 +142,7 @@ describe('golden: season 13 baseline', () => {
         placement: PLACEMENT_INDEX.WIN,
       },
     ];
-    const out = filterAndAggregate(buffer, N, conditions, season13.queens, season13.episodes);
+    const out = filterAndAggregate(buffer, N, conditions, season13);
     expect({
       matchCount: out.matchCount,
       results: roundResults(out.results),
@@ -157,14 +150,7 @@ describe('golden: season 13 baseline', () => {
   });
 
   test('trajectories: gottmik unfiltered matches snapshot', () => {
-    const { paths, scannedRuns } = extractTrajectories(
-      buffer,
-      N,
-      queenIndex(season13, 'gottmik'),
-      season13.queens.length,
-      season13.episodes.length,
-      [],
-    );
+    const { paths, scannedRuns } = extractTrajectories(buffer, N, season13, 'gottmik', []);
     expect({ scannedRuns, paths: paths.slice(0, 20) }).toMatchSnapshot();
   });
 });

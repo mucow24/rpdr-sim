@@ -191,7 +191,7 @@ export function useSimulation(onProgress?: (pct: number) => void) {
 
   const runTrajectories = useCallback(
     (
-      queenIndex: number,
+      queenId: string,
       conditions: FilterCondition[],
     ): Promise<{ paths: TrajectoryPath[]; totalRuns: number }> => {
       return new Promise((resolve) => {
@@ -199,7 +199,7 @@ export function useSimulation(onProgress?: (pct: number) => void) {
         pendingRef.current.set(id, { type: 'trajectories', resolve });
         getWorker().postMessage({
           type: 'trajectories',
-          queenIndex,
+          queenId,
           conditions,
         } satisfies WorkerRequest);
       });

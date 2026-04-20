@@ -59,7 +59,7 @@ describe('engine perf baseline', () => {
   bench(
     'filterAndAggregate with 3 conditions (100k)',
     () => {
-      filterAndAggregate(baseBuffer, BASELINE_N, conditions, season5.queens, season5.episodes);
+      filterAndAggregate(baseBuffer, BASELINE_N, conditions, season5);
     },
     { iterations: 10, warmupIterations: 1 },
   );
@@ -84,7 +84,7 @@ describe('engine perf baseline', () => {
   bench(
     `aggregateFromBuffer on merged ${MERGED_N} buffer`,
     () => {
-      aggregateFromBuffer(merged, MERGED_N, season5.queens, season5.episodes);
+      aggregateFromBuffer(merged, MERGED_N, season5);
     },
     { iterations: 5, warmupIterations: 1 },
   );

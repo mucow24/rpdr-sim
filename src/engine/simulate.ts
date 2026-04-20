@@ -324,6 +324,20 @@ export function bytesPerRun(numQueens: number, numEpisodes: number): number {
   return numEpisodes * numQueens + numQueens;
 }
 
+/** Canonical "no data" SimulationResults shape — used when a filter matches
+ *  zero runs, or when the worker is asked for results before any sim has run.
+ *  Single source of truth so consumers can rely on the empty-state shape. */
+export const EMPTY_RESULTS: SimulationResults = {
+  numSimulations: 0,
+  winProbByEpisode: [],
+  aliveProbByEpisode: [],
+  elimProbByEpisode: [],
+  placementDist: {},
+  reachedFinaleProb: {},
+  winProb: {},
+  episodePlacements: [],
+};
+
 function writeRunToBuffer(
   buf: Uint8Array,
   offset: number,
@@ -373,85 +387,46 @@ export interface BaselineResult {
   queenIds: string[];
 }
 
-export function runBaseline({
-  season,
-  numSimulations = 100_000,
-  noise = 1.8,
-  seed,
-}: RunBaselineOptions, onProgress?: (pct: number) => void): BaselineResult {
+/** Lock the first `fromEpisode` episodes to their authored outcomes and
+ *  derive the alive-set from those locked eliminations. Pass episodes
+ *  contribute no eliminations. */
+function buildMidSeason(season: SeasonData, fromEpisode: number): MidSeasonState {
   const { queens, episodes } = season;
-  const numQueens = queens.length;
-  const numEpisodes = episodes.length;
   const queenIds = queens.map((q) => q.id);
-  const stride = bytesPerRun(numQueens, numEpisodes);
-  const buffer = new Uint8Array(numSimulations * stride);
-  const rng = resolveRng(seed);
-
-  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
-  for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, rng);
-    writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
-    if (onProgress && i % progressInterval === 0) {
-      onProgress(Math.round((i / numSimulations) * 100));
-    }
-  }
-
-  const results = aggregateFromBuffer(buffer, numSimulations, queens, episodes);
-  return { results, buffer, numQueens, numEpisodes, queenIds };
-}
-
-/** Run baseline simulations and return only the compact buffer (no aggregation). */
-export function runBaselinePartial(
-  { season, numSimulations = 100_000, noise = 1.8, seed }: RunBaselineOptions,
-  onProgress?: (pct: number) => void,
-): { buffer: Uint8Array } {
-  const { queens, episodes } = season;
-  const numQueens = queens.length;
-  const numEpisodes = episodes.length;
-  const queenIds = queens.map((q) => q.id);
-  const stride = bytesPerRun(numQueens, numEpisodes);
-  const buffer = new Uint8Array(numSimulations * stride);
-  const rng = resolveRng(seed);
-
-  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
-  for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, rng);
-    writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
-    if (onProgress && i % progressInterval === 0) {
-      onProgress(Math.round((i / numSimulations) * 100));
-    }
-  }
-  return { buffer };
-}
-
-/** Run from mid-season state and return only the compact buffer (no aggregation). */
-export function runFromStatePartial(
-  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, seed }: RunFromStateOptions,
-  onProgress?: (pct: number) => void,
-): { buffer: Uint8Array } {
-  const { queens, episodes } = season;
-  const numQueens = queens.length;
-  const numEpisodes = episodes.length;
-  const queenIds = queens.map((q) => q.id);
-  const stride = bytesPerRun(numQueens, numEpisodes);
-  const buffer = new Uint8Array(numSimulations * stride);
-  const rng = resolveRng(seed);
-
   const priorResults: EpisodeResult[] = [];
   const allEliminated = new Set<string>();
-  for (let i = 0; i < fromEpisode && i < numEpisodes; i++) {
+  for (let i = 0; i < fromEpisode && i < episodes.length; i++) {
     const ep = episodes[i];
     priorResults.push(outcomeToEpisodeResult(ep));
     if (!isPass(ep)) {
       for (const id of ep.eliminated) allEliminated.add(id);
     }
   }
-
-  const midSeason: MidSeasonState = {
+  return {
     remainingQueenIds: new Set(queenIds.filter((id) => !allEliminated.has(id))),
     priorResults,
     startEpisodeIndex: fromEpisode,
   };
+}
+
+/** Allocate the compact buffer and run `numSimulations` of the engine into it.
+ *  Shared by every public entry point — they vary only in (a) whether a
+ *  mid-season lock is supplied and (b) whether the buffer is returned raw or
+ *  aggregated. */
+function runToBuffer(
+  season: SeasonData,
+  numSimulations: number,
+  noise: number,
+  rng: Rng,
+  midSeason: MidSeasonState | undefined,
+  onProgress: ((pct: number) => void) | undefined,
+): Uint8Array {
+  const { queens, episodes } = season;
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+  const buffer = new Uint8Array(numSimulations * stride);
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
@@ -461,6 +436,44 @@ export function runFromStatePartial(
       onProgress(Math.round((i / numSimulations) * 100));
     }
   }
+  return buffer;
+}
+
+function wrapAsBaselineResult(buffer: Uint8Array, season: SeasonData, numSimulations: number): BaselineResult {
+  const results = aggregateFromBuffer(buffer, numSimulations, season);
+  return {
+    results,
+    buffer,
+    numQueens: season.queens.length,
+    numEpisodes: season.episodes.length,
+    queenIds: season.queens.map((q) => q.id),
+  };
+}
+
+export function runBaseline(
+  { season, numSimulations = 100_000, noise = 1.8, seed }: RunBaselineOptions,
+  onProgress?: (pct: number) => void,
+): BaselineResult {
+  const buffer = runToBuffer(season, numSimulations, noise, resolveRng(seed), undefined, onProgress);
+  return wrapAsBaselineResult(buffer, season, numSimulations);
+}
+
+/** Run baseline simulations and return only the compact buffer (no aggregation). */
+export function runBaselinePartial(
+  { season, numSimulations = 100_000, noise = 1.8, seed }: RunBaselineOptions,
+  onProgress?: (pct: number) => void,
+): { buffer: Uint8Array } {
+  const buffer = runToBuffer(season, numSimulations, noise, resolveRng(seed), undefined, onProgress);
+  return { buffer };
+}
+
+/** Run from mid-season state and return only the compact buffer (no aggregation). */
+export function runFromStatePartial(
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, seed }: RunFromStateOptions,
+  onProgress?: (pct: number) => void,
+): { buffer: Uint8Array } {
+  const midSeason = buildMidSeason(season, fromEpisode);
+  const buffer = runToBuffer(season, numSimulations, noise, resolveRng(seed), midSeason, onProgress);
   return { buffer };
 }
 
@@ -472,10 +485,10 @@ export function runFromStatePartial(
 export function aggregateFromBuffer(
   buffer: Uint8Array,
   totalRuns: number,
-  queens: Queen[],
-  episodes: EpisodeData[],
+  season: SeasonData,
   matchingIndices?: number[],
 ): SimulationResults {
+  const { queens, episodes } = season;
   const numQueens = queens.length;
   const numEpisodes = episodes.length;
   const queenIds = queens.map((q) => q.id);
@@ -636,17 +649,16 @@ export function filterAndAggregate(
   buffer: Uint8Array,
   totalRuns: number,
   conditions: FilterCondition[],
-  queens: Queen[],
-  episodes: EpisodeData[],
+  season: SeasonData,
 ): { results: SimulationResults; matchCount: number } {
   const matchingIndices = getMatchingIndices(
     buffer,
     totalRuns,
     conditions,
-    queens.length,
-    episodes.length,
+    season.queens.length,
+    season.episodes.length,
   );
-  const results = aggregateFromBuffer(buffer, totalRuns, queens, episodes, matchingIndices);
+  const results = aggregateFromBuffer(buffer, totalRuns, season, matchingIndices);
   return { results, matchCount: matchingIndices.length };
 }
 
@@ -654,11 +666,14 @@ export function filterAndAggregate(
 export function extractTrajectories(
   buffer: Uint8Array,
   totalRuns: number,
-  queenIndex: number,
-  numQueens: number,
-  numEpisodes: number,
+  season: SeasonData,
+  queenId: string,
   conditions: FilterCondition[],
 ): { paths: TrajectoryPath[]; scannedRuns: number } {
+  const numQueens = season.queens.length;
+  const numEpisodes = season.episodes.length;
+  const queenIndex = season.queens.findIndex((q) => q.id === queenId);
+  if (queenIndex < 0) return { paths: [], scannedRuns: 0 };
   const stride = bytesPerRun(numQueens, numEpisodes);
   const runIndices = conditions.length > 0
     ? getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes)
@@ -729,54 +744,10 @@ export function outcomeToEpisodeResult(ep: EpisodeData): EpisodeResult {
 // ── Forward simulation from season state ──────────────────
 
 export function runFromState(
-  {
-    season,
-    fromEpisode,
-    numSimulations = 100_000,
-    noise = 1.8,
-    seed,
-  }: RunFromStateOptions,
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, seed }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): BaselineResult {
-  const { queens, episodes } = season;
-  const numQueens = queens.length;
-  const numEpisodes = episodes.length;
-  const queenIds = queens.map((q) => q.id);
-  const stride = bytesPerRun(numQueens, numEpisodes);
-  const buffer = new Uint8Array(numSimulations * stride);
-  const rng = resolveRng(seed);
-
-  // Build locked EpisodeResults and compute remaining queens from outcomes
-  const priorResults: EpisodeResult[] = [];
-  const allEliminated = new Set<string>();
-
-  for (let i = 0; i < fromEpisode && i < numEpisodes; i++) {
-    const ep = episodes[i];
-    priorResults.push(outcomeToEpisodeResult(ep));
-    if (!isPass(ep)) {
-      for (const id of ep.eliminated) allEliminated.add(id);
-    }
-  }
-
-  const remainingQueenIds = new Set(
-    queenIds.filter((id) => !allEliminated.has(id)),
-  );
-
-  const midSeason: MidSeasonState = {
-    remainingQueenIds,
-    priorResults,
-    startEpisodeIndex: fromEpisode,
-  };
-
-  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
-  for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, rng, midSeason);
-    writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
-    if (onProgress && i % progressInterval === 0) {
-      onProgress(Math.round((i / numSimulations) * 100));
-    }
-  }
-
-  const results = aggregateFromBuffer(buffer, numSimulations, queens, episodes);
-  return { results, buffer, numQueens, numEpisodes, queenIds };
+  const midSeason = buildMidSeason(season, fromEpisode);
+  const buffer = runToBuffer(season, numSimulations, noise, resolveRng(seed), midSeason, onProgress);
+  return wrapAsBaselineResult(buffer, season, numSimulations);
 }
