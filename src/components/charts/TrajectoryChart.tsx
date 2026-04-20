@@ -39,6 +39,12 @@ type TrajectoryChartProps = {
 
 export default function TrajectoryChart({ height = 350, compact = false }: TrajectoryChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  // Sentinel `undefined` distinguishes "first render" from "user explicitly
+  // cleared selection" (null), so the chart animates in on mount too.
+  const prevSelectedIdRef = useRef<string | null | undefined>(undefined);
+  // Active reveal animation (if any), survives re-renders so a width update
+  // mid-flight doesn't clobber the in-progress wipe.
+  const animRef = useRef<{ queenId: string; startTime: number } | null>(null);
   const { containerRef, width } = useContainerWidth(compact ? 100 : 900, compact ? 40 : 100);
   const [fadeByElim, setFadeByElim] = useState(true);
 
@@ -163,6 +169,48 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
     // SVG defs for survival-fade gradients
     const defs = svg.append('defs');
 
+    // Reveal-from-left animation. Gate on user-selection changes (not on
+    // effective queen, width, or toggle changes) — this way clicking a queen
+    // always animates, even when that queen was already the fallback.
+    const ANIM_DURATION_MS = 900;
+    const selectionChanged = prevSelectedIdRef.current !== selectedQueenId;
+    prevSelectedIdRef.current = selectedQueenId;
+    if (selectionChanged) {
+      animRef.current = { queenId: queen.id, startTime: performance.now() };
+    }
+
+    // Group containing the animated chart content (bands + median + survival).
+    // Grid, axes, labels, and hover overlays stay on `g` so they're not clipped.
+    const contentG = g.append('g');
+
+    const anim = animRef.current;
+    const elapsed = anim && anim.queenId === queen.id ? performance.now() - anim.startTime : Infinity;
+    if (elapsed < ANIM_DURATION_MS) {
+      // Resume the in-flight animation at whatever width the clip would have
+      // had at `elapsed` into an easeCubicOut curve, then linearly finish the
+      // remainder. This keeps the wipe visibly continuous across re-renders.
+      const t = elapsed / ANIM_DURATION_MS;
+      const eased = 1 - Math.pow(1 - t, 3);
+      const startW = innerWidth * eased;
+      const remaining = ANIM_DURATION_MS - elapsed;
+
+      const clipId = `traj-reveal-${queen.id.replace(/[^a-z0-9]/gi, '')}`;
+      const clipRect = defs
+        .append('clipPath')
+        .attr('id', clipId)
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', -4)
+        .attr('width', startW)
+        .attr('height', innerHeight + 8);
+      contentG.attr('clip-path', `url(#${clipId})`);
+      clipRect
+        .transition()
+        .duration(remaining)
+        .ease(d3.easeLinear)
+        .attr('width', innerWidth);
+    }
+
     // Build a horizontal gradient that fades opacity by survival at each episode
     function makeSurvivalGradient(id: string, baseOpacity: number): string {
       const grad = defs.append('linearGradient')
@@ -200,7 +248,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .y1((d) => d[band.y1Key] as number)
         .curve(d3.curveMonotoneX);
 
-      g.append('path')
+      contentG.append('path')
         .datum(epData)
         .attr('d', area)
         .attr('fill', gradUrl);
@@ -215,7 +263,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       .y((d) => d.medianY)
       .curve(d3.curveMonotoneX);
 
-    g.append('path')
+    contentG.append('path')
       .datum(epData)
       .attr('d', medianLine)
       .attr('fill', 'none')
@@ -254,7 +302,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       .y((d) => yRight(d.survival))
       .curve(d3.curveMonotoneX);
 
-    g.append('path')
+    contentG.append('path')
       .datum(epData)
       .attr('d', survivalLine)
       .attr('fill', 'none')
