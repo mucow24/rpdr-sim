@@ -28,8 +28,15 @@ interface MidSeasonState {
   startEpisodeIndex: number;
 }
 
-// Box-Muller transform for gaussian random numbers
-function gaussianRandom(rng: Rng, mean = 0, stdev = 1): number {
+// Box-Muller transform for gaussian random numbers.
+// Short-circuit at stdev=0: callers use noise=0 for zero-noise oracle tests,
+// and Box-Muller does `log(u1)` which is -Infinity when u1=0. Seeded RNGs
+// (mulberry32) can produce exactly 0, so `0 * (-Infinity)` = NaN would silently
+// corrupt deterministic runs. Returning `mean` directly is the mathematical
+// limit anyway.
+/** @internal — exported for direct testing */
+export function gaussianRandom(rng: Rng, mean = 0, stdev = 1): number {
+  if (stdev === 0) return mean;
   const u1 = rng();
   const u2 = rng();
   const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
@@ -59,7 +66,8 @@ export function scoreQueen(
   return skill + gaussianRandom(rng, 0, noise);
 }
 
-function assignPlacements(
+/** @internal — exported for direct testing */
+export function assignPlacements(
   scores: { queenId: string; score: number }[],
 ): Map<string, EpisodeOutcome> {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
@@ -95,6 +103,13 @@ function resolveLipSync(queenA: Queen, queenB: Queen, rng: Rng): string {
 // Each episode kind owns its own handler. Adding a new kind (custom finale
 // type, All Stars non-elim, immunity-aware regular) means writing one handler
 // and registering it — no new branches in `simulateOneSeason`.
+//
+// Archetypes today are pure data (weight mixtures). Custom sim logic may
+// eventually key on archetype id (e.g. a lip-sync lalaparuza). Any future
+// `archetype === '...'` branch inside a handler MUST ship with a dedicated
+// zero-noise oracle test in `simulate.correctness.test.ts` that exercises
+// the branch end-to-end — plausible-but-wrong mechanics will not be caught
+// by the existing goldens alone.
 
 /** Mutable per-run state passed to every episode handler. */
 interface SimCtx {
@@ -389,8 +404,9 @@ export interface BaselineResult {
 
 /** Lock the first `fromEpisode` episodes to their authored outcomes and
  *  derive the alive-set from those locked eliminations. Pass episodes
- *  contribute no eliminations. */
-function buildMidSeason(season: SeasonData, fromEpisode: number): MidSeasonState {
+ *  contribute no eliminations.
+ *  @internal — exported for direct testing */
+export function buildMidSeason(season: SeasonData, fromEpisode: number): MidSeasonState {
   const { queens, episodes } = season;
   const queenIds = queens.map((q) => q.id);
   const priorResults: EpisodeResult[] = [];
@@ -506,6 +522,26 @@ export function aggregateFromBuffer(
   const placementDistCounts = Array.from({ length: numQueens }, () => new Int32Array(numQueens + 1));
   const winCounts = new Int32Array(numQueens);
 
+  // Precompute per-episode metadata once per aggregation (not per run).
+  //   - passEpFlags: pass episodes contribute no placement bytes, so the
+  //     per-run buffer has 255 for every queen. Reading those 255s as
+  //     "not alive" would make aliveProbByEpisode dip to 0 at every pass
+  //     ep — wrong. Instead we walk back to the nearest non-pass ep and
+  //     carry forward the queen's alive state (alive ⇔ prior byte ∈ [0..4]).
+  //   - prevNonPassEp[ep]: index of the most recent non-pass episode
+  //     before `ep`, or -1 if none exists (the run started mid-pass).
+  const passEpFlags = new Uint8Array(numEpisodes);
+  const prevNonPassEp = new Int32Array(numEpisodes);
+  {
+    let lastNonPass = -1;
+    for (let ep = 0; ep < numEpisodes; ep++) {
+      const isPassEp = episodes[ep].kind === 'pass';
+      passEpFlags[ep] = isPassEp ? 1 : 0;
+      prevNonPassEp[ep] = lastNonPass;
+      if (!isPassEp) lastNonPass = ep;
+    }
+  }
+
   // Single pass over selected runs (or all runs if no mask) — run-first for
   // cache locality. ELIM is encoded directly in the placement byte (5), so
   // there's no separate elim section to read, no double-elim reconstruction,
@@ -519,6 +555,31 @@ export function aggregateFromBuffer(
 
     for (let ep = 0; ep < numEpisodes; ep++) {
       const epBase = base + ep * numQueens;
+
+      if (passEpFlags[ep]) {
+        // Carry alive state from the previous non-pass ep. A queen is alive
+        // at the start of this pass ep iff at the prior non-pass ep her byte
+        // was a non-ELIM placement (0..4). ELIM means she was eliminated
+        // there, so she's not alive going into this pass ep.
+        const priorEp = prevNonPassEp[ep];
+        if (priorEp < 0) {
+          // Pass episode with no prior non-pass ep — everyone starts alive.
+          for (let qi = 0; qi < numQueens; qi++) {
+            aliveCountsPerEp[ep][qi]++;
+            if (buffer[fpBase + qi] === 1) winCountsPerEp[ep][qi]++;
+          }
+        } else {
+          const priorBase = base + priorEp * numQueens;
+          for (let qi = 0; qi < numQueens; qi++) {
+            const priorPIdx = buffer[priorBase + qi];
+            if (priorPIdx === 255 || priorPIdx === ELIM_PLACEMENT) continue;
+            aliveCountsPerEp[ep][qi]++;
+            if (buffer[fpBase + qi] === 1) winCountsPerEp[ep][qi]++;
+          }
+        }
+        continue;
+      }
+
       for (let qi = 0; qi < numQueens; qi++) {
         const pIdx = buffer[epBase + qi];
         if (pIdx === 255) continue;
@@ -727,6 +788,15 @@ export function outcomeToEpisodeResult(ep: EpisodeData): EpisodeResult {
   const placementMap = new Map<string, EpisodeOutcome>(
     Object.entries(ep.placements) as [string, Placement][],
   );
+  // Mirror the regular handler's encoding: a queen who was eliminated this
+  // episode is recorded as ELIM, overriding her authored BTM2 placement.
+  // Without this override, a mid-season lock re-hydrates the eliminee as
+  // BTM2 forever — aggregation sees elimProbByEpisode[lockedEp][q] = 0,
+  // and episodePlacements[lockedEp][q][BTM2] = 1, both of which diverge
+  // from freshly-simulated behavior.
+  for (const eid of ep.eliminated) {
+    placementMap.set(eid, 'ELIM');
+  }
 
   const btm2 = Object.entries(ep.placements)
     .filter(([, p]) => p === 'BTM2')

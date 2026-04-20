@@ -130,13 +130,15 @@ describe('weighted scoreQueen', () => {
 });
 
 describe('outcomeToEpisodeResult', () => {
-  test('converts placements Record to Map', () => {
+  test('converts placements Record to Map, overriding eliminated to ELIM', () => {
     const ep = season5.episodes[0]; // Ep 1: roxxxy WIN, penny+serena BTM2, penny eliminated
     const result = outcomeToEpisodeResult(ep);
 
     expect(result.placements).toBeInstanceOf(Map);
     expect(result.placements.get('roxxxy')).toBe('WIN');
-    expect(result.placements.get('penny')).toBe('BTM2');
+    // Eliminated queen is marked ELIM, mirroring how the sim's regular handler
+    // encodes the post-lipsync state. serena (BTM2 but survived) stays BTM2.
+    expect(result.placements.get('penny')).toBe('ELIM');
     expect(result.placements.get('serena')).toBe('BTM2');
     expect(result.placements.get('alaska')).toBe('HIGH');
     expect(result.episodeNumber).toBe(1);
@@ -187,8 +189,11 @@ describe('runFromState', () => {
 
     // Ep 1 winner (roxxxy) should be deterministic
     expect(results.episodePlacements[0]['roxxxy']['WIN']).toBe(1.0);
-    // Ep 1 BTM2 (penny) should be deterministic
-    expect(results.episodePlacements[0]['penny']['BTM2']).toBe(1.0);
+    // Ep 1 eliminated (penny) should be ELIM in every run — elimProb = 1.
+    // Before the outcomeToEpisodeResult fix this was penny['BTM2'] = 1,
+    // because locked eliminees kept their authored BTM2 placement in the
+    // buffer and never got the ELIM override that fresh sim runs apply.
+    expect(results.elimProbByEpisode[0]['penny']).toBe(1.0);
     // Ep 2 winner (lineysha) should be deterministic
     expect(results.episodePlacements[1]['lineysha']['WIN']).toBe(1.0);
 
