@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 /** Track a container's width via ResizeObserver. Below `minWidth` updates are
- *  ignored to avoid d3 thrash during initial mount / hidden layouts. */
+ *  ignored to avoid d3 thrash during initial mount / hidden layouts.
+ *  The initial size is synced from the element synchronously on mount (via
+ *  useLayoutEffect) so consumers don't paint one frame at the `initialWidth`
+ *  fallback before snapping to the real size. */
 export function useContainerWidth(
   initialWidth: number,
   minWidth: number = 100,
@@ -9,9 +12,11 @@ export function useContainerWidth(
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(initialWidth);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width > minWidth) setWidth(Math.floor(rect.width));
     const obs = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
       if (w && w > minWidth) setWidth(Math.floor(w));
@@ -24,7 +29,8 @@ export function useContainerWidth(
 }
 
 /** Track a container's width AND height via ResizeObserver. Both axes have
- *  independent minimum thresholds. */
+ *  independent minimum thresholds. Initial size is synced synchronously on
+ *  mount to avoid a first-frame flash at the fallback size. */
 export function useContainerSize(
   initial: { width: number; height: number },
   min: { width: number; height: number } = { width: 100, height: 50 },
@@ -32,13 +38,17 @@ export function useContainerSize(
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(initial);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width > min.width && rect.height > min.height) {
+      setSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+    }
     const obs = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect && rect.width > min.width && rect.height > min.height) {
-        setSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+      const r = entries[0]?.contentRect;
+      if (r && r.width > min.width && r.height > min.height) {
+        setSize({ width: Math.floor(r.width), height: Math.floor(r.height) });
       }
     });
     obs.observe(el);

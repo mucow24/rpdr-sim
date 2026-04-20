@@ -7,15 +7,19 @@ import { useContainerSize } from './common/useContainerSize';
 import { computePlacementGridData } from './placementGrid/placementGridData';
 
 
-const MARGIN = { top: 16, right: 0, bottom: 0, left: 55 };
-const Y_PADDING = 0.08;
+const MARGIN = { top: 4, right: 42, bottom: 18, left: 72 };
+const Y_PADDING = 0;
 
-export default function PlacementGrid() {
+interface Props {
+  onSwitch?: () => void;
+}
+
+export default function PlacementGrid({ onSwitch }: Props = {}) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { containerRef: plotRef, width, height } = useContainerSize({ width: 680, height: 280 });
 
   const season = useStore(selectCurrentSeason);
-  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId, conditions } =
     useStore();
 
   const results = filteredResults ?? baselineResults;
@@ -69,24 +73,32 @@ export default function PlacementGrid() {
     const { labels: placeEpisodeLabel, finaleCohortSize } =
       placementEpisodeLabels(season);
 
-    // Column labels (above grid): "👑" at rightmost (place 1), then 2, 3, ..., N
+    // Column labels (below grid): "👑" at rightmost (place 1), then 2, 3, ..., N
     g.append('g')
-      .selectAll('text')
-      .data(placesRightToLeft)
-      .join('text')
-      .attr('x', (d) => (x(d) ?? 0) + x.bandwidth() / 2)
-      .attr('y', -10)
-      .attr('text-anchor', 'middle')
-      .attr('fill', '#888')
-      .attr('font-size', (d) => (d === 1 ? '14px' : '10px'))
-      .text((d) => (d === 1 ? '👑' : `${d}`));
+      .attr('transform', `translate(0,${innerHeight})`)
+      .call(
+        d3.axisBottom(x).tickSizeOuter(0).tickFormat((d) => (d === 1 ? '👑' : `${d}`)),
+      )
+      .call((g) => g.select('.domain').attr('stroke', '#2a2a3a'))
+      .call((g) => g.selectAll('.tick line').attr('stroke', '#2a2a3a'))
+      .call((g) =>
+        g
+          .selectAll('.tick text')
+          .attr('fill', '#666')
+          .attr('font-size', '10px'),
+      );
 
     // Y axis (queen names) — styled like the other charts
-    g.append('g')
+    const queensWithPins = new Set<string>();
+    for (const c of conditions) {
+      const q = season.queens[c.queenIndex];
+      if (q) queensWithPins.add(q.id);
+    }
+    const yAxisG = g.append('g')
       .call(
         d3.axisLeft(y).tickFormat((id) => {
           const q = season.queens.find((q) => q.id === id);
-          return q?.name.split(' ')[0] ?? id;
+          return (q?.name.split(' ')[0] ?? id).toUpperCase();
         }),
       )
       .call((g) => g.select('.domain').remove())
@@ -98,13 +110,30 @@ export default function PlacementGrid() {
             const q = season.queens.find((q) => q.id === id);
             return q?.color ?? '#888';
           })
-          .attr('font-size', '11px')
+          .attr('font-size', '10px')
+          .attr('font-weight', 'bold')
+          .attr('font-family', 'monospace')
           .style('cursor', 'pointer')
           .style('text-decoration', (id) =>
             id === selectedQueenId ? 'underline' : null,
           )
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
+
+    // Yellow pin dots next to queens with active what-if conditions
+    yAxisG.selectAll<SVGGElement, string>('.tick').each(function (id) {
+      if (!queensWithPins.has(id)) return;
+      const textNode = d3.select(this).select<SVGTextElement>('text').node();
+      if (!textNode) return;
+      const bbox = textNode.getBBox();
+      d3.select(this)
+        .append('circle')
+        .attr('cx', bbox.x - 6)
+        .attr('cy', 0)
+        .attr('r', 2.5)
+        .attr('fill', '#ffd700')
+        .attr('opacity', 0.9);
+    });
 
     // Tooltip
     const tooltip = d3
@@ -270,8 +299,8 @@ export default function PlacementGrid() {
       g.append('line')
         .attr('x1', dividerX)
         .attr('x2', dividerX)
-        .attr('y1', -8)
-        .attr('y2', innerHeight)
+        .attr('y1', 0)
+        .attr('y2', innerHeight + 8)
         .attr('stroke', '#666')
         .attr('stroke-width', 1)
         .style('pointer-events', 'none');
@@ -280,16 +309,37 @@ export default function PlacementGrid() {
     return () => {
       d3.selectAll('.placement-grid-tooltip').remove();
     };
-  }, [results, season, width, height, innerWidth, innerHeight, selectedQueenId, setSelectedQueenId]);
+  }, [results, season, width, height, innerWidth, innerHeight, selectedQueenId, setSelectedQueenId, conditions]);
 
   return (
     <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">
-      <h3 className="text-sm font-medium text-[#ddd] mb-3">
-        Placement Probability Grid
-      </h3>
-      <div ref={plotRef} className="flex-1 min-h-0">
+      <div className="flex items-center mb-1">
+        <h3 className="text-sm font-medium text-[#ddd]">
+          Placement Probability Grid
+        </h3>
+        {onSwitch && (
+          <button
+            onClick={onSwitch}
+            title="Switch to Placement Distribution"
+            className="ml-auto text-[#666] hover:text-[#ddd] transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="17 1 21 5 17 9" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <polyline points="7 23 3 19 7 15" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+            </svg>
+          </button>
+        )}
+      </div>
+      <div ref={plotRef} className="flex-1 min-h-0 relative">
         {results ? (
-          <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+          <svg
+            ref={svgRef}
+            width={width}
+            height={height}
+            className="absolute inset-0 overflow-visible"
+          />
         ) : (
           <div className="flex items-center justify-center text-[#444] h-full">
             Running simulations...

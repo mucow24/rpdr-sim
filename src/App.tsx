@@ -30,6 +30,12 @@ export default function App() {
 
   const [simInput, setSimInput] = useState(numSimulations.toLocaleString());
   const [pendingSeasonId, setPendingSeasonId] = useState(activeSeasonId);
+  const [showDist, setShowDist] = useState(
+    () => localStorage.getItem('rpdr-sim-show-dist') === '1',
+  );
+  useEffect(() => {
+    localStorage.setItem('rpdr-sim-show-dist', showDist ? '1' : '0');
+  }, [showDist]);
   // Shared with Timeline so episode boxes stay aligned with flow-chart columns.
   const carrierWidth = 75;
 
@@ -45,6 +51,7 @@ export default function App() {
   const triggerSimulation = useCallback((n: number) => {
     setIsSimulating(true);
     setSimulationProgress(0);
+    setBaselineResults(null);
     runBaseline({
       season: baselineSeason,
       numSimulations: n,
@@ -79,9 +86,9 @@ export default function App() {
   const simulationProgress = useStore((s) => s.simulationProgress);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 py-8">
+    <div className="max-w-[948px] mx-auto px-6 py-8">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-[#eee] tracking-tight">
+        <h1 className="text-3xl font-bold text-[#eee] tracking-tight whitespace-nowrap">
           Charisma Uniqueness Nerve & Talent Simulator
         </h1>
         <div className="flex items-center gap-4 mt-3">
@@ -125,7 +132,7 @@ export default function App() {
         <DataPage />
       ) : (
         <>
-          <div className="flex items-center gap-4 mb-6 text-[#666]">
+          <div className="flex items-center gap-4 mb-6 text-[#666] min-w-[900px]">
             <select
               value={pendingSeasonId}
               onChange={(e) => setPendingSeasonId(e.target.value)}
@@ -197,28 +204,30 @@ export default function App() {
             </button>
           </div>
 
-          <DivergencePanel />
-
-          <section className="mb-8 flex gap-4 items-stretch w-[900px]">
+          <section className="mb-4 flex gap-4 items-stretch w-[900px]">
             <div className="flex-1 min-w-0">
-              <PlacementGrid />
+              {showDist ? (
+                <PlacementDistChart onSwitch={() => setShowDist(false)} />
+              ) : (
+                <PlacementGrid onSwitch={() => setShowDist(true)} />
+              )}
             </div>
             <div className="w-[440px] flex-shrink-0">
               <QueenStatsPanel />
             </div>
           </section>
 
-          <section className="mb-8 min-w-[900px]">
-            <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-              Season Flow — click a queen to select, click placements to pin
-            </h3>
-            <Timeline carrierWidth={carrierWidth} />
-            <SeasonFlowChart carrierWidth={carrierWidth} />
+          <section className="mb-4 w-[900px]">
+            <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4">
+              <h3 className="text-sm font-medium text-[#ddd] mb-3">
+                Season Flow — click a queen to select, click placements to pin
+              </h3>
+              <Timeline carrierWidth={carrierWidth} />
+              <SeasonFlowChart carrierWidth={carrierWidth} />
+            </div>
           </section>
 
-          <section className="mb-8">
-            <PlacementDistChart height={460} />
-          </section>
+          <DivergencePanel />
 
           <footer className="text-center text-[#333] text-xs pb-8">
             Powered by {numSimulations.toLocaleString()} Monte Carlo simulations. May the best woman win.

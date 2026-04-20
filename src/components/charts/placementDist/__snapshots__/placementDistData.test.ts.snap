@@ -3,110 +3,38 @@
 exports[`S5 placementDist data matches snapshot (rounded 6dp) 1`] = `
 {
   "expectedPlaces": [
-    3.2,
     3.271,
+    3.2,
     3.513,
     5.358,
     5.813,
     6.464,
     6.464,
     8.876,
-    9.897,
     10.024,
     10.045,
+    9.897,
     10.121,
     10.854,
     11.1,
   ],
   "queenOrder": [
-    "alaska",
     "jinkx",
+    "alaska",
     "alyssa",
     "detox",
     "roxxxy",
     "ivy",
     "coco",
     "lineysha",
-    "honey",
     "jade",
     "monica",
+    "honey",
     "vivienne",
     "serena",
     "penny",
   ],
   "segments": [
-    [
-      {
-        "cumBefore": 0,
-        "place": 1,
-        "prob": 0.286,
-      },
-      {
-        "cumBefore": 0.286,
-        "place": 2,
-        "prob": 0.265,
-      },
-      {
-        "cumBefore": 0.551,
-        "place": 3,
-        "prob": 0.12,
-      },
-      {
-        "cumBefore": 0.671,
-        "place": 4,
-        "prob": 0.129,
-      },
-      {
-        "cumBefore": 0.8,
-        "place": 5,
-        "prob": 0.073,
-      },
-      {
-        "cumBefore": 0.873,
-        "place": 6,
-        "prob": 0.03,
-      },
-      {
-        "cumBefore": 0.903,
-        "place": 7,
-        "prob": 0.014,
-      },
-      {
-        "cumBefore": 0.917,
-        "place": 8,
-        "prob": 0.022,
-      },
-      {
-        "cumBefore": 0.939,
-        "place": 9,
-        "prob": 0.004,
-      },
-      {
-        "cumBefore": 0.943,
-        "place": 10,
-        "prob": 0.013,
-      },
-      {
-        "cumBefore": 0.956,
-        "place": 11,
-        "prob": 0.029,
-      },
-      {
-        "cumBefore": 0.985,
-        "place": 12,
-        "prob": 0.003,
-      },
-      {
-        "cumBefore": 0.988,
-        "place": 13,
-        "prob": 0,
-      },
-      {
-        "cumBefore": 0.988,
-        "place": 14,
-        "prob": 0.012,
-      },
-    ],
     [
       {
         "cumBefore": 0,
@@ -177,6 +105,78 @@ exports[`S5 placementDist data matches snapshot (rounded 6dp) 1`] = `
         "cumBefore": 0.97,
         "place": 14,
         "prob": 0.03,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0.286,
+      },
+      {
+        "cumBefore": 0.286,
+        "place": 2,
+        "prob": 0.265,
+      },
+      {
+        "cumBefore": 0.551,
+        "place": 3,
+        "prob": 0.12,
+      },
+      {
+        "cumBefore": 0.671,
+        "place": 4,
+        "prob": 0.129,
+      },
+      {
+        "cumBefore": 0.8,
+        "place": 5,
+        "prob": 0.073,
+      },
+      {
+        "cumBefore": 0.873,
+        "place": 6,
+        "prob": 0.03,
+      },
+      {
+        "cumBefore": 0.903,
+        "place": 7,
+        "prob": 0.014,
+      },
+      {
+        "cumBefore": 0.917,
+        "place": 8,
+        "prob": 0.022,
+      },
+      {
+        "cumBefore": 0.939,
+        "place": 9,
+        "prob": 0.004,
+      },
+      {
+        "cumBefore": 0.943,
+        "place": 10,
+        "prob": 0.013,
+      },
+      {
+        "cumBefore": 0.956,
+        "place": 11,
+        "prob": 0.029,
+      },
+      {
+        "cumBefore": 0.985,
+        "place": 12,
+        "prob": 0.003,
+      },
+      {
+        "cumBefore": 0.988,
+        "place": 13,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0.988,
+        "place": 14,
+        "prob": 0.012,
       },
     ],
     [
@@ -620,78 +620,6 @@ exports[`S5 placementDist data matches snapshot (rounded 6dp) 1`] = `
       {
         "cumBefore": 0,
         "place": 2,
-        "prob": 0.004,
-      },
-      {
-        "cumBefore": 0.004,
-        "place": 3,
-        "prob": 0.018,
-      },
-      {
-        "cumBefore": 0.022,
-        "place": 4,
-        "prob": 0.023,
-      },
-      {
-        "cumBefore": 0.045,
-        "place": 5,
-        "prob": 0.043,
-      },
-      {
-        "cumBefore": 0.088,
-        "place": 6,
-        "prob": 0.064,
-      },
-      {
-        "cumBefore": 0.152,
-        "place": 7,
-        "prob": 0.078,
-      },
-      {
-        "cumBefore": 0.23,
-        "place": 8,
-        "prob": 0.081,
-      },
-      {
-        "cumBefore": 0.311,
-        "place": 9,
-        "prob": 0.074,
-      },
-      {
-        "cumBefore": 0.385,
-        "place": 10,
-        "prob": 0.159,
-      },
-      {
-        "cumBefore": 0.544,
-        "place": 11,
-        "prob": 0.122,
-      },
-      {
-        "cumBefore": 0.666,
-        "place": 12,
-        "prob": 0.109,
-      },
-      {
-        "cumBefore": 0.775,
-        "place": 13,
-        "prob": 0.106,
-      },
-      {
-        "cumBefore": 0.881,
-        "place": 14,
-        "prob": 0.119,
-      },
-    ],
-    [
-      {
-        "cumBefore": 0,
-        "place": 1,
-        "prob": 0,
-      },
-      {
-        "cumBefore": 0,
-        "place": 2,
         "prob": 0.001,
       },
       {
@@ -825,6 +753,78 @@ exports[`S5 placementDist data matches snapshot (rounded 6dp) 1`] = `
         "cumBefore": 0.888,
         "place": 14,
         "prob": 0.112,
+      },
+    ],
+    [
+      {
+        "cumBefore": 0,
+        "place": 1,
+        "prob": 0,
+      },
+      {
+        "cumBefore": 0,
+        "place": 2,
+        "prob": 0.004,
+      },
+      {
+        "cumBefore": 0.004,
+        "place": 3,
+        "prob": 0.018,
+      },
+      {
+        "cumBefore": 0.022,
+        "place": 4,
+        "prob": 0.023,
+      },
+      {
+        "cumBefore": 0.045,
+        "place": 5,
+        "prob": 0.043,
+      },
+      {
+        "cumBefore": 0.088,
+        "place": 6,
+        "prob": 0.064,
+      },
+      {
+        "cumBefore": 0.152,
+        "place": 7,
+        "prob": 0.078,
+      },
+      {
+        "cumBefore": 0.23,
+        "place": 8,
+        "prob": 0.081,
+      },
+      {
+        "cumBefore": 0.311,
+        "place": 9,
+        "prob": 0.074,
+      },
+      {
+        "cumBefore": 0.385,
+        "place": 10,
+        "prob": 0.159,
+      },
+      {
+        "cumBefore": 0.544,
+        "place": 11,
+        "prob": 0.122,
+      },
+      {
+        "cumBefore": 0.666,
+        "place": 12,
+        "prob": 0.109,
+      },
+      {
+        "cumBefore": 0.775,
+        "place": 13,
+        "prob": 0.106,
+      },
+      {
+        "cumBefore": 0.881,
+        "place": 14,
+        "prob": 0.119,
       },
     ],
     [
@@ -1045,8 +1045,8 @@ exports[`S5 placementDist data matches snapshot (rounded 6dp) 1`] = `
     ],
   ],
   "winProbs": [
-    0.286,
     0.375,
+    0.286,
     0.188,
     0.064,
     0.044,

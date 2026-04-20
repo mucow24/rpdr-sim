@@ -60,7 +60,7 @@ export interface AppState {
   exportSeasonsJson: () => string;
 
   // Sim control
-  setBaselineResults: (results: SimulationResults) => void;
+  setBaselineResults: (results: SimulationResults | null) => void;
   setSimulationProgress: (pct: number | null) => void;
   setFilteredResults: (results: SimulationResults | null, matchCount: number | null, totalRuns: number | null) => void;
   setIsSimulating: (isSimulating: boolean) => void;

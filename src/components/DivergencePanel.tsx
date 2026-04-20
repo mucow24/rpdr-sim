@@ -9,7 +9,7 @@ export default function DivergencePanel() {
   if (conditions.length === 0) return null;
 
   return (
-    <div className="bg-[#1a1a24] border border-amber-500/20 rounded-lg p-4 mb-6">
+    <div className="bg-[#1a1a24] border border-amber-500/20 rounded-lg p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-amber-400">
           Active What-Ifs ({conditions.length})

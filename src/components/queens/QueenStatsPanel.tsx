@@ -28,12 +28,16 @@ export default function QueenStatsPanel() {
     filteredResults,
     updateQueenSkill,
     updateQueenLipSync,
+    conditions,
   } = useStore();
 
   const results = filteredResults ?? baselineResults;
   const queen = selectedQueenId
     ? season.queens.find((q) => q.id === selectedQueenId) ?? null
     : null;
+  const queenHasPins =
+    !!queen &&
+    conditions.some((c) => season.queens[c.queenIndex]?.id === queen.id);
 
   const winProb = queen ? results?.winProb[queen.id] ?? null : null;
   const reachedFinaleProb = queen
@@ -66,6 +70,13 @@ export default function QueenStatsPanel() {
         >
           {queen ? queen.name : 'No queen selected'}
         </h3>
+        {queenHasPins && (
+          <span
+            className="w-[5px] h-[5px] rounded-full flex-shrink-0 opacity-90"
+            style={{ backgroundColor: '#ffd700' }}
+            title="This queen has active what-if pins"
+          />
+        )}
         <div className="ml-auto flex items-center gap-3 text-xs font-mono text-[#aaa] flex-shrink-0">
           <span title="Queen power - average stat value">
             💪{' '}
