@@ -196,15 +196,20 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         p995Y: indexToY(e.p995, yPositions),
       }));
     } else {
+      // CRT-style collapse: all bands/median/survival pinched to the vertical
+      // midpoint of the plot so deselect squishes inward and reselect expands
+      // outward. survival=0.5 puts the survival line at innerHeight/2 via the
+      // right y-axis scale, matching the data paths visually.
+      const midY = innerHeight / 2;
       epData = Array.from({ length: numEpisodes }, (_, i) => ({
         ep: i + 1,
         median: 0,
         p005: 0, p05: 0, p25: 0, p75: 0, p95: 0, p995: 0,
-        survival: 0,
+        survival: 0.5,
         dist: {},
-        medianY: innerHeight,
-        p005Y: innerHeight, p05Y: innerHeight, p25Y: innerHeight,
-        p75Y: innerHeight, p95Y: innerHeight, p995Y: innerHeight,
+        medianY: midY,
+        p005Y: midY, p05Y: midY, p25Y: midY,
+        p75Y: midY, p95Y: midY, p995Y: midY,
       }));
     }
 
