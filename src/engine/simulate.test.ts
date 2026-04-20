@@ -1,9 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import { outcomeToEpisodeResult, runFromState, runBaseline, scoreQueen } from './simulate';
-import type { SeasonData, Queen, EpisodeData, Placement, BaseStat } from './types';
+import type { SeasonData, Queen, EpisodeData, Placement, BaseStat, RegularEpisode } from './types';
 import { ARCHETYPES, type ArchetypeId } from '../data/archetypes';
 import season5 from '../data/season5';
-import season17 from '../data/season17';
 
 // Build a RegularEpisode-compatible episode stub tagged with the given archetype.
 function ep(archetype: ArchetypeId) {
@@ -238,8 +237,9 @@ describe('runFromState', () => {
 describe('elimination integration', () => {
   test('BUG REPRO: queen eliminated in edited episode has 0% win probability', () => {
     const season = structuredClone(season5);
-    season.episodes[1].placements['jinkx'] = 'BTM2';
-    season.episodes[1].eliminated = ['jinkx'];
+    const ep1 = season.episodes[1] as RegularEpisode;
+    ep1.placements['jinkx'] = 'BTM2';
+    ep1.eliminated = ['jinkx'];
 
     const { results } = runFromState({
       season,
@@ -323,8 +323,9 @@ describe('elimination integration', () => {
 
   test('win probability shifts to survivors after what-if elimination', () => {
     const season = structuredClone(season5);
-    season.episodes[0].placements['alaska'] = 'BTM2';
-    season.episodes[0].eliminated = ['alaska'];
+    const ep0 = season.episodes[0] as RegularEpisode;
+    ep0.placements['alaska'] = 'BTM2';
+    ep0.eliminated = ['alaska'];
 
     const { results } = runFromState({
       season,
@@ -339,8 +340,9 @@ describe('elimination integration', () => {
 
   test('ROOT CAUSE: runBaseline ignores episode outcomes — eliminated queen can still win', () => {
     const season = structuredClone(season5);
-    season.episodes[1].placements['jinkx'] = 'BTM2';
-    season.episodes[1].eliminated = ['jinkx'];
+    const ep1 = season.episodes[1] as RegularEpisode;
+    ep1.placements['jinkx'] = 'BTM2';
+    ep1.eliminated = ['jinkx'];
 
     const { results: baselineResults } = runBaseline({
       season,
@@ -409,60 +411,6 @@ describe('non-elimination episodes', () => {
 
     const maxElimEp0 = Math.max(...Object.values(results.elimProbByEpisode[0]));
     expect(maxElimEp0).toBe(0);
-  });
-});
-
-// ── Pass-through episodes ────────────────────────────────────
-
-describe('pass-through episodes', () => {
-  // Season 17 ep 15 (index 14) is archetype 'pass' — 'Lip Sync Lalaparuza
-  // Smackdown' sits between ep 14 (last competitive ep) and ep 16 (finale).
-  const PASS_EP_IDX = 14;
-
-  test('season 17 ep 15 is a pass-through episode (fixture sanity check)', () => {
-    const ep = season17.episodes[PASS_EP_IDX];
-    expect('kind' in ep && ep.kind === 'finale').toBe(false);
-    expect((ep as { archetype: string }).archetype).toBe('pass');
-  });
-
-  test('no queen receives any placement in the pass episode across all runs', () => {
-    const { results } = runBaseline({
-      season: season17,
-      numSimulations: 500,
-    });
-
-    for (const q of season17.queens) {
-      const probs = results.episodePlacements[PASS_EP_IDX][q.id];
-      const total = Object.values(probs).reduce((a, b) => a + b, 0);
-      expect(total).toBe(0);
-    }
-  });
-
-  test('no queen is eliminated in the pass episode across all runs', () => {
-    const { results } = runBaseline({
-      season: season17,
-      numSimulations: 500,
-    });
-
-    for (const q of season17.queens) {
-      expect(results.elimProbByEpisode[PASS_EP_IDX][q.id]).toBe(0);
-    }
-  });
-
-  test('alive set is unchanged across the pass episode', () => {
-    const { results } = runBaseline({
-      season: season17,
-      numSimulations: 500,
-    });
-
-    // aliveProbByEpisode[ep] = alive at START of ep. Since nothing happens
-    // during a pass episode, alive-at-start-of-pass should equal
-    // alive-at-start-of-next-episode.
-    for (const q of season17.queens) {
-      const atPass = results.aliveProbByEpisode[PASS_EP_IDX][q.id] ?? 0;
-      const atNext = results.aliveProbByEpisode[PASS_EP_IDX + 1][q.id] ?? 0;
-      expect(atNext).toBeCloseTo(atPass, 10);
-    }
   });
 });
 

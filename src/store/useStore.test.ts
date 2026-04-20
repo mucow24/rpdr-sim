@@ -3,7 +3,7 @@ import { useStore } from './useStore';
 import { selectCurrentSeason } from './selectors';
 import { migrateToV2 } from './migrate';
 import { SEASON_PRESETS } from '../data/presets';
-import { isFinale } from '../engine/types';
+import { isRegular } from '../engine/types';
 
 beforeEach(() => {
   // Reset store to initial state before each test
@@ -54,8 +54,10 @@ describe('selectCurrentSeason', () => {
     const s = useStore.getState();
     const current = selectCurrentSeason(s);
     // Overridden ep has new placements / eliminated
-    expect(current.episodes[3].placements).toEqual({ jinkx: 'WIN' });
-    expect(current.episodes[3].eliminated).toEqual(['roxxxy']);
+    const overridden = current.episodes[3];
+    if (!isRegular(overridden)) throw new Error('expected regular episode at index 3');
+    expect(overridden.placements).toEqual({ jinkx: 'WIN' });
+    expect(overridden.eliminated).toEqual(['roxxxy']);
     // Other episodes unchanged
     expect(current.episodes[0]).toEqual(s.seasonsById['season5'].episodes[0]);
     // seasonsById itself untouched
@@ -178,9 +180,9 @@ describe('episode overrides', () => {
     updateEpisodeOutcome(0, { placements: { jinkx: 'WIN' }, eliminated: [] });
     const updatedEp = selectCurrentSeason(useStore.getState()).episodes[0];
     expect(updatedEp.number).toBe(origEp.number);
-    expect(isFinale(updatedEp)).toBe(false);
-    expect(isFinale(origEp)).toBe(false);
-    if (!isFinale(updatedEp) && !isFinale(origEp)) {
+    expect(isRegular(updatedEp)).toBe(true);
+    expect(isRegular(origEp)).toBe(true);
+    if (isRegular(updatedEp) && isRegular(origEp)) {
       expect(updatedEp.archetype).toBe(origEp.archetype);
     }
     expect(updatedEp.challengeName).toBe(origEp.challengeName);
@@ -273,8 +275,11 @@ describe('reload from source', () => {
     for (const preset of SEASON_PRESETS) {
       const season = s.seasonsById[preset.id];
       for (let i = 0; i < preset.season.episodes.length; i++) {
-        expect(season.episodes[i].placements).toEqual(preset.season.episodes[i].placements);
-        expect(season.episodes[i].eliminated).toEqual(preset.season.episodes[i].eliminated);
+        const got = season.episodes[i];
+        const want = preset.season.episodes[i];
+        if (!isRegular(got) || !isRegular(want)) continue;
+        expect(got.placements).toEqual(want.placements);
+        expect(got.eliminated).toEqual(want.eliminated);
       }
     }
     // Overrides cleared

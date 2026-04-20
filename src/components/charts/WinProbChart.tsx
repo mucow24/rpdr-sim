@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { isFinale } from '../../engine/types';
+import { useContainerWidth } from './common/useContainerSize';
 
 
 function getMargin(width: number) {
@@ -12,19 +13,8 @@ function getMargin(width: number) {
 
 export default function WinProbChart({ height = 400 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(900);
+  const { containerRef, width } = useContainerWidth(900);
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();

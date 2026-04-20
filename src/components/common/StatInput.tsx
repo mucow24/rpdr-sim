@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 /** Number input that only commits on Enter or blur — avoids re-running the
  *  simulation on every keystroke. Clamps the committed value to [min, max].
@@ -31,10 +31,15 @@ export default function StatInput({
   disabled?: boolean;
 }) {
   const [local, setLocal] = useState(String(value));
-
+  const [syncedValue, setSyncedValue] = useState(value);
   // Sync local when the external value changes (e.g. an adjacent input's
-  // commit re-renders us, or the owning object is swapped out).
-  useEffect(() => setLocal(String(value)), [value]);
+  // commit re-renders us, or the owning object is swapped out). Adjusting state
+  // during render is the recommended pattern for props-derived state — no
+  // effect, no extra round-trip.
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setLocal(String(value));
+  }
 
   const commit = () => {
     const v = parseInt(local, 10);

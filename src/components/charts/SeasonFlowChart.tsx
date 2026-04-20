@@ -1,27 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, type Placement } from '../../engine/types';
-
-const PLACEMENT_COLORS: Record<string, string> = {
-  WIN: '#ffd700',
-  HIGH: '#a8d8ea',
-  SAFE: '#888888',
-  LOW: '#e8a87c',
-  BTM2: '#e74c3c',
-  ELIM: '#8b0000',
-};
-
-// Brighter placement colors used for flow fills (nodes + ribbons). Lift
-// lightness floor to 0.75 so dark colors like ELIM stay readable on dark bg.
-const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
-  Object.entries(PLACEMENT_COLORS).map(([k, c]) => {
-    const hsl = d3.hsl(c);
-    hsl.l = Math.max(hsl.l, 0.75);
-    return [k, hsl.formatRgb()];
-  }),
-);
+import { PLACEMENT_PALETTE as PLACEMENT_COLORS, PLACEMENT_PALETTE_BRIGHT as PLACEMENT_FLOW_COLORS } from './common/palette';
+import { useContainerWidth } from './common/useContainerSize';
+import { computeFlowData } from './seasonFlow/flowData';
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
@@ -57,13 +41,20 @@ const PRE_SPLIT_WIDTH = 20;
 
 export default function SeasonFlowChart({ carrierWidth }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(1000);
+  const { containerRef, width } = useContainerWidth(1000);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
     useStore();
   const results = filteredResults ?? baselineResults;
+
+  // Pure derivation of per-queen survival/flow/elim probabilities from
+  // (season, results). Independent of width / hover / selection — memoizing
+  // here means the d3 effect doesn't redo this on every resize or hover.
+  const flowDataMemo = useMemo(
+    () => (results ? computeFlowData(season, results) : null),
+    [season, results],
+  );
 
   // Layout heights (fixed scale; chart auto-sizes to fit whichever stack is taller).
   const numQueens = season.queens.length;
@@ -75,18 +66,6 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
   const height = placementAreaH + MARGIN.top + MARGIN.bottom;
   const rectStackOffsetY = (placementAreaH - rectStackH) / 2;
   const srcColOffsetY = (placementAreaH - srcColH) / 2;
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
 
   useEffect(() => {
     if (!svgRef.current || !results) return;
@@ -110,42 +89,14 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       return;
     }
 
+    if (!flowDataMemo) return;
+    const { queenOrder, survival, flow: flowData, elimByEp } = flowDataMemo;
     const numEps = season.episodes.length;
     const innerW = width - MARGIN.left - MARGIN.right;
 
     const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
 
-    // -- Queen order (consistent stacking, best first) --
-    const queenOrder = [...season.queens].sort(
-      (a, b) => (results.winProb[b.id] ?? 0) - (results.winProb[a.id] ?? 0),
-    );
     const queenMap = new Map(season.queens.map((q) => [q.id, q]));
-
-    // -- Flow data (cumulative ELIM graveyard) --
-    const survival: Record<string, number[]> = {};
-    const flowData: Record<string, Record<string, number>[]> = {};
-    const elimByEp: Record<string, number[]> = {};
-
-    for (const q of season.queens) {
-      survival[q.id] = [];
-      flowData[q.id] = [];
-      elimByEp[q.id] = [];
-      let surv = 1.0;
-      let cumElim = 0;
-      for (let ep = 0; ep < numEps; ep++) {
-        survival[q.id][ep] = surv;
-        const dist = results.episodePlacements[ep]?.[q.id] ?? {};
-        const f: Record<string, number> = {};
-        for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
-        const elim = results.elimProbByEpisode[ep]?.[q.id] ?? 0;
-        elimByEp[q.id][ep] = elim;
-        f['BTM2'] = Math.max(0, f['BTM2'] - elim);
-        f['ELIM'] = cumElim + elim;
-        flowData[q.id][ep] = f;
-        surv = Math.max(0, surv - elim);
-        cumElim += elim;
-      }
-    }
 
     // -- Horizontal layout --
     // Carrier (full-SCALE-height ribbon segment) runs from the right edge of
@@ -949,7 +900,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       }
     }
 
-  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
+  }, [flowDataMemo, results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
 
   return (
     <div ref={containerRef}>

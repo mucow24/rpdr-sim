@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { isFinale } from '../../engine/types';
+import { isFinale, isPass } from '../../engine/types';
 
 
 const MARGIN = { top: 24, right: 16, bottom: 40, left: 120 };
@@ -117,10 +117,11 @@ export default function EliminationHeatmap({
       .style('z-index', '100');
 
     // Which episodes are non-elimination? Finales count as elim episodes
-    // (they eliminate everyone but the winner).
+    // (they eliminate everyone but the winner). Pass-throughs count as
+    // non-elim (no maxi challenge, no one goes home).
     const nonElimEpisodes = new Set(
       season.episodes
-        .filter((e) => !isFinale(e) && e.eliminated.length === 0)
+        .filter((e) => isPass(e) || (!isFinale(e) && e.eliminated.length === 0))
         .map((e) => e.number),
     );
 

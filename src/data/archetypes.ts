@@ -88,11 +88,6 @@ export const ARCHETYPES = {
       music: 11, design: 11, runway: 11, charisma: 20,
     }),
   },
-  pass: {
-    displayName: 'Pass-Through (no challenge)',
-    icon: '⏭️',
-    weights: mix({}),
-  },
 } as const satisfies Record<string, ArchetypeDef>;
 
 export type ArchetypeId = keyof typeof ARCHETYPES;

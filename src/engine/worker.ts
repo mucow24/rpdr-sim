@@ -6,6 +6,7 @@ import {
   filterAndAggregate,
   extractTrajectories,
   runFromState,
+  EMPTY_RESULTS,
   type RunBaselineOptions,
   type RunFromStateOptions,
 } from './simulate';
@@ -23,7 +24,7 @@ export type WorkerRequest =
   | { type: 'partialFromState'; options: RunFromStateOptions }
   | { type: 'importBuffer'; buffer: Uint8Array; totalRuns: number; season: SeasonData }
   | { type: 'filter'; conditions: FilterCondition[] }
-  | { type: 'trajectories'; queenIndex: number; conditions: FilterCondition[] }
+  | { type: 'trajectories'; queenId: string; conditions: FilterCondition[] }
   | { type: 'fromState'; options: RunFromStateOptions };
 
 export type WorkerResponse =
@@ -75,23 +76,13 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
     storedBuffer = msg.buffer;
     storedTotalRuns = msg.totalRuns;
     storedSeason = msg.season;
-    const results = aggregateFromBuffer(msg.buffer, msg.totalRuns, msg.season.queens, msg.season.episodes);
+    const results = aggregateFromBuffer(msg.buffer, msg.totalRuns, msg.season);
     self.postMessage({ type: 'importBuffer', results } satisfies WorkerResponse);
   } else if (msg.type === 'filter') {
     if (!storedBuffer || !storedSeason) {
-      const empty: SimulationResults = {
-        numSimulations: 0,
-        winProbByEpisode: [],
-        aliveProbByEpisode: [],
-        elimProbByEpisode: [],
-        placementDist: {},
-        reachedFinaleProb: {},
-        winProb: {},
-        episodePlacements: [],
-      };
       self.postMessage({
         type: 'filter',
-        results: empty,
+        results: EMPTY_RESULTS,
         matchCount: 0,
         totalRuns: 0,
       } satisfies WorkerResponse);
@@ -102,8 +93,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       storedBuffer,
       storedTotalRuns,
       msg.conditions,
-      storedSeason.queens,
-      storedSeason.episodes,
+      storedSeason,
     );
     self.postMessage({
       type: 'filter',
@@ -124,11 +114,9 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
     const { paths, scannedRuns } = extractTrajectories(
       storedBuffer,
       storedTotalRuns,
-      msg.queenIndex,
-      storedSeason.queens.length,
-      storedSeason.episodes.length,
+      storedSeason,
+      msg.queenId,
       msg.conditions,
-      storedSeason.episodes,
     );
     self.postMessage({
       type: 'trajectories',

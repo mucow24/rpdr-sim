@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import type { EpisodeData, Queen, SeasonData } from './types';
+import { isRegular } from './types';
 import { placementEpisodeLabels } from './placementEpisodes';
 import { ARCHETYPES } from '../data/archetypes';
 import { SEASON_PRESETS } from '../data/presets';
@@ -111,7 +112,7 @@ describe('placementEpisodeLabels', () => {
     const season = mkSeason(
       [
         { number: 1, archetype: 'ball', challengeName: 'c1', placements: {}, eliminated: ['q4'] },
-        { number: 2, archetype: 'pass', challengeName: 'reunion', placements: {}, eliminated: [] },
+        { kind: 'pass', number: 2, challengeName: 'reunion' },
         { number: 3, archetype: 'ball', challengeName: 'c3', placements: {}, eliminated: ['q3'] },
         { number: 4, archetype: 'ball', challengeName: 'c4', placements: {}, eliminated: ['q2'] },
         { kind: 'finale', number: 5, finaleType: 'default', challengeName: 'Grand Finale', placements: {}, eliminated: [] },
@@ -223,7 +224,7 @@ describe('placementEpisodeLabels', () => {
       expect(Object.values(labels)).toContain(`Finale ${FINALE}`);
       // (c) finaleCohortSize matches independent count.
       const preFinaleElims = season.episodes
-        .filter((ep) => ep.kind !== 'finale')
+        .filter(isRegular)
         .reduce((sum, ep) => sum + ep.eliminated.length, 0);
       expect(finaleCohortSize).toBe(n - preFinaleElims);
     }

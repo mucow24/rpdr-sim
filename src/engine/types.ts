@@ -41,18 +41,29 @@ export function queenUid(seasonId: string, queenId: string): string {
   return `${seasonId}:${queenId}`;
 }
 
+/** "Competitive" placements a queen can earn from a maxi challenge. ELIM is an
+ *  outcome marker (queen left this episode), not a competitive placement, and
+ *  intentionally lives outside this tuple — chart code iterates `PLACEMENTS`
+ *  to build per-placement distributions and would double-count if ELIM were
+ *  here. The buffer encodes ELIM in the same byte slot as a 6th value (5),
+ *  but at the public API level placements and eliminations are separate. */
 export const PLACEMENTS = ['WIN', 'HIGH', 'SAFE', 'LOW', 'BTM2'] as const;
 export type Placement = (typeof PLACEMENTS)[number];
 
+/** Per-episode outcome for a queen, used inside `EpisodeResult.placements`.
+ *  Includes ELIM so every queen has exactly one outcome per episode — no
+ *  separate eliminated-list needed. */
+export type EpisodeOutcome = Placement | 'ELIM';
+
 /** Numeric encoding for compact storage: 0=WIN,1=HIGH,2=SAFE,3=LOW,4=BTM2,5=ELIM,255=not present */
-export const PLACEMENT_INDEX: Record<Placement, number> = {
-  WIN: 0, HIGH: 1, SAFE: 2, LOW: 3, BTM2: 4,
+export const PLACEMENT_INDEX: Record<EpisodeOutcome, number> = {
+  WIN: 0, HIGH: 1, SAFE: 2, LOW: 3, BTM2: 4, ELIM: 5,
 };
-export const ELIM_PLACEMENT = 5;
+export const ELIM_PLACEMENT = PLACEMENT_INDEX.ELIM;
 /** Sentinel episodeIndex for outcome (season winner) conditions */
 export const OUTCOME_EPISODE_INDEX = -1;
-export const INDEX_PLACEMENT: Record<number, Placement> = {
-  0: 'WIN', 1: 'HIGH', 2: 'SAFE', 3: 'LOW', 4: 'BTM2',
+export const INDEX_PLACEMENT: Record<number, EpisodeOutcome> = {
+  0: 'WIN', 1: 'HIGH', 2: 'SAFE', 3: 'LOW', 4: 'BTM2', 5: 'ELIM',
 };
 
 export const FINALE_TYPES = ['default'] as const;
@@ -62,8 +73,7 @@ export type FinaleType = (typeof FINALE_TYPES)[number];
  *  determines the weighted mixture of base stats the challenge tests; weights
  *  are resolved via `ARCHETYPES[archetype].weights` at scoring time. */
 export interface RegularEpisode {
-  kind?: 'regular';                        // optional — defaults to regular
-  id?: string;
+  kind?: 'regular';                        // optional — absence implies regular
   number: number;
   archetype: ArchetypeId;                  // id into ARCHETYPES catalog
   challengeName: string;
@@ -73,10 +83,18 @@ export interface RegularEpisode {
   weights?: Record<BaseStat, number>;      // per-episode override; falls back to archetype weights
 }
 
+/** A pass-through episode (reunion, recap, lip-sync smackdown). No maxi
+ *  challenge, no elimination — sim records an empty result so downstream
+ *  aggregation sees no placements and no alive-set change. */
+export interface PassEpisode {
+  kind: 'pass';                            // required discriminant
+  number: number;
+  challengeName: string;
+}
+
 /** A finale episode. Its simulation mechanics are determined by finaleType. */
 export interface FinaleEpisode {
   kind: 'finale';                          // required discriminant
-  id?: string;
   number: number;
   finaleType: FinaleType;
   challengeName: string;                   // e.g. 'Grand Finale'
@@ -84,10 +102,18 @@ export interface FinaleEpisode {
   eliminated: string[];                    // sim-populated: non-winners
 }
 
-export type EpisodeData = RegularEpisode | FinaleEpisode;
+export type EpisodeData = RegularEpisode | PassEpisode | FinaleEpisode;
 
 export function isFinale(ep: EpisodeData): ep is FinaleEpisode {
   return ep.kind === 'finale';
+}
+
+export function isPass(ep: EpisodeData): ep is PassEpisode {
+  return ep.kind === 'pass';
+}
+
+export function isRegular(ep: EpisodeData): ep is RegularEpisode {
+  return ep.kind !== 'finale' && ep.kind !== 'pass';
 }
 
 /** A complete season: queens, episodes (with outcomes), loadable for any season */
@@ -98,13 +124,15 @@ export interface SeasonData {
   episodes: EpisodeData[];
 }
 
-/** Simulation-internal episode result (Map-based, with lip sync details) */
+/** Simulation-internal episode result (Map-based, with lip sync details).
+ *  After Phase 1a, every alive queen has an outcome — eliminated queens have
+ *  `ELIM` in the placements map (no separate elimination tracking required). */
 export interface EpisodeResult {
   episodeNumber: number;
-  placements: Map<string, Placement>; // queenId -> placement
+  placements: Map<string, EpisodeOutcome>; // queenId -> WIN..BTM2 or ELIM
   lipSyncMatchup: [string, string]; // [queenId, queenId]
   lipSyncWinner: string; // queenId
-  eliminated: string; // queenId
+  eliminated: string; // queenId — narrative convenience; for double-elim, primary loser
 }
 
 export interface SimulationRun {
@@ -152,4 +180,6 @@ export interface RunFromStateOptions {
   fromEpisode: number;     // 0-based, first ep to simulate
   numSimulations?: number;
   noise?: number;
+  /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
+  seed?: number;
 }

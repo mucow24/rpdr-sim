@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { BASE_STATS, type Queen } from '../engine/types';
 
-export const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   comedy: 'COM',
   improv: 'IMP',
   acting: 'ACT',
