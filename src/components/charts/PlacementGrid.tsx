@@ -7,7 +7,7 @@ import { useContainerSize } from './common/useContainerSize';
 import { computePlacementGridData } from './placementGrid/placementGridData';
 
 
-const MARGIN = { top: 16, right: 0, bottom: 0, left: 75 };
+const MARGIN = { top: 16, right: 0, bottom: 0, left: 55 };
 const Y_PADDING = 0.08;
 
 export default function PlacementGrid() {
@@ -20,7 +20,8 @@ export default function PlacementGrid() {
 
   const results = filteredResults ?? baselineResults;
 
-  // Plot fills its parent (which stretches to match the sibling Queen card).
+  // Plot fills its parent (which stretches to fill the 900px top row beside
+  // the Queen card).
   const innerWidth = width - MARGIN.left - MARGIN.right;
   const innerHeight = height - MARGIN.top - MARGIN.bottom;
 

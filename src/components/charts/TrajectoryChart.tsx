@@ -347,8 +347,8 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
     // The `d` tweens between queens via d3's string interpolator (vertex count
     // is stable since `numEpisodes` is fixed per season). Opacity fades with
     // queen presence. A clip-path rect wipes left-to-right AFTER the bands/
-    // median settle, but ONLY on queen→queen transitions — going to/from the
-    // empty state uses the opacity fade instead.
+    // median settle for any queen "turn on" (null→queen or queen→queen).
+    // Deselect (queen→null) uses the opacity fade alone — no wipe.
 
     const survivalLine = d3
       .line<EpData>()
@@ -368,8 +368,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
     clipRect.attr('height', innerHeight);
 
     const prevQueenId = prevQueenIdRef.current;
-    const firstRender = prevQueenId === undefined;
-    const queenToQueen = !firstRender && prevQueenId !== null && queen !== null && prevQueenId !== queen.id;
+    const queenTurningOn = queen !== null && prevQueenId !== queen.id;
     prevQueenIdRef.current = queen?.id ?? null;
 
     const survivalTargetOpacity = queen ? (compact ? 0.5 : 0.6) : 0;
@@ -391,7 +390,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .attr('opacity', survivalTargetOpacity);
     }
 
-    if (queenToQueen) {
+    if (queenTurningOn) {
       clipRect
         .interrupt()
         .attr('width', 0)
@@ -401,7 +400,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .ease(d3.easeCubicOut)
         .attr('width', innerWidth);
     } else {
-      // First render, deselect, or reselect: no wipe, opacity fade carries it.
+      // Deselect or no-op: no wipe, opacity fade carries it.
       clipRect.interrupt().attr('width', innerWidth);
     }
 

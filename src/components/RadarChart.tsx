@@ -15,7 +15,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 // When no queen is selected the polygon collapses to the origin with opacity 0.
 const NEUTRAL_COLOR = '#666';
-const ANIM_DURATION_MS = 500;
+const ANIM_DURATION_MS = 300;
 
 export default function RadarChart({ queen, size = 100 }: { queen: Queen | null; size?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
