@@ -16,7 +16,7 @@ import type {
   SeasonData,
   RunFromStateOptions,
 } from './types';
-import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, isPass } from './types';
+import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, isPass } from './types';
 import { ARCHETYPES } from '../data/archetypes';
 import { resolveRng, type Rng } from './rng';
 export type { RunFromStateOptions } from './types';
@@ -388,17 +388,15 @@ export function runBaseline({
   const rng = resolveRng(seed);
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
-  const runs: SimulationRun[] = [];
   for (let i = 0; i < numSimulations; i++) {
     const run = simulateOneSeason(queens, episodes, noise, rng);
-    runs.push(run);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
       onProgress(Math.round((i / numSimulations) * 100));
     }
   }
 
-  const results = aggregateResults(runs, queens, episodes);
+  const results = aggregateFromBuffer(buffer, numSimulations, queens, episodes);
   return { results, buffer, numQueens, numEpisodes, queenIds };
 }
 
@@ -466,18 +464,23 @@ export function runFromStatePartial(
   return { buffer };
 }
 
-/** Aggregate SimulationResults directly from a compact buffer. */
+/** Aggregate SimulationResults directly from a compact buffer.
+ *
+ *  When `matchingIndices` is supplied, only those run rows are aggregated and
+ *  `numSimulations` reflects the matched count — the same code path serves
+ *  both unfiltered baselines and what-if filters. */
 export function aggregateFromBuffer(
   buffer: Uint8Array,
   totalRuns: number,
   queens: Queen[],
   episodes: EpisodeData[],
+  matchingIndices?: number[],
 ): SimulationResults {
   const numQueens = queens.length;
   const numEpisodes = episodes.length;
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
-  const n = totalRuns;
+  const n = matchingIndices ? matchingIndices.length : totalRuns;
 
   // Pre-allocate per-episode count arrays
   const aliveCountsPerEp = Array.from({ length: numEpisodes }, () => new Int32Array(numQueens));
@@ -490,13 +493,15 @@ export function aggregateFromBuffer(
   const placementDistCounts = Array.from({ length: numQueens }, () => new Int32Array(numQueens + 1));
   const winCounts = new Int32Array(numQueens);
 
-  // Single pass over all runs — run-first for cache locality.
-  // ELIM is now encoded directly in the placement byte (5), so there's no
-  // separate elim section to read, no double-elim reconstruction, and no
-  // finale-derivation: a queen is "alive at start of ep N" iff her placement
-  // byte at ep N is not 255, and she's "eliminated this ep" iff her byte is ELIM.
-  for (let r = 0; r < totalRuns; r++) {
-    const base = r * stride;
+  // Single pass over selected runs (or all runs if no mask) — run-first for
+  // cache locality. ELIM is encoded directly in the placement byte (5), so
+  // there's no separate elim section to read, no double-elim reconstruction,
+  // and no finale-derivation: a queen is "alive at start of ep N" iff her
+  // placement byte is not 255, and she's "eliminated this ep" iff it's ELIM.
+  const runCount = matchingIndices ? matchingIndices.length : totalRuns;
+  for (let r = 0; r < runCount; r++) {
+    const runIdx = matchingIndices ? matchingIndices[r] : r;
+    const base = runIdx * stride;
     const fpBase = base + numEpisodes * numQueens;
 
     for (let ep = 0; ep < numEpisodes; ep++) {
@@ -625,7 +630,8 @@ export function getMatchingIndices(
   return matchingIndices;
 }
 
-/** Filter the compact buffer and re-aggregate. */
+/** Filter the compact buffer and re-aggregate via the masked aggregate path —
+ *  no SimulationRun reconstruction, no parallel slow aggregator. */
 export function filterAndAggregate(
   buffer: Uint8Array,
   totalRuns: number,
@@ -633,199 +639,15 @@ export function filterAndAggregate(
   queens: Queen[],
   episodes: EpisodeData[],
 ): { results: SimulationResults; matchCount: number } {
-  const numQueens = queens.length;
-  const numEpisodes = episodes.length;
-  const queenIds = queens.map((q) => q.id);
-  const stride = bytesPerRun(numQueens, numEpisodes);
-
-  const matchingIndices = getMatchingIndices(buffer, totalRuns, conditions, numQueens, numEpisodes);
-
-  if (matchingIndices.length === 0) {
-    // Return empty results
-    const empty: SimulationResults = {
-      numSimulations: 0,
-      winProbByEpisode: [],
-      aliveProbByEpisode: [],
-      elimProbByEpisode: [],
-      placementDist: {},
-      reachedFinaleProb: {},
-      winProb: {},
-      episodePlacements: [],
-    };
-    return { results: empty, matchCount: 0 };
-  }
-
-  // Reconstruct SimulationRuns from matching buffer rows. ELIM is now in the
-  // placement byte directly, so the `eliminated` narrative field is recovered
-  // by finding the (first) queen with ELIM in this episode — for double-elim
-  // both queens have ELIM, both surface as BTM2 in the lip-sync matchup, and
-  // `eliminated` is the first one encountered.
-  const runs: SimulationRun[] = [];
-  for (const r of matchingIndices) {
-    const base = r * stride;
-    const fpBase = base + numEpisodes * numQueens;
-
-    const episodeResults: EpisodeResult[] = [];
-    for (let ep = 0; ep < numEpisodes; ep++) {
-      const placements = new Map<string, EpisodeOutcome>();
-      const btm2: string[] = [];
-      let eliminated = '';
-      for (let qi = 0; qi < numQueens; qi++) {
-        const pIdx = buffer[base + ep * numQueens + qi];
-        if (pIdx === 255) continue;
-        const p = INDEX_PLACEMENT[pIdx];
-        placements.set(queenIds[qi], p);
-        if (p === 'BTM2') btm2.push(queenIds[qi]);
-        else if (p === 'ELIM') {
-          btm2.push(queenIds[qi]); // a queen who became ELIM was BTM2 first
-          if (!eliminated) eliminated = queenIds[qi];
-        }
-      }
-      episodeResults.push({
-        episodeNumber: ep + 1,
-        placements,
-        lipSyncMatchup: [btm2[0] ?? '', btm2[1] ?? ''],
-        lipSyncWinner: eliminated
-          ? (btm2.find((id) => id !== eliminated) ?? '')
-          : (btm2[0] ?? ''),
-        eliminated,
-      });
-    }
-
-    const finalRanks = new Map<string, number>();
-    for (let qi = 0; qi < numQueens; qi++) {
-      const place = buffer[fpBase + qi];
-      if (place !== 255) finalRanks.set(queenIds[qi], place);
-    }
-
-    runs.push({ episodeResults, finalRanks });
-  }
-
-  const results = aggregateResults(runs, queens, episodes);
+  const matchingIndices = getMatchingIndices(
+    buffer,
+    totalRuns,
+    conditions,
+    queens.length,
+    episodes.length,
+  );
+  const results = aggregateFromBuffer(buffer, totalRuns, queens, episodes, matchingIndices);
   return { results, matchCount: matchingIndices.length };
-}
-
-function aggregateResults(
-  runs: SimulationRun[],
-  queens: Queen[],
-  episodes: EpisodeData[],
-): SimulationResults {
-  const n = runs.length;
-  const queenIds = queens.map((q) => q.id);
-  const numEpisodes = episodes.length;
-
-  const winProbByEpisode: Record<string, number>[] = [];
-  const aliveProbByEpisode: Record<string, number>[] = [];
-  const elimProbByEpisode: Record<string, number>[] = [];
-  const episodePlacements: Record<string, Record<string, number>>[] = [];
-
-  for (let ep = 0; ep < numEpisodes; ep++) {
-    const aliveCounts: Record<string, number> = {};
-    const winCounts: Record<string, number> = {};
-    const elimCounts: Record<string, number> = {};
-    const placeCounts: Record<string, Record<string, number>> = {};
-
-    for (const id of queenIds) {
-      aliveCounts[id] = 0;
-      winCounts[id] = 0;
-      elimCounts[id] = 0;
-      placeCounts[id] = { WIN: 0, HIGH: 0, SAFE: 0, LOW: 0, BTM2: 0 };
-    }
-
-    for (const run of runs) {
-      // Eliminations are encoded uniformly as ELIM in the placements map
-      // (single, double, finale all collapse to the same shape) — no special
-      // cases needed.
-      const eliminatedBefore = new Set<string>();
-      for (let e = 0; e < ep && e < run.episodeResults.length; e++) {
-        for (const [qid, p] of run.episodeResults[e].placements) {
-          if (p === 'ELIM') eliminatedBefore.add(qid);
-        }
-      }
-
-      for (const id of queenIds) {
-        if (!eliminatedBefore.has(id)) {
-          aliveCounts[id]++;
-          const place = run.finalRanks.get(id);
-          if (place === 1) winCounts[id]++;
-        }
-      }
-
-      if (ep < run.episodeResults.length) {
-        for (const [qid, p] of run.episodeResults[ep].placements) {
-          if (p === 'ELIM') {
-            elimCounts[qid] = (elimCounts[qid] ?? 0) + 1;
-          } else if (placeCounts[qid]) {
-            placeCounts[qid][p]++;
-          }
-        }
-      }
-    }
-
-    const winProb: Record<string, number> = {};
-    const aliveProb: Record<string, number> = {};
-    const elimProb: Record<string, number> = {};
-    const epPlace: Record<string, Record<string, number>> = {};
-
-    for (const id of queenIds) {
-      winProb[id] = aliveCounts[id] > 0 ? winCounts[id] / aliveCounts[id] : 0;
-      aliveProb[id] = aliveCounts[id] / n;
-      elimProb[id] = elimCounts[id] / n;
-
-      // Normalize by alive count (P(placement | alive at ep)) — for finale
-      // episodes only the winner is recorded, so /alive is the correct denominator.
-      epPlace[id] = {};
-      for (const p of PLACEMENTS) {
-        epPlace[id][p] = aliveCounts[id] > 0 ? placeCounts[id][p] / aliveCounts[id] : 0;
-      }
-    }
-
-    winProbByEpisode.push(winProb);
-    aliveProbByEpisode.push(aliveProb);
-    elimProbByEpisode.push(elimProb);
-    episodePlacements.push(epPlace);
-  }
-
-  const placementDist: Record<string, number[]> = {};
-  const reachedFinaleProb: Record<string, number> = {};
-  const winProb: Record<string, number> = {};
-
-  for (const id of queenIds) {
-    placementDist[id] = new Array(queens.length + 1).fill(0);
-    winProb[id] = 0;
-  }
-
-  for (const run of runs) {
-    for (const [queenId, place] of run.finalRanks) {
-      if (place <= queens.length) {
-        placementDist[queenId][place] = (placementDist[queenId][place] ?? 0) + 1;
-      }
-      if (place === 1) winProb[queenId] = (winProb[queenId] ?? 0) + 1;
-    }
-  }
-
-  // reachedFinaleProb = alive at start of finale episode (last episode by convention)
-  const finaleEpIdx = numEpisodes - 1;
-  for (const id of queenIds) {
-    for (let p = 0; p < placementDist[id].length; p++) {
-      placementDist[id][p] /= n;
-    }
-    const winCount = winProb[id];
-    winProb[id] = n > 0 ? winCount / n : 0;
-    reachedFinaleProb[id] =
-      finaleEpIdx >= 0 && aliveProbByEpisode[finaleEpIdx] ? aliveProbByEpisode[finaleEpIdx][id] ?? 0 : 0;
-  }
-
-  return {
-    numSimulations: n,
-    winProbByEpisode,
-    aliveProbByEpisode,
-    elimProbByEpisode,
-    placementDist,
-    reachedFinaleProb,
-    winProb,
-    episodePlacements,
-  };
 }
 
 /** Extract unique placement trajectories for a specific queen. */
@@ -947,16 +769,14 @@ export function runFromState(
   };
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
-  const runs: SimulationRun[] = [];
   for (let i = 0; i < numSimulations; i++) {
     const run = simulateOneSeason(queens, episodes, noise, rng, midSeason);
-    runs.push(run);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
       onProgress(Math.round((i / numSimulations) * 100));
     }
   }
 
-  const results = aggregateResults(runs, queens, episodes);
+  const results = aggregateFromBuffer(buffer, numSimulations, queens, episodes);
   return { results, buffer, numQueens, numEpisodes, queenIds };
 }
