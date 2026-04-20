@@ -59,7 +59,7 @@ export default function App() {
   useEffect(() => {
     if (appMode !== 'simulation') return;
     triggerSimulation(numSimulations);
-  }, [baselineSeason, appMode]);
+  }, [baselineSeason, appMode, numSimulations, triggerSimulation]);
 
   // Run filter when conditions change
   useEffect(() => {

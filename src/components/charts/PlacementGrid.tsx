@@ -325,7 +325,7 @@ export default function PlacementGrid() {
     return () => {
       d3.selectAll('.placement-grid-tooltip').remove();
     };
-  }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
+  }, [results, season, width, height, innerWidth, innerHeight, selectedQueenId, setSelectedQueenId]);
 
   return (
     <div

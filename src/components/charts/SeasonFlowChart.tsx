@@ -949,7 +949,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       }
     }
 
-  }, [results, season, width, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
+  }, [results, season, width, height, numQueens, placementAreaH, rectStackOffsetY, srcColOffsetY, selectedQueenId, setSelectedQueenId, conditions, addCondition, removeCondition, clearConditions, carrierWidth]);
 
   return (
     <div ref={containerRef}>

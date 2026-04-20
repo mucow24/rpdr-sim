@@ -62,8 +62,10 @@ function Popover({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [shiftX, setShiftX] = useState(0);
 
+  // Clamp horizontally so the popover never overflows the viewport. We apply
+  // the shift directly via the ref instead of round-tripping through state —
+  // the measurement happens once per open, so an extra render is pure waste.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -73,14 +75,14 @@ function Popover({
     let shift = 0;
     if (rect.right > vw - margin) shift = vw - margin - rect.right;
     else if (rect.left < margin) shift = margin - rect.left;
-    setShiftX(shift);
+    el.style.transform = `translateX(calc(-50% + ${shift}px))`;
   }, []);
 
   return (
     <div
       ref={ref}
       className="absolute left-1/2 top-full mt-2 z-50 bg-[#121218] border border-[#2a2a3a] rounded-lg shadow-xl p-4"
-      style={{ width, transform: `translateX(calc(-50% + ${shiftX}px))` }}
+      style={{ width, transform: 'translateX(-50%)' }}
     >
       <button
         onClick={onClose}

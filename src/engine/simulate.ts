@@ -14,6 +14,7 @@ import type {
 } from './types';
 import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, PLACEMENTS, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale } from './types';
 import { ARCHETYPES } from '../data/archetypes';
+import { resolveRng, type Rng } from './rng';
 export type { RunFromStateOptions } from './types';
 
 /** Internal mid-season state for simulateOneSeason. */
@@ -24,9 +25,9 @@ interface MidSeasonState {
 }
 
 // Box-Muller transform for gaussian random numbers
-function gaussianRandom(mean = 0, stdev = 1): number {
-  const u1 = Math.random();
-  const u2 = Math.random();
+function gaussianRandom(rng: Rng, mean = 0, stdev = 1): number {
+  const u1 = rng();
+  const u2 = rng();
   const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   return z * stdev + mean;
 }
@@ -35,7 +36,12 @@ function gaussianRandom(mean = 0, stdev = 1): number {
  *  Weights are normalized (divided by total) so they don't need to sum to 1.
  *  If all weights are 0 the skill contribution is 0 and the queen scores only
  *  noise — a well-defined fallback, not an error. */
-export function scoreQueen(queen: Queen, weights: Record<BaseStat, number>, noise: number): number {
+export function scoreQueen(
+  queen: Queen,
+  weights: Record<BaseStat, number>,
+  noise: number,
+  rng: Rng = Math.random,
+): number {
   let totalWeight = 0;
   let weightedSkill = 0;
   for (const stat of BASE_STATS) {
@@ -46,7 +52,7 @@ export function scoreQueen(queen: Queen, weights: Record<BaseStat, number>, nois
     }
   }
   const skill = totalWeight > 0 ? weightedSkill / totalWeight : 0;
-  return skill + gaussianRandom(0, noise);
+  return skill + gaussianRandom(rng, 0, noise);
 }
 
 /** Default finale handler: average-skill + gaussian noise, top score wins. */
@@ -55,13 +61,14 @@ function runFinaleDefault(
   remaining: Map<string, Queen>,
   finalRanks: Map<string, number>,
   episodeResults: EpisodeResult[],
+  rng: Rng,
 ): void {
   const finalists = Array.from(remaining.values());
   const finalistScores = finalists.map((q) => {
     const avgSkill =
       Object.values(q.skills).reduce((a, b) => a + b, 0) /
       Object.values(q.skills).length;
-    return { queenId: q.id, score: avgSkill + gaussianRandom(0, 1.5) };
+    return { queenId: q.id, score: avgSkill + gaussianRandom(rng, 0, 1.5) };
   });
   finalistScores.sort((a, b) => b.score - a.score);
   for (let i = 0; i < finalistScores.length; i++) {
@@ -112,9 +119,9 @@ function assignPlacements(
   return placements;
 }
 
-function resolveLipSync(queenA: Queen, queenB: Queen): string {
+function resolveLipSync(queenA: Queen, queenB: Queen, rng: Rng): string {
   const pA = queenA.lipSync / (queenA.lipSync + queenB.lipSync);
-  return Math.random() < pA ? queenA.id : queenB.id;
+  return rng() < pA ? queenA.id : queenB.id;
 }
 
 /** Pure simulation — optionally seeded from a mid-season state. */
@@ -122,6 +129,7 @@ function simulateOneSeason(
   queens: Queen[],
   episodes: EpisodeData[],
   noise: number,
+  rng: Rng,
   midSeason?: MidSeasonState,
 ): SimulationRun {
   const queenMap = new Map(queens.map((q) => [q.id, q]));
@@ -152,7 +160,7 @@ function simulateOneSeason(
       for (let i = 0; i < eliminationOrder.length; i++) {
         finalRanks.set(eliminationOrder[i], totalQueens - i);
       }
-      runFinaleDefault(episode, remaining, finalRanks, episodeResults);
+      runFinaleDefault(episode, remaining, finalRanks, episodeResults, rng);
       continue;
     }
 
@@ -174,7 +182,7 @@ function simulateOneSeason(
     const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
     const scores = activeQueens.map((q) => ({
       queenId: q.id,
-      score: scoreQueen(q, weights, noise),
+      score: scoreQueen(q, weights, noise, rng),
     }));
 
     const placements = assignPlacements(scores);
@@ -227,7 +235,7 @@ function simulateOneSeason(
 
     const queenA = remaining.get(bottom2[0])!;
     const queenB = remaining.get(bottom2[1])!;
-    const lipSyncWinner = resolveLipSync(queenA, queenB);
+    const lipSyncWinner = resolveLipSync(queenA, queenB, rng);
     const eliminated = lipSyncWinner === bottom2[0] ? bottom2[1] : bottom2[0];
     remaining.delete(eliminated);
     eliminationOrder.push(eliminated);
@@ -316,6 +324,8 @@ export interface RunBaselineOptions {
   season: SeasonData;
   numSimulations?: number;
   noise?: number;
+  /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
+  seed?: number;
 }
 
 export interface BaselineResult {
@@ -330,6 +340,7 @@ export function runBaseline({
   season,
   numSimulations = 100_000,
   noise = 1.8,
+  seed,
 }: RunBaselineOptions, onProgress?: (pct: number) => void): BaselineResult {
   const { queens, episodes } = season;
   const numQueens = queens.length;
@@ -337,11 +348,12 @@ export function runBaseline({
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
   const buffer = new Uint8Array(numSimulations * stride);
+  const rng = resolveRng(seed);
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   const runs: SimulationRun[] = [];
   for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise);
+    const run = simulateOneSeason(queens, episodes, noise, rng);
     runs.push(run);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
@@ -355,7 +367,7 @@ export function runBaseline({
 
 /** Run baseline simulations and return only the compact buffer (no aggregation). */
 export function runBaselinePartial(
-  { season, numSimulations = 100_000, noise = 1.8 }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): { buffer: Uint8Array } {
   const { queens, episodes } = season;
@@ -364,10 +376,11 @@ export function runBaselinePartial(
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
   const buffer = new Uint8Array(numSimulations * stride);
+  const rng = resolveRng(seed);
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise);
+    const run = simulateOneSeason(queens, episodes, noise, rng);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
       onProgress(Math.round((i / numSimulations) * 100));
@@ -378,7 +391,7 @@ export function runBaselinePartial(
 
 /** Run from mid-season state and return only the compact buffer (no aggregation). */
 export function runFromStatePartial(
-  { season, fromEpisode, numSimulations = 100_000, noise = 1.8 }: RunFromStateOptions,
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, seed }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): { buffer: Uint8Array } {
   const { queens, episodes } = season;
@@ -387,6 +400,7 @@ export function runFromStatePartial(
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
   const buffer = new Uint8Array(numSimulations * stride);
+  const rng = resolveRng(seed);
 
   const priorResults: EpisodeResult[] = [];
   const allEliminated = new Set<string>();
@@ -403,7 +417,7 @@ export function runFromStatePartial(
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, midSeason);
+    const run = simulateOneSeason(queens, episodes, noise, rng, midSeason);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
       onProgress(Math.round((i / numSimulations) * 100));
@@ -933,6 +947,7 @@ export function runFromState(
     fromEpisode,
     numSimulations = 100_000,
     noise = 1.8,
+    seed,
   }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): BaselineResult {
@@ -942,6 +957,7 @@ export function runFromState(
   const queenIds = queens.map((q) => q.id);
   const stride = bytesPerRun(numQueens, numEpisodes);
   const buffer = new Uint8Array(numSimulations * stride);
+  const rng = resolveRng(seed);
 
   // Build locked EpisodeResults and compute remaining queens from outcomes
   const priorResults: EpisodeResult[] = [];
@@ -968,7 +984,7 @@ export function runFromState(
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   const runs: SimulationRun[] = [];
   for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, midSeason);
+    const run = simulateOneSeason(queens, episodes, noise, rng, midSeason);
     runs.push(run);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {

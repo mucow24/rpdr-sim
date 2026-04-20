@@ -152,4 +152,6 @@ export interface RunFromStateOptions {
   fromEpisode: number;     // 0-based, first ep to simulate
   numSimulations?: number;
   noise?: number;
+  /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
+  seed?: number;
 }
