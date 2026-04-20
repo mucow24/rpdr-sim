@@ -12,10 +12,12 @@ export default function PopoverBox({
   renderTrigger,
   children,
   width = 320,
+  persistOnClickOutside = false,
 }: {
   renderTrigger: (args: { isOpen: boolean; toggle: () => void }) => ReactNode;
   children: ReactNode | ((args: { close: () => void }) => ReactNode);
   width?: number;
+  persistOnClickOutside?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -24,7 +26,7 @@ export default function PopoverBox({
   // level ref means re-clicking the trigger button goes through the button's
   // onClick (toggle), not through the click-outside handler.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || persistOnClickOutside) return;
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setIsOpen(false);
@@ -32,7 +34,7 @@ export default function PopoverBox({
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen]);
+  }, [isOpen, persistOnClickOutside]);
 
   const toggle = () => setIsOpen((v) => !v);
   const close = () => setIsOpen(false);
