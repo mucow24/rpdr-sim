@@ -6,6 +6,7 @@ import {
   type BaseStat, type Queen, type SeasonData, type Placement,
 } from '../engine/types';
 import { ARCHETYPES } from '../data/archetypes';
+import { PLACEMENT_PALETTE as PLACEMENT_COLORS } from './charts/common/palette';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -14,15 +15,6 @@ interface RosterEntry {
   seasonName: string;
   queen: Queen;
 }
-
-const PLACEMENT_COLORS: Record<string, string> = {
-  WIN: '#ffd700',
-  HIGH: '#a8d8ea',
-  SAFE: '#888888',
-  LOW: '#e8a87c',
-  BTM2: '#e74c3c',
-  ELIM: '#8b0000',
-};
 
 type PlacementOrElim = Placement | 'ELIM';
 

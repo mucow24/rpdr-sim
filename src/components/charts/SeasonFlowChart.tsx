@@ -1,27 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, type Placement } from '../../engine/types';
-
-const PLACEMENT_COLORS: Record<string, string> = {
-  WIN: '#ffd700',
-  HIGH: '#a8d8ea',
-  SAFE: '#888888',
-  LOW: '#e8a87c',
-  BTM2: '#e74c3c',
-  ELIM: '#8b0000',
-};
-
-// Brighter placement colors used for flow fills (nodes + ribbons). Lift
-// lightness floor to 0.75 so dark colors like ELIM stay readable on dark bg.
-const PLACEMENT_FLOW_COLORS: Record<string, string> = Object.fromEntries(
-  Object.entries(PLACEMENT_COLORS).map(([k, c]) => {
-    const hsl = d3.hsl(c);
-    hsl.l = Math.max(hsl.l, 0.75);
-    return [k, hsl.formatRgb()];
-  }),
-);
+import { PLACEMENT_PALETTE as PLACEMENT_COLORS, PLACEMENT_PALETTE_BRIGHT as PLACEMENT_FLOW_COLORS } from './common/palette';
+import { useContainerWidth } from './common/useContainerSize';
 
 const CHART_PLACEMENTS = [...PLACEMENTS, 'ELIM'] as const;
 
@@ -57,8 +40,7 @@ const PRE_SPLIT_WIDTH = 20;
 
 export default function SeasonFlowChart({ carrierWidth }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(1000);
+  const { containerRef, width } = useContainerWidth(1000);
 
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
@@ -75,18 +57,6 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
   const height = placementAreaH + MARGIN.top + MARGIN.bottom;
   const rectStackOffsetY = (placementAreaH - rectStackH) / 2;
   const srcColOffsetY = (placementAreaH - srcColH) / 2;
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
 
   useEffect(() => {
     if (!svgRef.current || !results) return;

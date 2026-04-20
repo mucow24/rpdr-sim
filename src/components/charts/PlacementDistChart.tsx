@@ -1,11 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
+import { useContainerWidth } from './common/useContainerSize';
 
 
 const MARGIN = { top: 24, right: 50, bottom: 40, left: 120 };
 
+// Final-rank palette (1st = gold, 2nd = silver, 3rd = bronze, then darker
+// shades for descending finishes). Keyed by 1-based final place; index 0 is a
+// hole. Distinct from `PLACEMENT_PALETTE` (which keys per-episode placements
+// like WIN/HIGH/SAFE/...).
 const PLACEMENT_COLORS = [
   '', // 0th place doesn't exist
   '#ffd700', // 1st - gold
@@ -28,22 +33,10 @@ export default function PlacementDistChart({
   height = 460,
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(520);
+  const { containerRef, width } = useContainerWidth(520);
   const season = useStore(selectCurrentSeason);
   const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
     useStore();
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 100) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
 
   const results = filteredResults ?? baselineResults;
 

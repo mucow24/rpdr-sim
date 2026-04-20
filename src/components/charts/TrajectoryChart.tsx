@@ -3,15 +3,15 @@ import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
 import { PLACEMENTS } from '../../engine/types';
+import { PLACEMENT_PALETTE } from './common/palette';
+import { useContainerWidth } from './common/useContainerSize';
 
-// Label colors match the flow chart tooltip: SAFE is lifted to #888 and ELIM
-// uses a brighter red (#b22222) for readability on the dark panel background.
+// Local override on top of the canonical palette: ELIM is lifted from
+// #8b0000 to a brighter red so it stays readable on the dark panel
+// background here, where the flow chart's brightness-lifted variant would
+// overshoot into pink.
 const PLACEMENT_COLORS: Record<string, string> = {
-  WIN: '#ffd700',
-  HIGH: '#a8d8ea',
-  SAFE: '#888888',
-  LOW: '#e8a87c',
-  BTM2: '#e74c3c',
+  ...PLACEMENT_PALETTE,
   ELIM: '#b22222',
 };
 
@@ -51,21 +51,8 @@ type TrajectoryChartProps = {
 
 export default function TrajectoryChart({ height = 350, compact = false }: TrajectoryChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(compact ? 100 : 900);
+  const { containerRef, width } = useContainerWidth(compact ? 100 : 900, compact ? 40 : 100);
   const [fadeByElim, setFadeByElim] = useState(true);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const minW = compact ? 40 : 100;
-    const obs = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > minW) setWidth(Math.floor(w));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [compact]);
 
   const season = useStore(selectCurrentSeason);
   const { selectedQueenId, baselineResults, filteredResults } = useStore();
