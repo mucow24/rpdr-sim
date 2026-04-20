@@ -52,6 +52,7 @@ export interface AppState {
 
   // Data tab actions
   reloadQueensFromSource: () => void;
+  resetQueenColors: () => void;
   reloadSeasonsFromSource: () => void;
   importQueensJson: (parsed: unknown) => boolean;
   exportQueensJson: () => string;
@@ -267,6 +268,22 @@ export const useStore = create<AppState>()(persist((set, get) => ({
         filterMatchCount: null,
         filterTotalRuns: null,
       };
+    }),
+
+  resetQueenColors: () =>
+    set((s) => {
+      const next: Record<string, SeasonData> = { ...s.seasonsById };
+      for (const preset of SEASON_PRESETS) {
+        const existing = next[preset.id];
+        if (!existing) continue;
+        const sourceColorById = new Map(preset.season.queens.map((q) => [q.id, q.color]));
+        const queens = existing.queens.map((q) => {
+          const sourceColor = sourceColorById.get(q.id);
+          return sourceColor === undefined ? q : { ...q, color: sourceColor };
+        });
+        next[preset.id] = { ...existing, queens };
+      }
+      return { seasonsById: next };
     }),
 
   reloadSeasonsFromSource: () =>

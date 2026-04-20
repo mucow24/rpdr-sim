@@ -288,6 +288,74 @@ describe('reload from source', () => {
   });
 });
 
+describe('resetQueenColors', () => {
+  test('restores colors from source while preserving skills, lipSync, and episode overrides', () => {
+    const { updateQueenSkill, updateQueenLipSync, updateEpisodeOutcome, resetQueenColors } =
+      useStore.getState();
+
+    // Edit a skill, lipSync, and an episode override — none of these should be touched.
+    updateQueenSkill('season5', 'jinkx', 'improv', 1);
+    updateQueenLipSync('season5', 'jinkx', 2);
+    updateEpisodeOutcome(3, { placements: { jinkx: 'WIN' }, eliminated: [] });
+
+    // Mutate colors across two seasons.
+    useStore.setState((s) => ({
+      seasonsById: {
+        ...s.seasonsById,
+        season5: {
+          ...s.seasonsById['season5'],
+          queens: s.seasonsById['season5'].queens.map((q) => ({ ...q, color: '#123456' })),
+        },
+        season10: {
+          ...s.seasonsById['season10'],
+          queens: s.seasonsById['season10'].queens.map((q) => ({ ...q, color: '#abcdef' })),
+        },
+      },
+    }));
+
+    resetQueenColors();
+
+    const s = useStore.getState();
+    // Colors restored across every season
+    for (const preset of SEASON_PRESETS) {
+      const season = s.seasonsById[preset.id];
+      for (const srcQ of preset.season.queens) {
+        const got = season.queens.find((q) => q.id === srcQ.id)!;
+        expect(got.color).toBe(srcQ.color);
+      }
+    }
+    // Skills & lipSync preserved
+    const jinkx = s.seasonsById['season5'].queens.find((q) => q.id === 'jinkx')!;
+    expect(jinkx.skills.improv).toBe(1);
+    expect(jinkx.lipSync).toBe(2);
+    // Episode overrides preserved
+    expect(s.currentEpisodeOverrides[3]).toEqual({
+      placements: { jinkx: 'WIN' },
+      eliminated: [],
+    });
+  });
+
+  test('does not invalidate sim results (colors do not affect outcomes)', () => {
+    const fake = {
+      numSimulations: 1, winProbByEpisode: [], aliveProbByEpisode: [],
+      elimProbByEpisode: [], placementDist: {}, reachedFinaleProb: {},
+      winProb: {}, episodePlacements: [],
+    };
+    useStore.setState({
+      baselineResults: fake,
+      filteredResults: fake,
+      filterMatchCount: 10,
+      filterTotalRuns: 100,
+    });
+    useStore.getState().resetQueenColors();
+    const s = useStore.getState();
+    expect(s.baselineResults).toBe(fake);
+    expect(s.filteredResults).toBe(fake);
+    expect(s.filterMatchCount).toBe(10);
+    expect(s.filterTotalRuns).toBe(100);
+  });
+});
+
 describe('import/export queens JSON', () => {
   test('export → import round-trip is a no-op on unedited state', () => {
     const { exportQueensJson, importQueensJson } = useStore.getState();

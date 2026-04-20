@@ -30,6 +30,7 @@ function readFileAsJson(file: File): Promise<unknown> {
 
 export default function DataPage() {
   const reloadQueensFromSource = useStore((s) => s.reloadQueensFromSource);
+  const resetQueenColors = useStore((s) => s.resetQueenColors);
   const reloadSeasonsFromSource = useStore((s) => s.reloadSeasonsFromSource);
   const importQueensJson = useStore((s) => s.importQueensJson);
   const exportQueensJson = useStore((s) => s.exportQueensJson);
@@ -165,6 +166,12 @@ export default function DataPage() {
             className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
           >
             Reload queens from source
+          </button>
+          <button
+            onClick={resetQueenColors}
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+          >
+            Reset queen colors
           </button>
           <button
             onClick={() => queensInputRef.current?.click()}
