@@ -7,7 +7,7 @@ import { useContainerSize } from './common/useContainerSize';
 import { computePlacementGridData } from './placementGrid/placementGridData';
 
 
-const MARGIN = { top: 16, right: 0, bottom: 0, left: 75 };
+const MARGIN = { top: 16, right: 0, bottom: 0, left: 55 };
 const Y_PADDING = 0.08;
 
 export default function PlacementGrid() {
@@ -20,9 +20,15 @@ export default function PlacementGrid() {
 
   const results = filteredResults ?? baselineResults;
 
-  // Plot fills its parent (which stretches to match the sibling Queen card).
-  const innerWidth = width - MARGIN.left - MARGIN.right;
+  // Derive width from height so cells render square while preserving the
+  // row height dictated by the flex row (which stretches to the sibling
+  // Queen card). `width` from useContainerSize is still observed for the
+  // first paint before numQueens is known.
+  const numQueens = season?.queens.length ?? 0;
   const innerHeight = height - MARGIN.top - MARGIN.bottom;
+  const rowH = numQueens > 0 ? (innerHeight / numQueens) * (1 - Y_PADDING) : 0;
+  const innerWidth = numQueens > 0 ? rowH * 1.5 * numQueens : width - MARGIN.left - MARGIN.right;
+  const svgWidth = innerWidth + MARGIN.left + MARGIN.right;
 
   useEffect(() => {
     if (!svgRef.current || !results) return;
@@ -288,7 +294,7 @@ export default function PlacementGrid() {
       </h3>
       <div ref={plotRef} className="flex-1 min-h-0">
         {results ? (
-          <svg ref={svgRef} width={width} height={height} className="overflow-visible" />
+          <svg ref={svgRef} width={svgWidth} height={height} className="overflow-visible" />
         ) : (
           <div className="flex items-center justify-center text-[#444] h-full">
             Running simulations...
