@@ -21,7 +21,7 @@ const PLACEMENT_COLORS: Record<string, string> = {
 
 const MARGIN = { top: 24, right: 50, bottom: 48, left: 60 };
 const MARGIN_COMPACT = { top: 4, right: 6, bottom: 18, left: 28 };
-const ANIM_DURATION_MS = 500;
+const ANIM_DURATION_MS = 300;
 
 /** Fractional placement index → pixel y via linear interpolation between
  *  adjacent entries in `yPositions`. The data module returns percentile
