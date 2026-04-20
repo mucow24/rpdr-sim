@@ -199,8 +199,8 @@ export default function App() {
 
           <DivergencePanel />
 
-          <section className="mb-8 flex gap-4 items-stretch">
-            <div className="flex-shrink-0">
+          <section className="mb-8 flex gap-4 items-stretch w-[900px]">
+            <div className="flex-1 min-w-0">
               <PlacementGrid />
             </div>
             <div className="w-[440px] flex-shrink-0">
