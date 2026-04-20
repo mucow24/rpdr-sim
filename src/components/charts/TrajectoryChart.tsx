@@ -183,7 +183,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       p75Y: number; p95Y: number; p995Y: number;
     };
     let epData: EpData[];
-    if (queen) {
+    if (queen && results) {
       const { epData: rawEpData } = computeTrajectoryData(season, results, queen.id);
       epData = rawEpData.map((e) => ({
         ...e,
