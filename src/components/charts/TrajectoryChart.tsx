@@ -50,12 +50,12 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
   const { selectedQueenId, baselineResults, filteredResults } = useStore();
   const results = filteredResults ?? baselineResults;
 
-  const queen = selectedQueenId
+  const queen = selectedQueenId && results
     ? season.queens.find((q) => q.id === selectedQueenId) ?? null
     : null;
 
   useEffect(() => {
-    if (!svgRef.current || !results) return;
+    if (!svgRef.current) return;
 
     const svg = d3.select(svgRef.current);
 
@@ -183,7 +183,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
       p75Y: number; p95Y: number; p995Y: number;
     };
     let epData: EpData[];
-    if (queen) {
+    if (queen && results) {
       const { epData: rawEpData } = computeTrajectoryData(season, results, queen.id);
       epData = rawEpData.map((e) => ({
         ...e,
@@ -558,7 +558,7 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         .attr('text-anchor', 'end')
         .attr('fill', '#555')
         .attr('font-size', '10px')
-        .text(queen ? `${results.numSimulations.toLocaleString()} simulations` : '');
+        .text(queen && results ? `${results.numSimulations.toLocaleString()} simulations` : '');
     } else {
       title.text('');
       simcount.text('');
@@ -567,22 +567,18 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
 
   return (
     <div ref={containerRef} className="w-full relative">
-      {results && (
-        <>
-          {!compact && queen && (
-            <label className="absolute top-7 right-14 flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={fadeByElim}
-                onChange={() => setFadeByElim((v) => !v)}
-                className="accent-[#e74c3c] w-3 h-3 cursor-pointer"
-              />
-              <span className="text-[10px] text-[#666] font-mono">Shade by survival</span>
-            </label>
-          )}
-          <svg ref={svgRef} width={width} height={height} />
-        </>
+      {!compact && queen && (
+        <label className="absolute top-7 right-14 flex items-center gap-1.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={fadeByElim}
+            onChange={() => setFadeByElim((v) => !v)}
+            className="accent-[#e74c3c] w-3 h-3 cursor-pointer"
+          />
+          <span className="text-[10px] text-[#666] font-mono">Shade by survival</span>
+        </label>
       )}
+      <svg ref={svgRef} width={width} height={height} />
     </div>
   );
 }
