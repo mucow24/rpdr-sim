@@ -79,9 +79,9 @@ export default function App() {
   const simulationProgress = useStore((s) => s.simulationProgress);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 py-8">
+    <div className="max-w-[948px] mx-auto px-6 py-8">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-[#eee] tracking-tight">
+        <h1 className="text-3xl font-bold text-[#eee] tracking-tight whitespace-nowrap">
           Charisma Uniqueness Nerve & Talent Simulator
         </h1>
         <div className="flex items-center gap-4 mt-3">
@@ -125,7 +125,7 @@ export default function App() {
         <DataPage />
       ) : (
         <>
-          <div className="flex items-center gap-4 mb-6 text-[#666]">
+          <div className="flex items-center gap-4 mb-6 text-[#666] min-w-[900px]">
             <select
               value={pendingSeasonId}
               onChange={(e) => setPendingSeasonId(e.target.value)}
@@ -208,12 +208,14 @@ export default function App() {
             </div>
           </section>
 
-          <section className="mb-8 min-w-[900px]">
-            <h3 className="text-sm font-medium text-[#888] mb-2 px-1">
-              Season Flow — click a queen to select, click placements to pin
-            </h3>
-            <Timeline carrierWidth={carrierWidth} />
-            <SeasonFlowChart carrierWidth={carrierWidth} />
+          <section className="mb-8 w-[900px]">
+            <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4">
+              <h3 className="text-sm font-medium text-[#ddd] mb-3">
+                Season Flow — click a queen to select, click placements to pin
+              </h3>
+              <Timeline carrierWidth={carrierWidth} />
+              <SeasonFlowChart carrierWidth={carrierWidth} />
+            </div>
           </section>
 
           <section className="mb-8">
