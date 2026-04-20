@@ -51,6 +51,7 @@ export default function App() {
   const triggerSimulation = useCallback((n: number) => {
     setIsSimulating(true);
     setSimulationProgress(0);
+    setBaselineResults(null);
     runBaseline({
       season: baselineSeason,
       numSimulations: n,

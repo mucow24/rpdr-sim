@@ -24,7 +24,8 @@ export interface PlacementDistQueen {
 }
 
 export interface PlacementDistData {
-  /** Queens sorted ascending by expectedPlace (best at top). */
+  /** Queens sorted by P(win) descending — biggest gold bar on top, matching
+   *  the flow chart's sort order. */
   queens: PlacementDistQueen[];
 }
 
@@ -53,6 +54,6 @@ export function computePlacementDistData(
     };
   });
 
-  rows.sort((a, b) => a.expectedPlace - b.expectedPlace);
+  rows.sort((a, b) => b.winProb - a.winProb);
   return { queens: rows };
 }

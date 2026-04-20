@@ -53,6 +53,10 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
   const queen = selectedQueenId && results
     ? season.queens.find((q) => q.id === selectedQueenId) ?? null
     : null;
+  const selectedQueen = selectedQueenId
+    ? season.queens.find((q) => q.id === selectedQueenId) ?? null
+    : null;
+  const showRunningOverlay = !!selectedQueen && !results;
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -578,6 +582,16 @@ export default function TrajectoryChart({ height = 350, compact = false }: Traje
         </label>
       )}
       <svg ref={svgRef} width={width} height={height} />
+      {showRunningOverlay && selectedQueen && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span
+            className="font-mono font-bold uppercase"
+            style={{ color: selectedQueen.color, fontSize: '11px' }}
+          >
+            Running simulations...
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -25,9 +25,9 @@ describe('computePlacementDistData invariants', () => {
   const { results } = fixture();
   const data = computePlacementDistData(season5, results);
 
-  test('queens sorted ascending by expectedPlace (lower = better)', () => {
+  test('queens sorted descending by winProb (biggest gold bar on top)', () => {
     for (let i = 1; i < data.queens.length; i++) {
-      expect(data.queens[i - 1].expectedPlace).toBeLessThanOrEqual(data.queens[i].expectedPlace);
+      expect(data.queens[i - 1].winProb).toBeGreaterThanOrEqual(data.queens[i].winProb);
     }
   });
 

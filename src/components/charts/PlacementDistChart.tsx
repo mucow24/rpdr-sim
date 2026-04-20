@@ -38,7 +38,7 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { containerRef: plotRef, width, height } = useContainerSize({ width: 400, height: 280 });
   const season = useStore(selectCurrentSeason);
-  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId, conditions } =
     useStore();
 
   const results = filteredResults ?? baselineResults;
@@ -67,7 +67,7 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
       .scaleBand<string>()
       .domain(sortedQueens.map((q) => q.id))
       .range([0, innerHeight])
-      .padding(0.15);
+      .padding(0);
 
     // X axis
     g.append('g')
@@ -88,7 +88,12 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
       );
 
     // Y axis
-    g.append('g')
+    const queensWithPins = new Set<string>();
+    for (const c of conditions) {
+      const q = season.queens[c.queenIndex];
+      if (q) queensWithPins.add(q.id);
+    }
+    const yAxisG = g.append('g')
       .call(
         d3.axisLeft(y).tickFormat((id) => {
           const q = season.queens.find((q) => q.id === id);
@@ -110,6 +115,21 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
           .style('cursor', 'pointer')
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
+
+    // Yellow pin dots next to queens with active what-if conditions
+    yAxisG.selectAll<SVGGElement, string>('.tick').each(function (id) {
+      if (!queensWithPins.has(id)) return;
+      const textNode = d3.select(this).select<SVGTextElement>('text').node();
+      if (!textNode) return;
+      const bbox = textNode.getBBox();
+      d3.select(this)
+        .append('circle')
+        .attr('cx', bbox.x - 6)
+        .attr('cy', 0)
+        .attr('r', 2.5)
+        .attr('fill', '#ffd700')
+        .attr('opacity', 0.9);
+    });
 
     // Tooltip
     const tooltip = d3
@@ -178,22 +198,22 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
       if (winProb > 0.01) {
         const totalCum = segments.reduce((s, seg) => s + seg.prob, 0);
         const label = g.append('text')
-          .attr('x', x(totalCum) + 6)
+          .attr('x', x(totalCum) + 3)
           .attr('y', (y(queen.id) ?? 0) + y.bandwidth() / 2)
           .attr('dominant-baseline', 'middle')
           .attr('fill', '#666')
-          .attr('font-size', '10px')
+          .attr('font-size', '11px')
           .attr('font-weight', 'bold')
           .attr('font-family', 'monospace');
         label.append('tspan').attr('dy', '-0.1em').text('👑');
-        label.append('tspan').attr('dy', '0.1em').text(` ${(winProb * 100).toFixed(0)}%`);
+        label.append('tspan').attr('dx', '1').attr('dy', '0.1em').text(`${(winProb * 100).toFixed(0)}%`);
       }
     }
 
     return () => {
       d3.selectAll('.placement-tooltip').remove();
     };
-  }, [results, season, width, height, selectedQueenId, setSelectedQueenId]);
+  }, [results, season, width, height, selectedQueenId, setSelectedQueenId, conditions]);
 
   return (
     <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">

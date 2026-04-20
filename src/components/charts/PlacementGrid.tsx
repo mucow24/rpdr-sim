@@ -8,7 +8,7 @@ import { computePlacementGridData } from './placementGrid/placementGridData';
 
 
 const MARGIN = { top: 4, right: 42, bottom: 18, left: 72 };
-const Y_PADDING = 0.15;
+const Y_PADDING = 0;
 
 interface Props {
   onSwitch?: () => void;
@@ -19,7 +19,7 @@ export default function PlacementGrid({ onSwitch }: Props = {}) {
   const { containerRef: plotRef, width, height } = useContainerSize({ width: 680, height: 280 });
 
   const season = useStore(selectCurrentSeason);
-  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId } =
+  const { baselineResults, filteredResults, selectedQueenId, setSelectedQueenId, conditions } =
     useStore();
 
   const results = filteredResults ?? baselineResults;
@@ -89,7 +89,12 @@ export default function PlacementGrid({ onSwitch }: Props = {}) {
       );
 
     // Y axis (queen names) — styled like the other charts
-    g.append('g')
+    const queensWithPins = new Set<string>();
+    for (const c of conditions) {
+      const q = season.queens[c.queenIndex];
+      if (q) queensWithPins.add(q.id);
+    }
+    const yAxisG = g.append('g')
       .call(
         d3.axisLeft(y).tickFormat((id) => {
           const q = season.queens.find((q) => q.id === id);
@@ -114,6 +119,21 @@ export default function PlacementGrid({ onSwitch }: Props = {}) {
           )
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
+
+    // Yellow pin dots next to queens with active what-if conditions
+    yAxisG.selectAll<SVGGElement, string>('.tick').each(function (id) {
+      if (!queensWithPins.has(id)) return;
+      const textNode = d3.select(this).select<SVGTextElement>('text').node();
+      if (!textNode) return;
+      const bbox = textNode.getBBox();
+      d3.select(this)
+        .append('circle')
+        .attr('cx', bbox.x - 6)
+        .attr('cy', 0)
+        .attr('r', 2.5)
+        .attr('fill', '#ffd700')
+        .attr('opacity', 0.9);
+    });
 
     // Tooltip
     const tooltip = d3
@@ -289,7 +309,7 @@ export default function PlacementGrid({ onSwitch }: Props = {}) {
     return () => {
       d3.selectAll('.placement-grid-tooltip').remove();
     };
-  }, [results, season, width, height, innerWidth, innerHeight, selectedQueenId, setSelectedQueenId]);
+  }, [results, season, width, height, innerWidth, innerHeight, selectedQueenId, setSelectedQueenId, conditions]);
 
   return (
     <div className="bg-[#121218] border border-[#1a1a24] rounded-lg p-4 h-full flex flex-col">
