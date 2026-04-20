@@ -90,7 +90,7 @@ export default function QueenStatsPanel() {
           <RadarChart queen={queen} size={110} />
         </div>
         <div className="flex-1 min-w-0 self-stretch">
-          {queen && <TrajectoryChart compact height={110} />}
+          <TrajectoryChart compact height={110} />
         </div>
       </div>
 
