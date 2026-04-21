@@ -37,14 +37,14 @@ export default function LipSyncsPage() {
   const [hovered, setHovered] = useState<SimNode | null>(null);
 
   // Direct force controls.
-  const [linkStrength, setLinkStrength] = useState(0.5);
-  const [repulsion, setRepulsion] = useState(90);
+  const [linkStrength, setLinkStrength] = useState(3);
+  const [repulsion, setRepulsion] = useState(4000);
   const [velocityDecay, setVelocityDecay] = useState(0.4);
   const [merge, setMerge] = useState(false);
   const [disabledSeasons, setDisabledSeasons] = useState<Set<string>>(() => new Set());
 
   // Pan / zoom (user-controllable viewport).
-  const [view, setView] = useState({ x: 225, y: 190, k: 0.5 });
+  const [view, setView] = useState({ x: 393.75, y: 332.5, k: 0.125 });
   const viewRef = useRef(view);
   viewRef.current = view;
 
@@ -54,11 +54,24 @@ export default function LipSyncsPage() {
   // Persistent SimNode pool for the current dataset — rebuilt only on the
   // merge toggle. Toggling seasons filters this pool rather than rebuilding
   // SimNode objects, so positions survive show/hide cycles.
+  //
+  // We pre-seed x/y via phyllotaxis at 2x d3-force's default radius so the
+  // initial layout explodes less violently before settling.
   const allNodes = useMemo<SimNode[]>(() => {
     const raw: (LipSyncNode & { seasons?: string[] })[] = merge
       ? LIP_SYNC_NODES_MERGED.map((n) => ({ id: n.id, name: n.name, seasonId: n.seasonId, seasons: n.seasons }))
       : LIP_SYNC_NODES.map((n) => ({ ...n }));
-    return raw.map((n) => ({ ...n }));
+    const initialRadius = 20; // d3-force default is 10 → 2x diameter
+    const initialAngle = Math.PI * (3 - Math.sqrt(5));
+    return raw.map((n, i) => {
+      const radius = initialRadius * Math.sqrt(0.5 + i);
+      const angle = i * initialAngle;
+      return {
+        ...n,
+        x: width / 2 + radius * Math.cos(angle),
+        y: height / 2 + radius * Math.sin(angle),
+      };
+    });
   }, [merge]);
 
   // In merged view, matches carry seasonId so we can filter per-season; in
@@ -132,7 +145,7 @@ export default function LipSyncsPage() {
       .force('charge', d3.forceManyBody<SimNode>().distanceMax(400).strength(-repulsionRef.current))
       .force('collide', d3.forceCollide<SimNode>(11))
       .velocityDecay(velocityDecayRef.current)
-      .alpha(1)
+      .alpha(0.1)
       .alphaDecay(0.02)
       .alphaTarget(0.01)
       .alphaMin(0)
