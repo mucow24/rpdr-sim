@@ -23,4 +23,4 @@ Notes on format:
 | 9 | "Cold Hearted" — Paula Abdul | Alyssa Edwards vs Coco Montrese | Coco Montrese | Alyssa-Coco pageant rivalry cliff |
 | 10 | "(It Takes) Two to Make It Right" — Seduction | Coco Montrese vs Detox | Detox | Coco finally out |
 | 11 | "Malambo No. 1" — Yma Sumac | Detox vs Jinkx Monsoon | Jinkx Monsoon | unexpected Jinkx snap-out |
-| 13 | "The Beginning" — RuPaul | Jinkx Monsoon vs Alaska vs Roxxxy Andrews | none crowned on stage | 3-way pre-crowning finale |
+| 13 | "The Beginning" — RuPaul | Jinkx Monsoon vs Alaska vs Roxxxy Andrews | Jinkx Monsoon | 3-way pre-crowning finale; Jinkx crowned S5 winner |

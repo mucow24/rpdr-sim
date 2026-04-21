@@ -8,6 +8,7 @@ import PlacementDistChart from './components/charts/PlacementDistChart';
 import DivergencePanel from './components/DivergencePanel';
 import CalibratePage from './components/CalibratePage';
 import DataPage from './components/DataPage';
+import LipSyncsPage from './components/LipSyncsPage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
 import PlacementGrid from './components/charts/PlacementGrid';
 
@@ -129,6 +130,16 @@ export default function App() {
           >
             Data
           </button>
+          <button
+            onClick={() => setAppMode('lip-syncs')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              appMode === 'lip-syncs'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-[#666] hover:text-[#999] border border-transparent'
+            }`}
+          >
+            Lip Syncs
+          </button>
         </div>
       </header>
 
@@ -136,6 +147,8 @@ export default function App() {
         <CalibratePage />
       ) : appMode === 'data' ? (
         <DataPage />
+      ) : appMode === 'lip-syncs' ? (
+        <LipSyncsPage />
       ) : (
         <>
           <div className="flex items-center gap-4 mb-6 text-[#666] min-w-[900px]">

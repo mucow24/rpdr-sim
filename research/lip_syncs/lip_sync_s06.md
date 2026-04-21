@@ -7,7 +7,7 @@ Notes on format:
 - S6 premiere was split across two episodes (Eps 1 & 2 had two separate cohorts of 7 queens each); the "12 remaining queens meet" episode is Ep 3. Every episode had an LSFYL as normal.
 - "RuVealed" is a rerun format (re-airings with pop-up commentary bubbles), NOT a finale lip-sync format. The actual S6 finale had no Top 3 LSFYL — Bianca was crowned outright at the live Reunited! episode after the three finalists performed choreography together. I have not included the Reunited! performance as an LSFYL because no outcome hinged on it.
 - Ep 8 ("Drag My Wedding") had a "save" moment: Darienne won the LSFYL but RuPaul saved Ben anyway — no one went home.
-- Ep 12 ("Sissy That Walk") was a 4-way LSFYL among the Top 4; loser Darienne was eliminated, locking Adore/Bianca/Courtney as the Top 3.
+- Ep 12 ("Sissy That Walk") had no LSFYL — Darienne was eliminated on the main stage without a lip sync, locking Adore/Bianca/Courtney as the Top 3.
 
 | Ep | Song | Queens | Winner | Notes |
 |----|------|--------|--------|-------|
@@ -22,4 +22,3 @@ Notes on format:
 | 9 | "Vibeology" — Paula Abdul | Adore Delano vs Trinity K. Bonet | Adore Delano | Adore snaps into gear |
 | 10 | "Think" — Aretha Franklin | Adore Delano vs Joslyn Fox | Adore Delano | Joslyn valiant underdog |
 | 11 | "Stronger (What Doesn't Kill You)" — Kelly Clarkson | BenDeLaCreme vs Darienne Lake | Darienne Lake | shocking Ben elimination |
-| 12 | "Sissy That Walk" — RuPaul | Adore vs Bianca vs Courtney vs Darienne | Darienne eliminated | 4-way Top 4 cut-to-Top-3 |
