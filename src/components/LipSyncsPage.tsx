@@ -3,12 +3,14 @@ import * as d3 from 'd3';
 import {
   LIP_SYNC_NODES,
   LIP_SYNC_EDGES,
+  LIP_SYNC_NODES_MERGED,
+  LIP_SYNC_EDGES_MERGED,
   seasonLabel,
   type LipSyncNode,
   type LipSyncEdge,
 } from '../data/lipSyncs';
 
-type SimNode = LipSyncNode & d3.SimulationNodeDatum;
+type SimNode = LipSyncNode & { seasons?: string[] } & d3.SimulationNodeDatum;
 type SimLink = LipSyncEdge & d3.SimulationLinkDatum<SimNode> & {
   source: SimNode | string;
   target: SimNode | string;
@@ -34,10 +36,11 @@ export default function LipSyncsPage() {
   const [, setTick] = useState(0);
   const [hovered, setHovered] = useState<SimNode | null>(null);
 
-  // Tension slider: 0 = jello, 10 = very tense.
-  const [tension, setTension] = useState(8);
-  const tensionRef = useRef(tension);
-  tensionRef.current = tension;
+  // Direct force controls.
+  const [linkStrength, setLinkStrength] = useState(0.5);
+  const [repulsion, setRepulsion] = useState(90);
+  const [velocityDecay, setVelocityDecay] = useState(0.4);
+  const [merge, setMerge] = useState(false);
 
   // Pan / zoom (user-controllable viewport).
   const [view, setView] = useState({ x: 225, y: 190, k: 0.5 });
@@ -48,13 +51,22 @@ export default function LipSyncsPage() {
   const height = 760;
 
   const { nodes, links } = useMemo(() => {
-    const nodes: SimNode[] = LIP_SYNC_NODES.map((n) => ({ ...n }));
+    const rawNodes: (LipSyncNode & { seasons?: string[] })[] = merge
+      ? LIP_SYNC_NODES_MERGED.map((n) => ({ id: n.id, name: n.name, seasonId: n.seasonId, seasons: n.seasons }))
+      : LIP_SYNC_NODES;
+    const rawEdges: LipSyncEdge[] = merge
+      ? LIP_SYNC_EDGES_MERGED.map((e) => ({
+          a: e.a, b: e.b, aWins: e.aWins, bWins: e.bWins, ties: e.ties,
+          matches: e.matches.map((m) => ({ episode: m.episode, song: m.song, outcome: m.outcome })),
+        }))
+      : LIP_SYNC_EDGES;
+    const nodes: SimNode[] = rawNodes.map((n) => ({ ...n }));
     const idSet = new Set(nodes.map((n) => n.id));
-    const links: SimLink[] = LIP_SYNC_EDGES
+    const links: SimLink[] = rawEdges
       .filter((e) => idSet.has(e.a) && idSet.has(e.b))
       .map((e) => ({ ...e, source: e.a, target: e.b }));
     return { nodes, links };
-  }, []);
+  }, [merge]);
 
   const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
 
@@ -75,7 +87,21 @@ export default function LipSyncsPage() {
       .force('y', d3.forceY(height / 2).strength(0.03))
       .alpha(1)
       .alphaDecay(0.02)
-      .on('tick', () => setTick((t) => (t + 1) % 1_000_000));
+      .alphaTarget(0.01)
+      .alphaMin(0)
+      .on('tick', () => {
+        // Recover from numerical blow-up — reseed any NaN positions so lowering
+        // the tension slider brings the graph back.
+        for (const n of nodes) {
+          if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) {
+            n.x = width / 2 + (Math.random() - 0.5) * 100;
+            n.y = height / 2 + (Math.random() - 0.5) * 100;
+            n.vx = 0;
+            n.vy = 0;
+          }
+        }
+        setTick((t) => (t + 1) % 1_000_000);
+      });
 
     simRef.current = sim;
     return () => {
@@ -83,17 +109,18 @@ export default function LipSyncsPage() {
     };
   }, [nodes, links]);
 
-  // Apply tension changes to live simulation forces.
+  // Apply slider changes to live simulation forces without bumping alpha —
+  // the perpetual alphaTarget keeps the sim ticking, so tweaks take effect
+  // smoothly instead of jolting the graph every time a slider moves.
   useEffect(() => {
     const sim = simRef.current;
     if (!sim) return;
-    const t = tension; // 0..10
     const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
     const charge = sim.force('charge') as d3.ForceManyBody<SimNode> | null;
-    link?.strength(0.05 + t * 0.2);
-    charge?.strength(-15 - t * 150);
-    sim.alpha(Math.max(sim.alpha(), 0.4)).restart();
-  }, [tension]);
+    link?.strength(linkStrength);
+    charge?.strength(-repulsion);
+    sim.velocityDecay(velocityDecay);
+  }, [linkStrength, repulsion, velocityDecay]);
 
   // Drag state
   const dragRef = useRef<{ node: SimNode | null; dx: number; dy: number; pointerId: number | null }>({
@@ -128,7 +155,6 @@ export default function LipSyncsPage() {
     };
     node.fx = node.x;
     node.fy = node.y;
-    simRef.current?.alphaTarget(0.1).restart();
   }
 
   function onPointerMove(e: React.PointerEvent<SVGSVGElement>) {
@@ -163,7 +189,7 @@ export default function LipSyncsPage() {
       n.fx = null;
       n.fy = null;
       dragRef.current = { node: null, dx: 0, dy: 0, pointerId: null };
-      simRef.current?.alphaTarget(0);
+      simRef.current?.alphaTarget(0.01);
       svgRef.current?.releasePointerCapture?.(e.pointerId);
     }
     if (panRef.current.active && panRef.current.pointerId === e.pointerId) {
@@ -219,22 +245,57 @@ export default function LipSyncsPage() {
 
   return (
     <div>
-      <div className="mb-3 flex items-center gap-4 text-sm text-[#888] flex-wrap">
-        <span>
-          {stats.nodes} queens · {stats.edges} matchups · left-click drag · middle-click pan · scroll to zoom
-        </span>
-        <label className="flex items-center gap-2 ml-auto">
-          <span className="text-[#aaa]">Tension</span>
+      <div className="mb-3 text-sm text-[#888]">
+        {stats.nodes} queens · {stats.edges} matchups · left-click drag · middle-click pan · scroll to zoom
+      </div>
+      <div className="mb-3 flex items-center gap-6 text-sm text-[#888] flex-wrap">
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Link str</span>
           <input
             type="range"
             min={0}
-            max={10}
-            step={0.1}
-            value={tension}
-            onChange={(e) => setTension(parseFloat(e.target.value))}
-            className="w-48 accent-amber-500"
+            max={8}
+            step={0.01}
+            value={linkStrength}
+            onChange={(e) => setLinkStrength(parseFloat(e.target.value))}
+            className="w-40 accent-amber-500"
           />
-          <span className="text-[#666] font-mono text-xs w-10">{tension.toFixed(1)}</span>
+          <span className="text-[#666] font-mono text-xs w-12">{linkStrength.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Repulsion</span>
+          <input
+            type="range"
+            min={0}
+            max={8000}
+            step={1}
+            value={repulsion}
+            onChange={(e) => setRepulsion(parseFloat(e.target.value))}
+            className="w-40 accent-amber-500"
+          />
+          <span className="text-[#666] font-mono text-xs w-12">{repulsion.toFixed(0)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Vel decay</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={velocityDecay}
+            onChange={(e) => setVelocityDecay(parseFloat(e.target.value))}
+            className="w-40 accent-amber-500"
+          />
+          <span className="text-[#666] font-mono text-xs w-12">{velocityDecay.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={merge}
+            onChange={(e) => setMerge(e.target.checked)}
+            className="accent-amber-500"
+          />
+          <span className="text-[#aaa]">Merge recurring queens</span>
         </label>
       </div>
       <div className="bg-[#0a0a10] border border-[#1a1a24] rounded-lg overflow-hidden relative">
@@ -255,9 +316,9 @@ export default function LipSyncsPage() {
             {links.map((l, i) => {
               const s = (typeof l.source === 'object' ? l.source : null) as SimNode | null;
               const t = (typeof l.target === 'object' ? l.target : null) as SimNode | null;
-              if (!s || !t || s.x == null || t.x == null || s.y == null || t.y == null) return null;
-              const aColor = l.aWins > l.bWins ? GOLD : LIGHT_GRAY;
-              const bColor = l.bWins > l.aWins ? GOLD : LIGHT_GRAY;
+              if (!s || !t || !Number.isFinite(s.x) || !Number.isFinite(t.x) || !Number.isFinite(s.y) || !Number.isFinite(t.y)) return null;
+              const aColor = l.aWins > 0 && l.aWins >= l.bWins ? GOLD : LIGHT_GRAY;
+              const bColor = l.bWins > 0 && l.bWins >= l.aWins ? GOLD : LIGHT_GRAY;
               return (
                 <linearGradient
                   key={i}
@@ -277,7 +338,7 @@ export default function LipSyncsPage() {
             {links.map((l, i) => {
               const s = (typeof l.source === 'object' ? l.source : null) as SimNode | null;
               const t = (typeof l.target === 'object' ? l.target : null) as SimNode | null;
-              if (!s || !t || s.x == null || t.x == null || s.y == null || t.y == null) return null;
+              if (!s || !t || !Number.isFinite(s.x) || !Number.isFinite(t.x) || !Number.isFinite(s.y) || !Number.isFinite(t.y)) return null;
               return (
                 <line
                   key={i}
@@ -288,11 +349,17 @@ export default function LipSyncsPage() {
                 />
               );
             })}
-            {/* Nodes */}
+            {/* Nodes — floor-clamped to 12px rendered diameter (16px on hover)
+                regardless of zoom so nodes stay tappable zoomed out; the hover
+                ring thickness is also zoom-independent. */}
             {nodes.map((n) => {
-              if (n.x == null || n.y == null) return null;
+              if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return null;
               const color = seasonColor(n.seasonId);
               const isHover = hovered?.id === n.id;
+              const baseR = isHover ? 7 : 5;
+              const floorR = isHover ? 8 : 6;
+              const r = Math.max(baseR, floorR / view.k);
+              const sw = (isHover ? 1.5 : 1) / view.k;
               return (
                 <g
                   key={n.id}
@@ -303,28 +370,39 @@ export default function LipSyncsPage() {
                   onPointerLeave={() => setHovered((h) => (h?.id === n.id ? null : h))}
                 >
                   <circle
-                    r={isHover ? 7 : 5}
+                    r={r}
                     fill={color}
                     stroke={isHover ? '#fff' : '#0a0a10'}
-                    strokeWidth={isHover ? 1.5 : 1}
+                    strokeWidth={sw}
                   />
                 </g>
               );
             })}
-            {/* Hover label drawn above all */}
+            {/* Hover label drawn above all — counter-scaled so tooltip stays
+                the same on-screen size regardless of zoom. */}
             {hovered && hovered.x != null && hovered.y != null && (
-              <g transform={`translate(${hovered.x},${hovered.y})`} pointerEvents="none">
-                <rect
-                  x={10} y={-10}
-                  width={Math.max(80, hovered.name.length * 7 + 40)}
-                  height={20}
-                  rx={3}
-                  fill="#121218"
-                  stroke="#2a2a3a"
-                />
-                <text x={14} y={4} fontSize={12} fill="#eee">
-                  {hovered.name} · {seasonLabel(hovered.seasonId)}
-                </text>
+              <g transform={`translate(${hovered.x},${hovered.y}) scale(${1 / view.k})`} pointerEvents="none">
+                {(() => {
+                  const label = hovered.seasons && hovered.seasons.length > 0
+                    ? hovered.seasons.map(seasonLabel).join(', ')
+                    : seasonLabel(hovered.seasonId);
+                  const text = `${hovered.name} · ${label}`;
+                  return (
+                    <>
+                      <rect
+                        x={10} y={-10}
+                        width={Math.max(80, text.length * 7 + 20)}
+                        height={20}
+                        rx={3}
+                        fill="#121218"
+                        stroke="#2a2a3a"
+                      />
+                      <text x={14} y={4} fontSize={12} fill="#eee">
+                        {text}
+                      </text>
+                    </>
+                  );
+                })()}
               </g>
             )}
           </g>

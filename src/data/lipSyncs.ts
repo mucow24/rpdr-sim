@@ -23,6 +23,29 @@ export type LipSyncEdge = {
   matches: LipSyncMatch[];
 };
 
+export type LipSyncNodeMerged = {
+  id: LipSyncQueenId; // slug only, no season suffix
+  name: string;
+  seasonId: string; // first (earliest) season this queen appeared
+  seasons: string[]; // all seasons this queen appeared in
+};
+
+export type LipSyncMatchMerged = {
+  episode: string;
+  song: string;
+  outcome: 'a' | 'b' | 'tie';
+  seasonId: string; // season this particular matchup happened in
+};
+
+export type LipSyncEdgeMerged = {
+  a: LipSyncQueenId;
+  b: LipSyncQueenId;
+  aWins: number;
+  bWins: number;
+  ties: number;
+  matches: LipSyncMatchMerged[];
+};
+
 export function seasonLabel(seasonId: string): string {
   if (seasonId.startsWith('as')) return 'AS' + parseInt(seasonId.slice(2), 10);
   return 'S' + parseInt(seasonId.slice(1), 10);
@@ -42,11 +65,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
   {
     "id": "adore-delano-s06",
     "name": "Adore Delano",
-    "seasonId": "s06"
-  },
-  {
-    "id": "adore-s06",
-    "name": "Adore",
     "seasonId": "s06"
   },
   {
@@ -240,11 +258,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s10"
   },
   {
-    "id": "bob-s08",
-    "name": "Bob",
-    "seasonId": "s08"
-  },
-  {
     "id": "bob-the-drag-queen-s08",
     "name": "Bob the Drag Queen",
     "seasonId": "s08"
@@ -305,11 +318,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s08"
   },
   {
-    "id": "chi-chi-s08",
-    "name": "Chi Chi",
-    "seasonId": "s08"
-  },
-  {
     "id": "ciara-myst-s18",
     "name": "Ciara Myst",
     "seasonId": "s18"
@@ -362,11 +370,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
   {
     "id": "darienne-lake-s06",
     "name": "Darienne Lake",
-    "seasonId": "s06"
-  },
-  {
-    "id": "darienne-s06",
-    "name": "Darienne",
     "seasonId": "s06"
   },
   {
@@ -495,6 +498,11 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s12"
   },
   {
+    "id": "ginger-minj-and-sasha-belle-s07",
+    "name": "Ginger Minj & Sasha Belle",
+    "seasonId": "s07"
+  },
+  {
     "id": "ginger-minj-as06",
     "name": "Ginger Minj",
     "seasonId": "as06"
@@ -503,16 +511,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "id": "ginger-minj-as10",
     "name": "Ginger Minj",
     "seasonId": "as10"
-  },
-  {
-    "id": "ginger-minj-s07",
-    "name": "Ginger Minj",
-    "seasonId": "s07"
-  },
-  {
-    "id": "ginger-s07",
-    "name": "Ginger",
-    "seasonId": "s07"
   },
   {
     "id": "gottmik-as09",
@@ -605,8 +603,8 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s12"
   },
   {
-    "id": "jaidynn-diore-fierce-s07",
-    "name": "Jaidynn Diore Fierce",
+    "id": "jaidynn-diore-fierce-and-tempest-dujour-s07",
+    "name": "Jaidynn Diore Fierce & Tempest DuJour",
     "seasonId": "s07"
   },
   {
@@ -837,11 +835,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
   {
     "id": "kennedy-davenport-s07",
     "name": "Kennedy Davenport",
-    "seasonId": "s07"
-  },
-  {
-    "id": "kennedy-s07",
-    "name": "Kennedy",
     "seasonId": "s07"
   },
   {
@@ -1178,11 +1171,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "id": "mystique-summers-madison-s02",
     "name": "Mystique Summers Madison",
     "seasonId": "s02"
-  },
-  {
-    "id": "naomi-s08",
-    "name": "Naomi",
-    "seasonId": "s08"
   },
   {
     "id": "naomi-smalls-as04",
@@ -1865,6 +1853,48 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "adore-delano-s06",
+    "b": "bianca-s06",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "tie"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano-s06",
+    "b": "courtney-s06",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "tie"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano-s06",
+    "b": "darienne-lake-s06",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano-s06",
     "b": "joslyn-fox-s06",
     "aWins": 1,
     "bWins": 0,
@@ -1888,48 +1918,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "9",
         "song": "\"Vibeology\" — Paula Abdul",
         "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "adore-s06",
-    "b": "bianca-s06",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "adore-s06",
-    "b": "courtney-s06",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "adore-s06",
-    "b": "darienne-s06",
-    "aWins": 0,
-    "bWins": 1,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "b"
       }
     ]
   },
@@ -2157,27 +2145,13 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "a": "alaska-s05",
     "b": "jinkx-monsoon-s05",
     "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
+    "bWins": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "13",
         "song": "\"The Beginning\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "alaska-s05",
-    "b": "roxxxy-andrews-s05",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "13",
-        "song": "\"The Beginning\" — RuPaul",
-        "outcome": "tie"
+        "outcome": "b"
       }
     ]
   },
@@ -2343,7 +2317,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "ties": 0,
     "matches": [
       {
-        "episode": "7",
+        "episode": "9",
         "song": "\"Cold Hearted\" — Paula Abdul",
         "outcome": "b"
       }
@@ -2357,7 +2331,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "ties": 0,
     "matches": [
       {
-        "episode": "9",
+        "episode": "8",
         "song": "\"Ain't Nothin' Goin' on But the Rent\" — Gwen Guthrie",
         "outcome": "a"
       }
@@ -2366,12 +2340,12 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "alyssa-edwards-s05",
     "b": "roxxxy-andrews-s05",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
-        "episode": "8",
+        "episode": "7",
         "song": "\"Whip My Hair\" — Willow Smith",
         "outcome": "tie"
       }
@@ -2480,13 +2454,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "b": "jax-s15",
     "aWins": 1,
     "bWins": 0,
-    "ties": 1,
+    "ties": 0,
     "matches": [
-      {
-        "episode": "8",
-        "song": "\"The Right Stuff\" — Vanessa Williams",
-        "outcome": "tie"
-      },
       {
         "episode": "8",
         "song": "\"Finally\" — CeCe Peniston",
@@ -2525,8 +2494,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "anetra-s15",
     "b": "mistress-isabelle-brooks-s15",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -2688,23 +2657,9 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "angeria-s14",
-    "b": "lady-camden-s14",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "11",
-        "song": "\"Radio\" — Beyoncé",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "angeria-s14",
     "b": "willow-pill-s14",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -2778,7 +2733,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "ties": 0,
     "matches": [
       {
-        "episode": "6",
+        "episode": "5",
         "song": "\"I'm Your Baby Tonight\" — Whitney Houston",
         "outcome": "b"
       }
@@ -2983,8 +2938,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "bendelacreme-as03",
     "b": "shangela-as03",
-    "aWins": 0,
-    "bWins": 1,
+    "aWins": 1,
+    "bWins": 2,
     "ties": 1,
     "matches": [
       {
@@ -3021,8 +2976,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "bianca-s06",
     "b": "courtney-s06",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -3034,15 +2989,15 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "bianca-s06",
-    "b": "darienne-s06",
-    "aWins": 0,
-    "bWins": 1,
+    "b": "darienne-lake-s06",
+    "aWins": 1,
+    "bWins": 0,
     "ties": 0,
     "matches": [
       {
         "episode": "12",
         "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "b"
+        "outcome": "a"
       }
     ]
   },
@@ -3061,36 +3016,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "bob-s08",
-    "b": "chi-chi-s08",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "bob-s08",
-    "b": "kim-chi-s08",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "bob-s08",
-    "b": "naomi-s08",
+    "a": "bob-the-drag-queen-s08",
+    "b": "chi-chi-devayne-s08",
     "aWins": 1,
     "bWins": 0,
     "ties": 0,
@@ -3113,6 +3040,34 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "8",
         "song": "\"You Make Me Feel (Mighty Real)\" — Sylvester",
         "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "bob-the-drag-queen-s08",
+    "b": "kim-chi-s08",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "tie"
+      }
+    ]
+  },
+  {
+    "a": "bob-the-drag-queen-s08",
+    "b": "naomi-smalls-s08",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "tie"
       }
     ]
   },
@@ -3279,13 +3234,13 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "a": "brooke-lynn-hytes-as06",
     "b": "rajah-ohara-as06",
     "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
+    "bWins": 1,
+    "ties": 1,
     "matches": [
       {
         "episode": "2",
         "song": "\"Miss You Much\" — Janet Jackson",
-        "outcome": "a"
+        "outcome": "tie"
       }
     ]
   },
@@ -3320,8 +3275,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "brooke-lynn-hytes-s11",
     "b": "yvie-oddly-s11",
-    "aWins": 0,
-    "bWins": 1,
+    "aWins": 1,
+    "bWins": 2,
     "ties": 1,
     "matches": [
       {
@@ -3367,8 +3322,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "carmen-carrera-s03",
     "b": "yara-sofia-s03",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -3422,29 +3377,15 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "chad-michaels-s04",
-    "b": "phi-phi-ohara-s04",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Glamazon\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "chad-michaels-s04",
     "b": "sharon-needles-s04",
     "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
+    "bWins": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "12",
         "song": "\"Glamazon\" — RuPaul",
-        "outcome": "tie"
+        "outcome": "b"
       }
     ]
   },
@@ -3458,6 +3399,34 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
       {
         "episode": "4",
         "song": "\"I Wanna Go\" — Britney Spears",
+        "outcome": "b"
+      }
+    ]
+  },
+  {
+    "a": "chi-chi-devayne-s08",
+    "b": "kim-chi-s08",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "b"
+      }
+    ]
+  },
+  {
+    "a": "chi-chi-devayne-s08",
+    "b": "naomi-smalls-s08",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
         "outcome": "b"
       }
     ]
@@ -3487,34 +3456,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "7",
         "song": "\"And I Am Telling You I'm Not Going\" — Jennifer Holliday",
         "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "chi-chi-s08",
-    "b": "kim-chi-s08",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "chi-chi-s08",
-    "b": "naomi-s08",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie"
       }
     ]
   },
@@ -3604,15 +3545,15 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "courtney-s06",
-    "b": "darienne-s06",
-    "aWins": 0,
-    "bWins": 1,
+    "b": "darienne-lake-s06",
+    "aWins": 1,
+    "bWins": 0,
     "ties": 0,
     "matches": [
       {
         "episode": "12",
         "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "b"
+        "outcome": "a"
       }
     ]
   },
@@ -3694,8 +3635,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "cynthia-lee-fontaine-s09",
     "b": "farrah-moan-s09",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -3870,20 +3811,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "deja-skye-s14",
-    "b": "jorgeous-s14",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "13",
-        "song": "\"Good 4 U\" — Olivia Rodrigo",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
     "a": "delta-work-s03",
     "b": "manila-luzon-s03",
     "aWins": 0,
@@ -4019,17 +3946,12 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "b": "katya-as02",
     "aWins": 1,
     "bWins": 0,
-    "ties": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "7",
         "song": "\"Step It Up\" — RuPaul",
         "outcome": "a"
-      },
-      {
-        "episode": "8",
-        "song": "\"If I Were Your Woman\" — Gladys Knight & the Pips",
-        "outcome": "tie"
       }
     ]
   },
@@ -4055,7 +3977,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "ties": 0,
     "matches": [
       {
-        "episode": "4",
+        "episode": "5",
         "song": "\"Take Me Home\" — Cher",
         "outcome": "a"
       }
@@ -4138,20 +4060,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "elliott-w-2-ts-s13",
-    "b": "kahmora-hall-s13",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "1",
-        "song": "\"Lady Marmalade\" — Christina Aguilera, Lil' Kim, Mýa, Pink",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "elliott-w-2-ts-s13",
     "b": "tina-burner-s13",
     "aWins": 0,
     "bWins": 1,
@@ -4194,23 +4102,9 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "eureka-as06",
-    "b": "ginger-minj-as06",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Stupid Love\" — Lady Gaga",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "eureka-as06",
     "b": "jaida-essence-hall-as06",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -4231,20 +4125,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "12",
         "song": "\"Stupid Love\" — Lady Gaga",
         "outcome": "b"
-      }
-    ]
-  },
-  {
-    "a": "eureka-as06",
-    "b": "rajah-ohara-as06",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Stupid Love\" — Lady Gaga",
-        "outcome": "tie"
       }
     ]
   },
@@ -4279,8 +4159,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "eureka-s10",
     "b": "kameron-michaels-s10",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -4417,6 +4297,76 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
+    "a": "ginger-minj-and-sasha-belle-s07",
+    "b": "jaidynn-diore-fierce-and-tempest-dujour-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle-s07",
+    "b": "kennedy-davenport-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle-s07",
+    "b": "pearl-s07",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "tie"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle-s07",
+    "b": "trixie-mattel-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Show Me Love\" — Robin S.",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle-s07",
+    "b": "violet-s07",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "tie"
+      }
+    ]
+  },
+  {
     "a": "ginger-minj-as06",
     "b": "heidi-n-closet-as06",
     "aWins": 1,
@@ -4459,20 +4409,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "ginger-minj-as06",
-    "b": "rajah-ohara-as06",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Stupid Love\" — Lady Gaga",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
     "a": "ginger-minj-as10",
     "b": "jorgeous-as10",
     "aWins": 1,
@@ -4496,76 +4432,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
       {
         "episode": "12 (Finale — Smackdown R1)",
         "song": "\"Disease\" — Lady Gaga",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-s07",
-    "b": "jaidynn-diore-fierce-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "8",
-        "song": "\"I Think We're Alone Now\" — Tiffany",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-s07",
-    "b": "trixie-mattel-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "10",
-        "song": "\"Show Me Love\" — Robin S.",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-s07",
-    "b": "kennedy-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-s07",
-    "b": "pearl-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-s07",
-    "b": "violet-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
         "outcome": "a"
       }
     ]
@@ -4601,8 +4467,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "gottmik-s13",
     "b": "kandy-muse-s13",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -4615,8 +4481,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "gottmik-s13",
     "b": "rose-s13",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -4629,8 +4495,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "gottmik-s13",
     "b": "symone-s13",
-    "aWins": 0,
-    "bWins": 1,
+    "aWins": 1,
+    "bWins": 2,
     "ties": 1,
     "matches": [
       {
@@ -4662,8 +4528,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "heidi-n-closet-s12",
     "b": "jackie-cox-s12",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -4723,7 +4589,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "ties": 1,
     "matches": [
       {
-        "episode": "5",
+        "episode": "4",
         "song": "\"Oops!... I Did It Again\" — Britney Spears",
         "outcome": "tie"
       }
@@ -4889,7 +4755,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "jaidynn-diore-fierce-s07",
+    "a": "jaidynn-diore-fierce-and-tempest-dujour-s07",
     "b": "kandy-ho-s07",
     "aWins": 1,
     "bWins": 0,
@@ -4903,7 +4769,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "jaidynn-diore-fierce-s07",
+    "a": "jaidynn-diore-fierce-and-tempest-dujour-s07",
     "b": "max-s07",
     "aWins": 1,
     "bWins": 0,
@@ -5017,8 +4883,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jasmine-kennedie-s14",
     "b": "jorgeous-s14",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -5185,8 +5051,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jewels-sparkles-s17",
     "b": "onya-nurve-s17",
-    "aWins": 0,
-    "bWins": 1,
+    "aWins": 1,
+    "bWins": 2,
     "ties": 1,
     "matches": [
       {
@@ -5330,7 +5196,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jinkx-monsoon-as07",
     "b": "monet-x-change-as07",
-    "aWins": 2,
+    "aWins": 1,
     "bWins": 1,
     "ties": 0,
     "matches": [
@@ -5340,13 +5206,36 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "outcome": "b"
       },
       {
-        "episode": "12 (Finale — Queen of All Queens R1)",
-        "song": "\"Sisters Are Doin' It for Themselves\" — Eurythmics & Aretha Franklin",
-        "outcome": "a"
-      },
-      {
         "episode": "12 (Finale — Queen of All Queens Final)",
         "song": "\"Swish Swish\" — Katy Perry ft. Nicki Minaj",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon-as07",
+    "b": "raja-as07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Better in Color\" — Lizzo",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon-as07",
+    "b": "shea-coulee-as07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Queen of All Queens R1)",
+        "song": "\"Judas\" — Lady Gaga",
         "outcome": "a"
       }
     ]
@@ -5387,14 +5276,14 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jinkx-monsoon-s05",
     "b": "roxxxy-andrews-s05",
-    "aWins": 0,
+    "aWins": 1,
     "bWins": 0,
-    "ties": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "13",
         "song": "\"The Beginning\" — RuPaul",
-        "outcome": "tie"
+        "outcome": "a"
       }
     ]
   },
@@ -5499,8 +5388,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jorgeous-as09",
     "b": "shannel-as09",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -5532,8 +5421,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jorgeous-as10",
     "b": "mistress-isabelle-brooks-as10",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -5602,8 +5491,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "juicy-love-dion-s18",
     "b": "mia-starr-s18",
-    "aWins": 1,
-    "bWins": 0,
+    "aWins": 2,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -5621,14 +5510,14 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "juicy-love-dion-s18",
     "b": "nini-coco-s18",
-    "aWins": 1,
-    "bWins": 0,
+    "aWins": 0,
+    "bWins": 1,
     "ties": 0,
     "matches": [
       {
         "episode": "14",
         "song": "\"Super Graphic Ultra Modern Girl\" — Chappell Roan",
-        "outcome": "a"
+        "outcome": "b"
       }
     ]
   },
@@ -5663,27 +5552,13 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "jujubee-as01",
     "b": "raven-as01",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
         "episode": "5",
         "song": "\"Dancing on My Own\" — Robyn",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "jujubee-as05",
-    "b": "miz-cracker-as05",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "8",
-        "song": "\"Make Me Feel\" — Janelle Monáe",
         "outcome": "tie"
       }
     ]
@@ -5943,8 +5818,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "kandy-muse-s13",
     "b": "rose-s13",
-    "aWins": 1,
-    "bWins": 0,
+    "aWins": 2,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -5962,8 +5837,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "kandy-muse-s13",
     "b": "symone-s13",
-    "aWins": 0,
-    "bWins": 2,
+    "aWins": 1,
+    "bWins": 3,
     "ties": 1,
     "matches": [
       {
@@ -6068,30 +5943,30 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "kennedy-s07",
+    "a": "kennedy-davenport-s07",
     "b": "pearl-s07",
     "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
+    "bWins": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "12",
         "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie"
+        "outcome": "b"
       }
     ]
   },
   {
-    "a": "kennedy-s07",
+    "a": "kennedy-davenport-s07",
     "b": "violet-s07",
     "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
+    "bWins": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "12",
         "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie"
+        "outcome": "b"
       }
     ]
   },
@@ -6149,9 +6024,9 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "kim-chi-s08",
-    "b": "naomi-s08",
-    "aWins": 0,
-    "bWins": 0,
+    "b": "naomi-smalls-s08",
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -6283,17 +6158,12 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "b": "lydia-b-kollins-s17",
     "aWins": 1,
     "bWins": 0,
-    "ties": 1,
+    "ties": 0,
     "matches": [
       {
         "episode": "11",
         "song": "\"Unholy\" — Sam Smith & Kim Petras",
         "outcome": "a"
-      },
-      {
-        "episode": "2",
-        "song": "\"360\" — Charli XCX",
-        "outcome": "tie"
       }
     ]
   },
@@ -6342,8 +6212,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "latrice-royale-as04",
     "b": "monique-heart-as04",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -6524,8 +6394,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "manila-luzon-as04",
     "b": "monet-x-change-as04",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -6759,13 +6629,13 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "a": "miz-cracker-as05",
     "b": "morgan-mcmichaels-as05",
     "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
+    "bWins": 1,
+    "ties": 1,
     "matches": [
       {
         "episode": "4",
         "song": "\"Where Have You Been\" — Rihanna",
-        "outcome": "a"
+        "outcome": "tie"
       }
     ]
   },
@@ -6814,8 +6684,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "monet-x-change-as04",
     "b": "trinity-the-tuck-as04",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -6855,6 +6725,20 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "11",
         "song": "\"Supernova\" — Kylie Minogue",
         "outcome": "b"
+      }
+    ]
+  },
+  {
+    "a": "monet-x-change-as07",
+    "b": "trinity-the-tuck-as07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Queen of All Queens R1)",
+        "song": "\"So What\" — Pink",
+        "outcome": "a"
       }
     ]
   },
@@ -7151,8 +7035,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "pearl-s07",
     "b": "violet-s07",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -7207,9 +7091,9 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "phi-phi-ohara-s04",
     "b": "sharon-needles-s04",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 2,
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 1,
     "matches": [
       {
         "episode": "8",
@@ -7219,7 +7103,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
       {
         "episode": "12",
         "song": "\"Glamazon\" — RuPaul",
-        "outcome": "tie"
+        "outcome": "b"
       }
     ]
   },
@@ -7234,20 +7118,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "14",
         "song": "\"Better Be Good to Me\" — Tina Turner",
         "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "plasma-s16",
-    "b": "xunami-muse-s16",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "1",
-        "song": "\"Milkshake\" — Kelis",
-        "outcome": "tie"
       }
     ]
   },
@@ -7335,7 +7205,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "matches": [
       {
         "episode": "12 (Finale — Herses Smackdown Final)",
-        "song": "\"Judas\" — Lady Gaga",
+        "song": "\"Sisters Are Doin' It for Themselves\" — Eurythmics & Aretha Franklin",
         "outcome": "a"
       }
     ]
@@ -7348,7 +7218,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     "ties": 0,
     "matches": [
       {
-        "episode": "5",
+        "episode": "6",
         "song": "\"Last Dance\" — Donna Summer",
         "outcome": "a"
       }
@@ -7385,8 +7255,8 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "rose-s13",
     "b": "symone-s13",
-    "aWins": 0,
-    "bWins": 0,
+    "aWins": 1,
+    "bWins": 1,
     "ties": 1,
     "matches": [
       {
@@ -7427,18 +7297,13 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "roxxxy-andrews-as09",
     "b": "vanessa-vanjie-as09",
-    "aWins": 0,
-    "bWins": 0,
-    "ties": 2,
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
     "matches": [
       {
         "episode": "4",
         "song": "\"Black Cat\" — Janet Jackson",
-        "outcome": "tie"
-      },
-      {
-        "episode": "12 (Finale — Lip Sync for the Crown)",
-        "song": "\"Rhythm Nation\" — Janet Jackson",
         "outcome": "tie"
       }
     ]
@@ -7570,20 +7435,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "shea-coulee-as07",
-    "b": "trinity-the-tuck-as07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12 (Finale — Queen of All Queens R1)",
-        "song": "\"So What\" — Pink",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
     "a": "shuga-cain-s11",
     "b": "vanessa-vanjie-mateo-s11",
     "aWins": 0,
@@ -7683,6 +7534,8247 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "11",
         "song": "\"My Humps\" — Black Eyed Peas",
         "outcome": "b"
+      }
+    ]
+  }
+];
+
+export const LIP_SYNC_NODES_MERGED: LipSyncNodeMerged[] = [
+  {
+    "id": "acacia-forgot",
+    "name": "Acacia Forgot",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "acid-betty",
+    "name": "Acid Betty",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "adore-delano",
+    "name": "Adore Delano",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "aiden-zhane",
+    "name": "Aiden Zhane",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "aja",
+    "name": "Aja",
+    "seasonId": "s09",
+    "seasons": [
+      "s09",
+      "as03",
+      "as08",
+      "as10"
+    ]
+  },
+  {
+    "id": "akashia",
+    "name": "Akashia",
+    "seasonId": "s01",
+    "seasons": [
+      "s01"
+    ]
+  },
+  {
+    "id": "akeria-c-davenport",
+    "name": "A'keria C. Davenport",
+    "seasonId": "s11",
+    "seasons": [
+      "s11"
+    ]
+  },
+  {
+    "id": "alaska",
+    "name": "Alaska",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as02"
+    ]
+  },
+  {
+    "id": "alexis-mateo",
+    "name": "Alexis Mateo",
+    "seasonId": "s03",
+    "seasons": [
+      "s03",
+      "as01",
+      "as06"
+    ]
+  },
+  {
+    "id": "alexis-michelle",
+    "name": "Alexis Michelle",
+    "seasonId": "s09",
+    "seasons": [
+      "s09",
+      "as08"
+    ]
+  },
+  {
+    "id": "alisa-summers",
+    "name": "Alisa Summers",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "alyssa-edwards",
+    "name": "Alyssa Edwards",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as02",
+      "as05"
+    ]
+  },
+  {
+    "id": "alyssa-hunter",
+    "name": "Alyssa Hunter",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "amanda-tori-meating",
+    "name": "Amanda Tori Meating",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "amethyst",
+    "name": "Amethyst",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "anetra",
+    "name": "Anetra",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "angeria",
+    "name": "Angeria",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "angeria-paris-vanmicheals",
+    "name": "Angeria Paris VanMicheals",
+    "seasonId": "as08",
+    "seasons": [
+      "as08",
+      "as09"
+    ]
+  },
+  {
+    "id": "april-carrion",
+    "name": "April Carrión",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "aquaria",
+    "name": "Aquaria",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "ariel-versace",
+    "name": "Ariel Versace",
+    "seasonId": "s11",
+    "seasons": [
+      "s11"
+    ]
+  },
+  {
+    "id": "arrietty",
+    "name": "Arrietty",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "asia-ohara",
+    "name": "Asia O'Hara",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "athena-dion",
+    "name": "Athena Dion",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "aura-mayari",
+    "name": "Aura Mayari",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "bebe-zahara-benet",
+    "name": "BeBe Zahara Benet",
+    "seasonId": "s01",
+    "seasons": [
+      "s01",
+      "as03"
+    ]
+  },
+  {
+    "id": "bendelacreme",
+    "name": "BenDeLaCreme",
+    "seasonId": "s06",
+    "seasons": [
+      "s06",
+      "as03"
+    ]
+  },
+  {
+    "id": "bianca",
+    "name": "Bianca",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "blair-st-clair",
+    "name": "Blair St. Clair",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "bob-the-drag-queen",
+    "name": "Bob the Drag Queen",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "bosco",
+    "name": "Bosco",
+    "seasonId": "s14",
+    "seasons": [
+      "s14",
+      "as10"
+    ]
+  },
+  {
+    "id": "briar-blush",
+    "name": "Briar Blush",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "brita",
+    "name": "Brita",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "brooke-lynn-hytes",
+    "name": "Brooke Lynn Hytes",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as06"
+    ]
+  },
+  {
+    "id": "carmen-carrera",
+    "name": "Carmen Carrera",
+    "seasonId": "s03",
+    "seasons": [
+      "s03"
+    ]
+  },
+  {
+    "id": "chad-michaels",
+    "name": "Chad Michaels",
+    "seasonId": "s04",
+    "seasons": [
+      "s04",
+      "as01"
+    ]
+  },
+  {
+    "id": "charlie-hides",
+    "name": "Charlie Hides",
+    "seasonId": "s09",
+    "seasons": [
+      "s09"
+    ]
+  },
+  {
+    "id": "chi-chi-devayne",
+    "name": "Chi Chi DeVayne",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "ciara-myst",
+    "name": "Ciara Myst",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "coco-montrese",
+    "name": "Coco Montrese",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as06"
+    ]
+  },
+  {
+    "id": "courtney",
+    "name": "Courtney",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "crystal-envy",
+    "name": "Crystal Envy",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "crystal-methyd",
+    "name": "Crystal Methyd",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "cynthia-lee-fontaine",
+    "name": "Cynthia Lee Fontaine",
+    "seasonId": "s08",
+    "seasons": [
+      "s08",
+      "s09",
+      "as10"
+    ]
+  },
+  {
+    "id": "dahlia-sin",
+    "name": "Dahlia Sin",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "darienne-lake",
+    "name": "Darienne Lake",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "dawn",
+    "name": "Dawn",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "dax-exclamationpoint",
+    "name": "Dax ExclamationPoint",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "daya-betty",
+    "name": "Daya Betty",
+    "seasonId": "s14",
+    "seasons": [
+      "s14",
+      "as10"
+    ]
+  },
+  {
+    "id": "dd-fuego",
+    "name": "DD Fuego",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "deja-skye",
+    "name": "DeJa Skye",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "delta-work",
+    "name": "Delta Work",
+    "seasonId": "s03",
+    "seasons": [
+      "s03"
+    ]
+  },
+  {
+    "id": "denali",
+    "name": "Denali",
+    "seasonId": "s13",
+    "seasons": [
+      "s13",
+      "as10"
+    ]
+  },
+  {
+    "id": "derrick-barry",
+    "name": "Derrick Barry",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "detox",
+    "name": "Detox",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as02"
+    ]
+  },
+  {
+    "id": "dida-ritz",
+    "name": "DiDa Ritz",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "discord-addams",
+    "name": "Discord Addams",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "dusty-ray-bottoms",
+    "name": "Dusty Ray Bottoms",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "elliott-w-2-ts",
+    "name": "Elliott w/2 Ts",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "elliott-with-2-ts",
+    "name": "Elliott with 2 Ts",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "eureka",
+    "name": "Eureka!",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "as06"
+    ]
+  },
+  {
+    "id": "farrah-moan",
+    "name": "Farrah Moan",
+    "seasonId": "s09",
+    "seasons": [
+      "s09",
+      "as04"
+    ]
+  },
+  {
+    "id": "geneva-karr",
+    "name": "Geneva Karr",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "gia-gunn",
+    "name": "Gia Gunn",
+    "seasonId": "s06",
+    "seasons": [
+      "s06",
+      "as04"
+    ]
+  },
+  {
+    "id": "gigi-goode",
+    "name": "Gigi Goode",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "ginger-minj",
+    "name": "Ginger Minj",
+    "seasonId": "as06",
+    "seasons": [
+      "as06",
+      "as10"
+    ]
+  },
+  {
+    "id": "ginger-minj-and-sasha-belle",
+    "name": "Ginger Minj & Sasha Belle",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "gottmik",
+    "name": "Gottmik",
+    "seasonId": "s13",
+    "seasons": [
+      "s13",
+      "as09"
+    ]
+  },
+  {
+    "id": "heidi-n-closet",
+    "name": "Heidi N Closet",
+    "seasonId": "s12",
+    "seasons": [
+      "s12",
+      "as06"
+    ]
+  },
+  {
+    "id": "hershii-liqcour-jete",
+    "name": "Hershii LiqCour-Jeté",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "honey-mahogany",
+    "name": "Honey Mahogany",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "hormona-lisa",
+    "name": "Hormona Lisa",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "india-ferrah",
+    "name": "India Ferrah",
+    "seasonId": "s03",
+    "seasons": [
+      "s03",
+      "as05"
+    ]
+  },
+  {
+    "id": "irene-dubois",
+    "name": "Irene Dubois",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "irene-the-alien",
+    "name": "Irene the Alien",
+    "seasonId": "as10",
+    "seasons": [
+      "as10"
+    ]
+  },
+  {
+    "id": "ivy-winters",
+    "name": "Ivy Winters",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "jackie-cox",
+    "name": "Jackie Cox",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "jade",
+    "name": "Jade",
+    "seasonId": "s01",
+    "seasons": [
+      "s01"
+    ]
+  },
+  {
+    "id": "jade-jolie",
+    "name": "Jade Jolie",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "jaida-essence-hall",
+    "name": "Jaida Essence Hall",
+    "seasonId": "s12",
+    "seasons": [
+      "s12",
+      "as06",
+      "as07"
+    ]
+  },
+  {
+    "id": "jaidynn-diore-fierce-and-tempest-dujour",
+    "name": "Jaidynn Diore Fierce & Tempest DuJour",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "jan",
+    "name": "Jan",
+    "seasonId": "s12",
+    "seasons": [
+      "s12",
+      "as06"
+    ]
+  },
+  {
+    "id": "jane-dont",
+    "name": "Jane Don't",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "jasmine-kennedie",
+    "name": "Jasmine Kennedie",
+    "seasonId": "s14",
+    "seasons": [
+      "s14",
+      "as08"
+    ]
+  },
+  {
+    "id": "jasmine-masters",
+    "name": "Jasmine Masters",
+    "seasonId": "s07",
+    "seasons": [
+      "s07",
+      "as04"
+    ]
+  },
+  {
+    "id": "jax",
+    "name": "Jax",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "jaymes-mansfield",
+    "name": "Jaymes Mansfield",
+    "seasonId": "s09",
+    "seasons": [
+      "s09",
+      "as08"
+    ]
+  },
+  {
+    "id": "jessica-wild",
+    "name": "Jessica Wild",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "as06",
+      "as08"
+    ]
+  },
+  {
+    "id": "jewels-sparkles",
+    "name": "Jewels Sparkles",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "jiggly-caliente",
+    "name": "Jiggly Caliente",
+    "seasonId": "s04",
+    "seasons": [
+      "s04",
+      "as06"
+    ]
+  },
+  {
+    "id": "jimbo",
+    "name": "Jimbo",
+    "seasonId": "as08",
+    "seasons": [
+      "as08"
+    ]
+  },
+  {
+    "id": "jinkx-monsoon",
+    "name": "Jinkx Monsoon",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as07"
+    ]
+  },
+  {
+    "id": "joella",
+    "name": "Joella",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "joey-jay",
+    "name": "Joey Jay",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "jorgeous",
+    "name": "Jorgeous",
+    "seasonId": "s14",
+    "seasons": [
+      "s14",
+      "as08",
+      "as09",
+      "as10"
+    ]
+  },
+  {
+    "id": "joslyn-fox",
+    "name": "Joslyn Fox",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "juicy-love-dion",
+    "name": "Juicy Love Dion",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "jujubee",
+    "name": "Jujubee",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "as01",
+      "as05"
+    ]
+  },
+  {
+    "id": "june-jambalaya",
+    "name": "June Jambalaya",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "kahanna-montrese",
+    "name": "Kahanna Montrese",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as08"
+    ]
+  },
+  {
+    "id": "kahmora-hall",
+    "name": "Kahmora Hall",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "kalorie-karbdashian-williams",
+    "name": "Kalorie Karbdashian Williams",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "kameron-michaels",
+    "name": "Kameron Michaels",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "as06"
+    ]
+  },
+  {
+    "id": "kandy-ho",
+    "name": "Kandy Ho",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "kandy-muse",
+    "name": "Kandy Muse",
+    "seasonId": "s13",
+    "seasons": [
+      "s13",
+      "as08"
+    ]
+  },
+  {
+    "id": "katya",
+    "name": "Katya",
+    "seasonId": "s07",
+    "seasons": [
+      "s07",
+      "as02"
+    ]
+  },
+  {
+    "id": "kelly-mantle",
+    "name": "Kelly Mantle",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "kennedy-davenport",
+    "name": "Kennedy Davenport",
+    "seasonId": "s07",
+    "seasons": [
+      "s07",
+      "as03",
+      "as05"
+    ]
+  },
+  {
+    "id": "kenya-michaels",
+    "name": "Kenya Michaels",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "kenya-pleaser",
+    "name": "Kenya Pleaser",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "kerri-colby",
+    "name": "Kerri Colby",
+    "seasonId": "s14",
+    "seasons": [
+      "s14",
+      "as10"
+    ]
+  },
+  {
+    "id": "kim-chi",
+    "name": "Kim Chi",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "kimora-blac",
+    "name": "Kimora Blac",
+    "seasonId": "s09",
+    "seasons": [
+      "s09"
+    ]
+  },
+  {
+    "id": "kori-king",
+    "name": "Kori King",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "kylie-sonique-love",
+    "name": "Kylie Sonique Love",
+    "seasonId": "as06",
+    "seasons": [
+      "as06"
+    ]
+  },
+  {
+    "id": "lady-camden",
+    "name": "Lady Camden",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "laganja-estranja",
+    "name": "Laganja Estranja",
+    "seasonId": "s06",
+    "seasons": [
+      "s06",
+      "as06"
+    ]
+  },
+  {
+    "id": "laila-mcqueen",
+    "name": "Laila McQueen",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "lala-ri",
+    "name": "LaLa Ri",
+    "seasonId": "s13",
+    "seasons": [
+      "s13",
+      "as08"
+    ]
+  },
+  {
+    "id": "lana-jarae",
+    "name": "Lana Ja'Rae",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "lashauwn-beyond",
+    "name": "Lashauwn Beyond",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "latrice-royale",
+    "name": "Latrice Royale",
+    "seasonId": "s04",
+    "seasons": [
+      "s04",
+      "as01",
+      "as04"
+    ]
+  },
+  {
+    "id": "lexi-love",
+    "name": "Lexi Love",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "lineysha-sparx",
+    "name": "Lineysha Sparx",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "loosey-laduca",
+    "name": "Loosey LaDuca",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "lucky-starzzz",
+    "name": "Lucky Starzzz",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "luxx-noir-london",
+    "name": "Luxx Noir London",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "lydia-b-kollins",
+    "name": "Lydia B Kollins",
+    "seasonId": "s17",
+    "seasons": [
+      "s17",
+      "as10"
+    ]
+  },
+  {
+    "id": "madame-laqueer",
+    "name": "Madame LaQueer",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "maddy-morphosis",
+    "name": "Maddy Morphosis",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "magnolia-crawford",
+    "name": "Magnolia Crawford",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "malaysia-babydoll-foxx",
+    "name": "Malaysia Babydoll Foxx",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "mandy-mango",
+    "name": "Mandy Mango",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "manila-luzon",
+    "name": "Manila Luzon",
+    "seasonId": "s03",
+    "seasons": [
+      "s03",
+      "as01",
+      "as04",
+      "as06"
+    ]
+  },
+  {
+    "id": "marcia-marcia-marcia",
+    "name": "Marcia Marcia Marcia",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "mariah",
+    "name": "Mariah",
+    "seasonId": "s03",
+    "seasons": [
+      "s03"
+    ]
+  },
+  {
+    "id": "max",
+    "name": "Max",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "mayhem-miller",
+    "name": "Mayhem Miller",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "as06"
+    ]
+  },
+  {
+    "id": "megami",
+    "name": "Megami",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "mercedes-iman-diamond",
+    "name": "Mercedes Iman Diamond",
+    "seasonId": "s11",
+    "seasons": [
+      "s11"
+    ]
+  },
+  {
+    "id": "mhiya-iman-lepaige",
+    "name": "Mhi'ya Iman Le'Paige",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "mia-starr",
+    "name": "Mia Starr",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "milan",
+    "name": "Milan",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "milk",
+    "name": "Milk",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "mimi-imfurst",
+    "name": "Mimi Imfurst",
+    "seasonId": "s03",
+    "seasons": [
+      "s03",
+      "as01"
+    ]
+  },
+  {
+    "id": "mirage",
+    "name": "Mirage",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "miss-fame",
+    "name": "Miss Fame",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "mistress-isabelle-brooks",
+    "name": "Mistress Isabelle Brooks",
+    "seasonId": "s15",
+    "seasons": [
+      "s15",
+      "as10"
+    ]
+  },
+  {
+    "id": "miz-cracker",
+    "name": "Miz Cracker",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "as05"
+    ]
+  },
+  {
+    "id": "monet-x-change",
+    "name": "Monét X Change",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "as04",
+      "as05",
+      "as07"
+    ]
+  },
+  {
+    "id": "monica-beverly-hillz",
+    "name": "Monica Beverly Hillz",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "monique-heart",
+    "name": "Monique Heart",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "as04"
+    ]
+  },
+  {
+    "id": "morgan-mcmichaels",
+    "name": "Morgan McMichaels",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "as05"
+    ]
+  },
+  {
+    "id": "morphine-love-dion",
+    "name": "Morphine Love Dion",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "mrs-kasha-davis",
+    "name": "Mrs. Kasha Davis",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "myki-meeks",
+    "name": "Myki Meeks",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "mystique-summers-madison",
+    "name": "Mystique Summers Madison",
+    "seasonId": "s02",
+    "seasons": [
+      "s02"
+    ]
+  },
+  {
+    "id": "naomi-smalls",
+    "name": "Naomi Smalls",
+    "seasonId": "s08",
+    "seasons": [
+      "s08",
+      "as04"
+    ]
+  },
+  {
+    "id": "naysha-lopez",
+    "name": "Naysha Lopez",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "nicky-doll",
+    "name": "Nicky Doll",
+    "seasonId": "s12",
+    "seasons": [
+      "s12",
+      "as08"
+    ]
+  },
+  {
+    "id": "nicole-paige-brooks",
+    "name": "Nicole Paige Brooks",
+    "seasonId": "s02",
+    "seasons": [
+      "s02"
+    ]
+  },
+  {
+    "id": "nina-bonina-brown",
+    "name": "Nina Bo'nina Brown",
+    "seasonId": "s09",
+    "seasons": [
+      "s09"
+    ]
+  },
+  {
+    "id": "nina-flowers",
+    "name": "Nina Flowers",
+    "seasonId": "s01",
+    "seasons": [
+      "s01"
+    ]
+  },
+  {
+    "id": "nina-west",
+    "name": "Nina West",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as09"
+    ]
+  },
+  {
+    "id": "nini-coco",
+    "name": "Nini Coco",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "nymphia-wind",
+    "name": "Nymphia Wind",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "olivia-lux",
+    "name": "Olivia Lux",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "ongina",
+    "name": "Ongina",
+    "seasonId": "s01",
+    "seasons": [
+      "s01"
+    ]
+  },
+  {
+    "id": "onya-nurve",
+    "name": "Onya Nurve",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "orion-story",
+    "name": "Orion Story",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "pandora-boxx",
+    "name": "Pandora Boxx",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "as06"
+    ]
+  },
+  {
+    "id": "pangina-heals",
+    "name": "Pangina Heals",
+    "seasonId": "as08",
+    "seasons": [
+      "as08"
+    ]
+  },
+  {
+    "id": "pearl",
+    "name": "Pearl",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "penny-tration",
+    "name": "Penny Tration",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "peppermint",
+    "name": "Peppermint",
+    "seasonId": "s09",
+    "seasons": [
+      "s09"
+    ]
+  },
+  {
+    "id": "phi-phi-ohara",
+    "name": "Phi Phi O'Hara",
+    "seasonId": "s04",
+    "seasons": [
+      "s04",
+      "as02"
+    ]
+  },
+  {
+    "id": "phoenix",
+    "name": "Phoenix",
+    "seasonId": "s03",
+    "seasons": [
+      "s03"
+    ]
+  },
+  {
+    "id": "plane-jane",
+    "name": "Plane Jane",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "plasma",
+    "name": "Plasma",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "plastique-tiara",
+    "name": "Plastique Tiara",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as09"
+    ]
+  },
+  {
+    "id": "porkchop",
+    "name": "Porkchop",
+    "seasonId": "s01",
+    "seasons": [
+      "s01"
+    ]
+  },
+  {
+    "id": "princess-poppy",
+    "name": "Princess Poppy",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "priyanka",
+    "name": "Priyanka",
+    "seasonId": "as08",
+    "seasons": [
+      "as08"
+    ]
+  },
+  {
+    "id": "q",
+    "name": "Q",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "raja",
+    "name": "Raja",
+    "seasonId": "s03",
+    "seasons": [
+      "s03",
+      "as07"
+    ]
+  },
+  {
+    "id": "rajah-ohara",
+    "name": "Ra'Jah O'Hara",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as06",
+      "as08"
+    ]
+  },
+  {
+    "id": "raven",
+    "name": "Raven",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "as01"
+    ]
+  },
+  {
+    "id": "rebecca-glasscock",
+    "name": "Rebecca Glasscock",
+    "seasonId": "s01",
+    "seasons": [
+      "s01"
+    ]
+  },
+  {
+    "id": "robbie-turner",
+    "name": "Robbie Turner",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "robin-fierce",
+    "name": "Robin Fierce",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "rock-m-sakura",
+    "name": "Rock M. Sakura",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "rose",
+    "name": "Rosé",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "roxxxy-andrews",
+    "name": "Roxxxy Andrews",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as02",
+      "as05",
+      "as09"
+    ]
+  },
+  {
+    "id": "sahara-davenport",
+    "name": "Sahara Davenport",
+    "seasonId": "s02",
+    "seasons": [
+      "s02"
+    ]
+  },
+  {
+    "id": "salina-estitties",
+    "name": "Salina EsTitties",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "sam-star",
+    "name": "Sam Star",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "sapphira-cristal",
+    "name": "Sapphira Cristál",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "sasha-belle",
+    "name": "Sasha Belle",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "sasha-colby",
+    "name": "Sasha Colby",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "sasha-velour",
+    "name": "Sasha Velour",
+    "seasonId": "s09",
+    "seasons": [
+      "s09"
+    ]
+  },
+  {
+    "id": "scarlet-envy",
+    "name": "Scarlet Envy",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as06"
+    ]
+  },
+  {
+    "id": "serena-chacha",
+    "name": "Serena ChaCha",
+    "seasonId": "s05",
+    "seasons": [
+      "s05",
+      "as06"
+    ]
+  },
+  {
+    "id": "shangela",
+    "name": "Shangela",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "s03",
+      "as03"
+    ]
+  },
+  {
+    "id": "shannel",
+    "name": "Shannel",
+    "seasonId": "s01",
+    "seasons": [
+      "s01",
+      "as08",
+      "as09"
+    ]
+  },
+  {
+    "id": "sharon-needles",
+    "name": "Sharon Needles",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "shea-coulee",
+    "name": "Shea Couleé",
+    "seasonId": "s09",
+    "seasons": [
+      "s09",
+      "as05",
+      "as07"
+    ]
+  },
+  {
+    "id": "sherry-pie",
+    "name": "Sherry Pie",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "shuga-cain",
+    "name": "Shuga Cain",
+    "seasonId": "s11",
+    "seasons": [
+      "s11"
+    ]
+  },
+  {
+    "id": "silky-nutmeg-ganache",
+    "name": "Silky Nutmeg Ganache",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as06",
+      "as08"
+    ]
+  },
+  {
+    "id": "soju",
+    "name": "Soju",
+    "seasonId": "s11",
+    "seasons": [
+      "s11"
+    ]
+  },
+  {
+    "id": "sonique",
+    "name": "Sonique",
+    "seasonId": "s02",
+    "seasons": [
+      "s02"
+    ]
+  },
+  {
+    "id": "spice",
+    "name": "Spice",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "stacy-layne-matthews",
+    "name": "Stacy Layne Matthews",
+    "seasonId": "s03",
+    "seasons": [
+      "s03"
+    ]
+  },
+  {
+    "id": "sugar",
+    "name": "Sugar",
+    "seasonId": "s15",
+    "seasons": [
+      "s15"
+    ]
+  },
+  {
+    "id": "suzie-toot",
+    "name": "Suzie Toot",
+    "seasonId": "s17",
+    "seasons": [
+      "s17"
+    ]
+  },
+  {
+    "id": "symone",
+    "name": "Symone",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "tamisha-iman",
+    "name": "Tamisha Iman",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "tammie-brown",
+    "name": "Tammie Brown",
+    "seasonId": "s01",
+    "seasons": [
+      "s01",
+      "as01"
+    ]
+  },
+  {
+    "id": "tatianna",
+    "name": "Tatianna",
+    "seasonId": "s02",
+    "seasons": [
+      "s02",
+      "as02"
+    ]
+  },
+  {
+    "id": "tempest-dujour",
+    "name": "Tempest DuJour",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "the-princess",
+    "name": "The Princess",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "the-vivienne",
+    "name": "The Vivienne",
+    "seasonId": "as07",
+    "seasons": [
+      "as07"
+    ]
+  },
+  {
+    "id": "the-vixen",
+    "name": "The Vixen",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "thorgy-thor",
+    "name": "Thorgy Thor",
+    "seasonId": "s08",
+    "seasons": [
+      "s08"
+    ]
+  },
+  {
+    "id": "tina-burner",
+    "name": "Tina Burner",
+    "seasonId": "s13",
+    "seasons": [
+      "s13",
+      "as10"
+    ]
+  },
+  {
+    "id": "trinity-k-bonet",
+    "name": "Trinity K. Bonet",
+    "seasonId": "s06",
+    "seasons": [
+      "s06",
+      "as06"
+    ]
+  },
+  {
+    "id": "trinity-taylor",
+    "name": "Trinity Taylor",
+    "seasonId": "s09",
+    "seasons": [
+      "s09"
+    ]
+  },
+  {
+    "id": "trinity-the-tuck",
+    "name": "Trinity the Tuck",
+    "seasonId": "as04",
+    "seasons": [
+      "as04",
+      "as07"
+    ]
+  },
+  {
+    "id": "trixie-mattel",
+    "name": "Trixie Mattel",
+    "seasonId": "s07",
+    "seasons": [
+      "s07",
+      "as03"
+    ]
+  },
+  {
+    "id": "tyra-sanchez",
+    "name": "Tyra Sanchez",
+    "seasonId": "s02",
+    "seasons": [
+      "s02"
+    ]
+  },
+  {
+    "id": "utica-queen",
+    "name": "Utica Queen",
+    "seasonId": "s13",
+    "seasons": [
+      "s13"
+    ]
+  },
+  {
+    "id": "valentina",
+    "name": "Valentina",
+    "seasonId": "s09",
+    "seasons": [
+      "s09",
+      "as04"
+    ]
+  },
+  {
+    "id": "vanessa-vanjie",
+    "name": "Vanessa Vanjie",
+    "seasonId": "as09",
+    "seasons": [
+      "as09"
+    ]
+  },
+  {
+    "id": "vanessa-vanjie-mateo",
+    "name": "Vanessa Vanjie Mateo",
+    "seasonId": "s10",
+    "seasons": [
+      "s10",
+      "s11",
+      "as05"
+    ]
+  },
+  {
+    "id": "venus-d-lite",
+    "name": "Venus D-Lite",
+    "seasonId": "s03",
+    "seasons": [
+      "s03"
+    ]
+  },
+  {
+    "id": "violet",
+    "name": "Violet",
+    "seasonId": "s07",
+    "seasons": [
+      "s07"
+    ]
+  },
+  {
+    "id": "vita-vontesse-starr",
+    "name": "Vita VonTesse Starr",
+    "seasonId": "s18",
+    "seasons": [
+      "s18"
+    ]
+  },
+  {
+    "id": "vivacious",
+    "name": "Vivacious",
+    "seasonId": "s06",
+    "seasons": [
+      "s06"
+    ]
+  },
+  {
+    "id": "vivienne-pinay",
+    "name": "Vivienne Pinay",
+    "seasonId": "s05",
+    "seasons": [
+      "s05"
+    ]
+  },
+  {
+    "id": "widow-vondu",
+    "name": "Widow Von'Du",
+    "seasonId": "s12",
+    "seasons": [
+      "s12"
+    ]
+  },
+  {
+    "id": "willam",
+    "name": "Willam",
+    "seasonId": "s04",
+    "seasons": [
+      "s04"
+    ]
+  },
+  {
+    "id": "willow-pill",
+    "name": "Willow Pill",
+    "seasonId": "s14",
+    "seasons": [
+      "s14"
+    ]
+  },
+  {
+    "id": "xunami-muse",
+    "name": "Xunami Muse",
+    "seasonId": "s16",
+    "seasons": [
+      "s16"
+    ]
+  },
+  {
+    "id": "yara-sofia",
+    "name": "Yara Sofia",
+    "seasonId": "s03",
+    "seasons": [
+      "s03",
+      "as06"
+    ]
+  },
+  {
+    "id": "yuhua-hamasaki",
+    "name": "Yuhua Hamasaki",
+    "seasonId": "s10",
+    "seasons": [
+      "s10"
+    ]
+  },
+  {
+    "id": "yvie-oddly",
+    "name": "Yvie Oddly",
+    "seasonId": "s11",
+    "seasons": [
+      "s11",
+      "as05",
+      "as07"
+    ]
+  }
+];
+
+export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
+  {
+    "a": "acacia-forgot",
+    "b": "hormona-lisa",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Yes, And?\" — Ariana Grande",
+        "outcome": "a",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "acacia-forgot",
+    "b": "kori-king",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Wet Dream\" — Adam Lambert",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "acacia-forgot",
+    "b": "lucky-starzzz",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Step By Step (Junior Vasquez Mix)\" — Whitney Houston",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "acid-betty",
+    "b": "naomi-smalls",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Causing a Commotion\" — Madonna",
+        "outcome": "b",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano",
+    "b": "bianca",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano",
+    "b": "courtney",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano",
+    "b": "darienne-lake",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano",
+    "b": "joslyn-fox",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Think\" — Aretha Franklin",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "adore-delano",
+    "b": "trinity-k-bonet",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Vibeology\" — Paula Abdul",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "aiden-zhane",
+    "b": "brita",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Let It Go\" — Caissie Levy",
+        "outcome": "b",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "aja",
+    "b": "bendelacreme",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Anaconda\" — Nicki Minaj",
+        "outcome": "b",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "aja",
+    "b": "irene-the-alien",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1 (Bracket 1)",
+        "song": "\"Think U the Shit (Fart)\" — Ice Spice",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "aja",
+    "b": "jorgeous",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Smackdown R1)",
+        "song": "\"Party Lights\" — Natalie Cole",
+        "outcome": "b",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "aja",
+    "b": "kahanna-montrese",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Freakum Dress\" — Beyoncé",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "aja",
+    "b": "kimora-blac",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Holding Out for a Hero\" — Bonnie Tyler",
+        "outcome": "a",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "aja",
+    "b": "nina-bonina-brown",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Finally\" — CeCe Peniston",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "akashia",
+    "b": "porkchop",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Supermodel (You Better Work)\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "akashia",
+    "b": "shannel",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"The Greatest Love of All\" — Whitney Houston",
+        "outcome": "b",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "akashia",
+    "b": "tammie-brown",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"We Break the Dawn\" — Michelle Williams",
+        "outcome": "a",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "akeria-c-davenport",
+    "b": "rajah-ohara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Strut\" — Sheena Easton",
+        "outcome": "a",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "akeria-c-davenport",
+    "b": "yvie-oddly",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"SOS\" — Rihanna",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "alaska",
+    "b": "detox",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"If I Were Your Woman\" — Gladys Knight & the Pips",
+        "outcome": "a",
+        "seasonId": "as02"
+      }
+    ]
+  },
+  {
+    "a": "alaska",
+    "b": "jinkx-monsoon",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"The Beginning\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "alaska",
+    "b": "katya",
+    "aWins": 3,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Le Freak\" — Chic",
+        "outcome": "a",
+        "seasonId": "as02"
+      },
+      {
+        "episode": "6",
+        "song": "\"Cherry Bomb\" — Joan Jett & The Blackhearts",
+        "outcome": "a",
+        "seasonId": "as02"
+      },
+      {
+        "episode": "8",
+        "song": "\"If I Were Your Woman\" — Gladys Knight & the Pips",
+        "outcome": "a",
+        "seasonId": "as02"
+      }
+    ]
+  },
+  {
+    "a": "alaska",
+    "b": "phi-phi-ohara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Got to Be Real\" — Cheryl Lynn",
+        "outcome": "a",
+        "seasonId": "as02"
+      }
+    ]
+  },
+  {
+    "a": "alexis-mateo",
+    "b": "raven",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Don't Cha\" — The Pussycat Dolls feat. Busta Rhymes",
+        "outcome": "b",
+        "seasonId": "as01"
+      }
+    ]
+  },
+  {
+    "a": "alexis-mateo",
+    "b": "shangela",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Even Angels\" — Fantasia",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "alexis-mateo",
+    "b": "stacy-layne-matthews",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Knock on Wood\" — Amii Stewart",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "alexis-mateo",
+    "b": "trinity-k-bonet",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Dance Again\" — Jennifer Lopez ft. Pitbull",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "alexis-mateo",
+    "b": "yara-sofia",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"I Think About You\" — Patti LaBelle",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "alexis-michelle",
+    "b": "farrah-moan",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Baby I'm Burning\" — Dolly Parton",
+        "outcome": "a",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "alexis-michelle",
+    "b": "nicky-doll",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"These Boots Are Made for Walkin'\" — Nancy Sinatra",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "alexis-michelle",
+    "b": "peppermint",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Macho Man\" — Village People",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "alisa-summers",
+    "b": "jiggly-caliente",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Toxic\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "alyssa-edwards",
+    "b": "coco-montrese",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Cold Hearted\" — Paula Abdul",
+        "outcome": "b",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "alyssa-edwards",
+    "b": "detox",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Tell It to My Heart\" — Taylor Dayne",
+        "outcome": "a",
+        "seasonId": "as02"
+      }
+    ]
+  },
+  {
+    "a": "alyssa-edwards",
+    "b": "ivy-winters",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Ain't Nothin' Goin' on But the Rent\" — Gwen Guthrie",
+        "outcome": "a",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "alyssa-edwards",
+    "b": "roxxxy-andrews",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Whip My Hair\" — Willow Smith",
+        "outcome": "tie",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "alyssa-edwards",
+    "b": "shea-coulee",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Neutron Dance\" — The Pointer Sisters",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "alyssa-hunter",
+    "b": "kerri-colby",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Play\" — Jennifer Lopez",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "amanda-tori-meating",
+    "b": "dawn",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Damaged\" — Danity Kane",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "amanda-tori-meating",
+    "b": "megami",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"The Shoop Shoop Song\" — Cher",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "amanda-tori-meating",
+    "b": "q",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Emergency\" — Icona Pop",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "amethyst",
+    "b": "irene-dubois",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"7 Rings\" — Ariana Grande",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "amethyst",
+    "b": "princess-poppy",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Ain't No Mountain High Enough (Eric Kupper Remix)\" — Diana Ross",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "amethyst",
+    "b": "salina-estitties",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Q.U.E.E.N.\" — Janelle Monáe ft. Erykah Badu",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "anetra",
+    "b": "jax",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Finally\" — CeCe Peniston",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "anetra",
+    "b": "luxx-noir-london",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"The Right Stuff\" — Vanessa Williams",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "anetra",
+    "b": "marcia-marcia-marcia",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Boss Bitch\" — Doja Cat",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "anetra",
+    "b": "mistress-isabelle-brooks",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"When Love Takes Over\" — David Guetta ft. Kelly Rowland",
+        "outcome": "tie",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "anetra",
+    "b": "sasha-colby",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I'm in Love with a Monster\" — Fifth Harmony",
+        "outcome": "b",
+        "seasonId": "s15"
+      },
+      {
+        "episode": "16",
+        "song": "\"Knock on Wood\" — Amii Stewart",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "angeria",
+    "b": "jasmine-kennedie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Love Don't Cost a Thing\" — Jennifer Lopez",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "angeria",
+    "b": "jorgeous",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Radio\" — Beyoncé",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "angeria",
+    "b": "willow-pill",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Telephone\" — Lady Gaga ft. Beyoncé",
+        "outcome": "tie",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "gottmik",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (LaLaPaRuZa Smackdown R1)",
+        "song": "\"My Lovin' (You're Never Gonna Get It)\" — En Vogue",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "jorgeous",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Million Dollar Bill (Freemasons Radio Mix)\" — Whitney Houston",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "kandy-muse",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"I'm Not Perfect (But I'm Perfect for You)\" — Grace Jones",
+        "outcome": "b",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "nina-west",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Lovergirl\" — Teena Marie",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "plastique-tiara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Be My Lover\" — La Bouche",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "roxxxy-andrews",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (R2)",
+        "song": "\"Groove Is in the Heart\" — Deee-Lite",
+        "outcome": "b",
+        "seasonId": "as09"
+      },
+      {
+        "episode": "12 (Finale — Lip Sync for the Crown)",
+        "song": "\"Rhythm Nation\" — Janet Jackson",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "angeria-paris-vanmicheals",
+    "b": "vanessa-vanjie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Lip Sync for the Crown)",
+        "song": "\"Rhythm Nation\" — Janet Jackson",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "april-carrion",
+    "b": "trinity-k-bonet",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"I'm Every Woman\" — Chaka Khan",
+        "outcome": "b",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "april-carrion",
+    "b": "vivacious",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Shake It Up\" — Selena Gomez",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "aquaria",
+    "b": "eureka",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"If\" — Janet Jackson",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "aquaria",
+    "b": "kameron-michaels",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Bang Bang\" — Jessie J, Ariana Grande, Nicki Minaj",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "ariel-versace",
+    "b": "shuga-cain",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"I'm Your Baby Tonight\" — Whitney Houston",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "arrietty",
+    "b": "jewels-sparkles",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Ya Ya\" — Beyoncé",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "arrietty",
+    "b": "kori-king",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Blow Me (One Last Kiss)\" — P!nk",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "arrietty",
+    "b": "lydia-b-kollins",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Boogie Wonderland\" — Earth, Wind & Fire & The Emotions",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "asia-ohara",
+    "b": "kameron-michaels",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Nasty\" — Janet Jackson",
+        "outcome": "b",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "asia-ohara",
+    "b": "the-vixen",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Groove Is in the Heart\" — Deee-Lite",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "athena-dion",
+    "b": "ciara-myst",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Born Naked\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "athena-dion",
+    "b": "jane-dont",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Jerkin\" — Amyl & the Sniffers",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "athena-dion",
+    "b": "juicy-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Call Me When You Break Up\" — Selena Gomez, Benny Blanco, Gracie Abrams",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "aura-mayari",
+    "b": "jax",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Sweetest Pie\" — Megan Thee Stallion & Dua Lipa",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "bebe-zahara-benet",
+    "b": "bendelacreme",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Nobody's Supposed to Be Here (Hex Hector Mix)\" — Deborah Cox",
+        "outcome": "b",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "bebe-zahara-benet",
+    "b": "nina-flowers",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Cover Girl (Put the Bass in Your Walk)\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "bebe-zahara-benet",
+    "b": "ongina",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Stronger\" — Britney Spears",
+        "outcome": "a",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "bebe-zahara-benet",
+    "b": "trixie-mattel",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"The Boss\" — Diana Ross",
+        "outcome": "a",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "bendelacreme",
+    "b": "darienne-lake",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Point of No Return\" — Exposé",
+        "outcome": "b",
+        "seasonId": "s06"
+      },
+      {
+        "episode": "11",
+        "song": "\"Stronger (What Doesn't Kill You)\" — Kelly Clarkson",
+        "outcome": "b",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "bendelacreme",
+    "b": "kennedy-davenport",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Green Light\" — Lorde",
+        "outcome": "b",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "bendelacreme",
+    "b": "shangela",
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Jump (For My Love)\" — The Pointer Sisters",
+        "outcome": "b",
+        "seasonId": "as03"
+      },
+      {
+        "episode": "4",
+        "song": "\"I Kissed a Girl\" — Katy Perry",
+        "outcome": "tie",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "bianca",
+    "b": "courtney",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "bianca",
+    "b": "darienne-lake",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "blair-st-clair",
+    "b": "the-vixen",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"I'm Coming Out\" — Diana Ross",
+        "outcome": "b",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "bob-the-drag-queen",
+    "b": "chi-chi-devayne",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "bob-the-drag-queen",
+    "b": "derrick-barry",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"You Make Me Feel (Mighty Real)\" — Sylvester",
+        "outcome": "a",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "bob-the-drag-queen",
+    "b": "kim-chi",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "bob-the-drag-queen",
+    "b": "naomi-smalls",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "daya-betty",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Smackdown R1)",
+        "song": "\"Show Me How You Burlesque\" — Christina Aguilera",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "ginger-minj",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Smackdown R2)",
+        "song": "\"Raise Your Glass\" — Pink",
+        "outcome": "b",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "irene-the-alien",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2 (Bracket 1)",
+        "song": "\"Murder on the Dancefloor\" — Sophie Ellis-Bextor",
+        "outcome": "a",
+        "seasonId": "as10"
+      },
+      {
+        "episode": "3 (Bracket 1 finale)",
+        "song": "\"Pocketbook\" — Jennifer Hudson ft. Ludacris",
+        "outcome": "b",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "jasmine-kennedie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Swept Away\" — Diana Ross",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "jorgeous",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Heartbreak Hotel (Hex Hector Remix)\" — Whitney Houston ft. Faith Evans & Kelly Price",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "lady-camden",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Don't Let Go (Love)\" — En Vogue",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "bosco",
+    "b": "willow-pill",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Never Too Much\" — Luther Vandross",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "briar-blush",
+    "b": "kenya-pleaser",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Lights Camera Action\" — Kylie Minogue",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "briar-blush",
+    "b": "mandy-mango",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Love in Real Life\" — Lizzo",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "brita",
+    "b": "heidi-n-closet",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Burning Up\" — Madonna",
+        "outcome": "b",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "brita",
+    "b": "rock-m-sakura",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"S&M\" — Rihanna",
+        "outcome": "a",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "brooke-lynn-hytes",
+    "b": "rajah-ohara",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Miss You Much\" — Janet Jackson",
+        "outcome": "tie",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "brooke-lynn-hytes",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Bootylicious\" — Destiny's Child",
+        "outcome": "a",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "brooke-lynn-hytes",
+    "b": "vanessa-vanjie-mateo",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Pride (A Deeper Love)\" — Aretha Franklin",
+        "outcome": "a",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "brooke-lynn-hytes",
+    "b": "yvie-oddly",
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Sorry Not Sorry\" — Demi Lovato",
+        "outcome": "tie",
+        "seasonId": "s11"
+      },
+      {
+        "episode": "14",
+        "song": "\"The Edge of Glory\" — Lady Gaga",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "carmen-carrera",
+    "b": "raja",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Straight Up\" — Paula Abdul",
+        "outcome": "b",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "carmen-carrera",
+    "b": "shangela",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Believe\" — Cher",
+        "outcome": "b",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "carmen-carrera",
+    "b": "yara-sofia",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Mickey (Spanish version)\" — Toni Basil",
+        "outcome": "tie",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "chad-michaels",
+    "b": "latrice-royale",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"No One Else on Earth\" — Wynonna Judd",
+        "outcome": "a",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "chad-michaels",
+    "b": "mimi-imfurst",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Opposites Attract\" — Paula Abdul",
+        "outcome": "a",
+        "seasonId": "as01"
+      }
+    ]
+  },
+  {
+    "a": "chad-michaels",
+    "b": "raven",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Responsitrannity (Matt Pop Edit)\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "as01"
+      }
+    ]
+  },
+  {
+    "a": "chad-michaels",
+    "b": "sharon-needles",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Glamazon\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "charlie-hides",
+    "b": "trinity-taylor",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"I Wanna Go\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "chi-chi-devayne",
+    "b": "kim-chi",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "chi-chi-devayne",
+    "b": "naomi-smalls",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "chi-chi-devayne",
+    "b": "naysha-lopez",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Call Me\" — Blondie",
+        "outcome": "a",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "chi-chi-devayne",
+    "b": "thorgy-thor",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"And I Am Telling You I'm Not Going\" — Jennifer Holliday",
+        "outcome": "a",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "ciara-myst",
+    "b": "kenya-pleaser",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Pretty Gang\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "ciara-myst",
+    "b": "myki-meeks",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Toxic\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "coco-montrese",
+    "b": "detox",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"(It Takes) Two to Make It Right\" — Seduction",
+        "outcome": "b",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "coco-montrese",
+    "b": "jade-jolie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"I'm So Excited\" — The Pointer Sisters",
+        "outcome": "a",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "coco-montrese",
+    "b": "monica-beverly-hillz",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"When I Grow Up\" — The Pussycat Dolls",
+        "outcome": "a",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "coco-montrese",
+    "b": "yara-sofia",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Uptown Funk\" — Mark Ronson ft. Bruno Mars",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "courtney",
+    "b": "darienne-lake",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "crystal-envy",
+    "b": "lana-jarae",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Hands to Myself\" — Selena Gomez",
+        "outcome": "b",
+        "seasonId": "s17"
+      },
+      {
+        "episode": "1",
+        "song": "\"You Make Me Feel (Mighty Real)\" — Sylvester",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "crystal-envy",
+    "b": "lexi-love",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Alter Ego\" — Doechii & JT",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "crystal-methyd",
+    "b": "jackie-cox",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"On the Floor\" — Jennifer Lopez ft. Pitbull",
+        "outcome": "a",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "cynthia-lee-fontaine",
+    "b": "farrah-moan",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Woman Up\" — Meghan Trainor",
+        "outcome": "tie",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "cynthia-lee-fontaine",
+    "b": "mistress-isabelle-brooks",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (Semifinals — Snatch Game, LSFYL)",
+        "song": "\"Who's Zoomin' Who\" (Acappella Mix) — Aretha Franklin",
+        "outcome": "b",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "cynthia-lee-fontaine",
+    "b": "peppermint",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Music\" — Madonna",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "cynthia-lee-fontaine",
+    "b": "robbie-turner",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Mesmerized (Freemasons Radio Edit)\" — Faith Evans",
+        "outcome": "b",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "dahlia-sin",
+    "b": "nicky-doll",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Problem\" — Ariana Grande ft. Iggy Azalea",
+        "outcome": "b",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "darienne-lake",
+    "b": "magnolia-crawford",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Turn the Beat Around\" — Vicki Sue Robinson",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "dawn",
+    "b": "morphine-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Body\" — Megan Thee Stallion",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "dax-exclamationpoint",
+    "b": "laila-mcqueen",
+    "aWins": 0,
+    "bWins": 0,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"I Will Survive\" — Gloria Gaynor",
+        "outcome": "tie",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "daya-betty",
+    "b": "deja-skye",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Fallin'\" — Alicia Keys",
+        "outcome": "b",
+        "seasonId": "s14"
+      },
+      {
+        "episode": "13",
+        "song": "\"Good 4 U\" — Olivia Rodrigo",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "daya-betty",
+    "b": "ginger-minj",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7 (Bracket 3)",
+        "song": "\"Defying Gravity\" — Original Broadway cast of Wicked",
+        "outcome": "b",
+        "seasonId": "as10"
+      },
+      {
+        "episode": "9 (Bracket 3 finale)",
+        "song": "\"Mama Used to Say\" — Junior",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "daya-betty",
+    "b": "jasmine-kennedie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Respect\" — Aretha Franklin",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "daya-betty",
+    "b": "jorgeous",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"Good 4 U\" — Olivia Rodrigo",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "daya-betty",
+    "b": "lady-camden",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"One Way or Another\" — Blondie",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "dd-fuego",
+    "b": "mandy-mango",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Too Much\" — Dove Cameron",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "delta-work",
+    "b": "manila-luzon",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"MacArthur Park\" — Donna Summer",
+        "outcome": "b",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "delta-work",
+    "b": "mariah",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Looking for a New Love\" — Jody Watley",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "delta-work",
+    "b": "phoenix",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Bad Romance\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "denali",
+    "b": "ginger-minj",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8 (Bracket 3)",
+        "song": "\"See You Again\" — Miley Cyrus",
+        "outcome": "b",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "denali",
+    "b": "kahmora-hall",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"100% Pure Love\" — Crystal Waters",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "denali",
+    "b": "lala-ri",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"When I Grow Up\" — The Pussycat Dolls",
+        "outcome": "b",
+        "seasonId": "s13"
+      },
+      {
+        "episode": "15",
+        "song": "\"Be My Lover\" — La Bouche",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "denali",
+    "b": "olivia-lux",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Shackles (Praise You)\" — Mary Mary",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "denali",
+    "b": "rose",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"If U Seek Amy\" — Britney Spears",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "derrick-barry",
+    "b": "robbie-turner",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"I Love It\" — Icona Pop ft. Charli XCX",
+        "outcome": "a",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "detox",
+    "b": "jinkx-monsoon",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Malambo No. 1\" — Yma Sumac",
+        "outcome": "b",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "detox",
+    "b": "katya",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Step It Up\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "as02"
+      }
+    ]
+  },
+  {
+    "a": "detox",
+    "b": "lineysha-sparx",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Take Me Home\" — Cher",
+        "outcome": "a",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "dida-ritz",
+    "b": "latrice-royale",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"I've Got to Use My Imagination\" — Gladys Knight & the Pips",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "dida-ritz",
+    "b": "the-princess",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"This Will Be (An Everlasting Love)\" — Natalie Cole",
+        "outcome": "a",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "discord-addams",
+    "b": "jane-dont",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s18"
+      },
+      {
+        "episode": "2",
+        "song": "(RuPaul song)",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "discord-addams",
+    "b": "nini-coco",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"We Can't Be Friends (Wait for Your Love)\" — Ariana Grande",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "dusty-ray-bottoms",
+    "b": "monet-x-change",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Pound the Alarm\" — Nicki Minaj",
+        "outcome": "b",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "elliott-w-2-ts",
+    "b": "tina-burner",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Lady Marmalade\" — Christina Aguilera, Lil' Kim, Mýa, Pink",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "elliott-with-2-ts",
+    "b": "lala-ri",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Whole Lotta Woman\" — Kelly Clarkson",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "elliott-with-2-ts",
+    "b": "utica-queen",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Fascinated\" — Company B",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "eureka",
+    "b": "jaida-essence-hall",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Good Golly, Miss Molly\" — Little Richard",
+        "outcome": "tie",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "eureka",
+    "b": "kalorie-karbdashian-williams",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Best of My Love\" — The Emotions",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "eureka",
+    "b": "kameron-michaels",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"New Attitude\" — Patti LaBelle",
+        "outcome": "tie",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "eureka",
+    "b": "kylie-sonique-love",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Stupid Love\" — Lady Gaga",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "eureka",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Since U Been Gone\" — Kelly Clarkson",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "farrah-moan",
+    "b": "valentina",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Kitty Girl\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "geneva-karr",
+    "b": "hershii-liqcour-jete",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Maybe You're the Problem\" — Ava Max",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "geneva-karr",
+    "b": "mhiya-iman-lepaige",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Control\" — Janet Jackson",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "geneva-karr",
+    "b": "mirage",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Dark Lady\" — Cher",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "geneva-karr",
+    "b": "morphine-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Million Dollar Baby\" — Ava Max",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "geneva-karr",
+    "b": "plane-jane",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Shower\" — Becky G",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "gia-gunn",
+    "b": "laganja-estranja",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Head to Toe\" — Lisa Lisa & Cult Jam",
+        "outcome": "b",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "gia-gunn",
+    "b": "naomi-smalls",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Adrenaline\" — RuPaul ft. Myah Marie",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "gigi-goode",
+    "b": "widow-vondu",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Starships\" — Nicki Minaj",
+        "outcome": "b",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
+    "b": "heidi-n-closet",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Sugar Walls\" — Sheena Easton",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
+    "b": "jorgeous",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Smackdown Final)",
+        "song": "\"It's Raining Men\" — The Weather Girls",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
+    "b": "kerri-colby",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Smackdown R1)",
+        "song": "\"Disease\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
+    "b": "kylie-sonique-love",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Stupid Love\" — Lady Gaga",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
+    "b": "mayhem-miller",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Phone\" — Lizzo",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle",
+    "b": "jaidynn-diore-fierce-and-tempest-dujour",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle",
+    "b": "kennedy-davenport",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle",
+    "b": "pearl",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "tie",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle",
+    "b": "trixie-mattel",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Show Me Love\" — Robin S.",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-and-sasha-belle",
+    "b": "violet",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "tie",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "gottmik",
+    "b": "kandy-muse",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
+        "outcome": "tie",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "gottmik",
+    "b": "nina-west",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Banana\" — Anitta ft. Becky G",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "gottmik",
+    "b": "plastique-tiara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Jump in the Line\" — Harry Belafonte",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "gottmik",
+    "b": "rose",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
+        "outcome": "tie",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "gottmik",
+    "b": "symone",
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
+        "outcome": "tie",
+        "seasonId": "s13"
+      },
+      {
+        "episode": "16",
+        "song": "\"Gimme More\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "gottmik",
+    "b": "utica-queen",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Rumors\" — Lindsay Lohan",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "heidi-n-closet",
+    "b": "jackie-cox",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Kill the Lights\" — Alex Newell, DJ Cassidy ft. Nile Rodgers",
+        "outcome": "tie",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "heidi-n-closet",
+    "b": "jaida-essence-hall",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"1999\" — Prince",
+        "outcome": "b",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "heidi-n-closet",
+    "b": "nicky-doll",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Heart to Break\" — Kim Petras",
+        "outcome": "a",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "hershii-liqcour-jete",
+    "b": "mirage",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Alone 2.0\" — Kim Petras & Nicki Minaj",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "honey-mahogany",
+    "b": "vivienne-pinay",
+    "aWins": 0,
+    "bWins": 0,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Oops!... I Did It Again\" — Britney Spears",
+        "outcome": "tie",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "hormona-lisa",
+    "b": "lana-jarae",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Get Him Back!\" — Olivia Rodrigo",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "hormona-lisa",
+    "b": "lydia-b-kollins",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Say Liza (Liza with a Z)\" — Liza Minnelli",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "india-ferrah",
+    "b": "mimi-imfurst",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Don't Leave Me This Way\" — Thelma Houston",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "india-ferrah",
+    "b": "stacy-layne-matthews",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Meeting in the Ladies Room\" — Klymaxx",
+        "outcome": "b",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "india-ferrah",
+    "b": "yvie-oddly",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Livin' la Vida Loca\" — Ricky Martin",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "irene-the-alien",
+    "b": "lydia-b-kollins",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Smackdown R1)",
+        "song": "\"Joyride\" — Kesha",
+        "outcome": "b",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "jackie-cox",
+    "b": "widow-vondu",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Firework\" — Katy Perry",
+        "outcome": "a",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "jade",
+    "b": "rebecca-glasscock",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Would I Lie to You?\" — Eurythmics",
+        "outcome": "b",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "jaida-essence-hall",
+    "b": "raja",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Herses Smackdown R1)",
+        "song": "\"Let's Hear It for the Boy\" — Deniece Williams",
+        "outcome": "b",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "jaida-essence-hall",
+    "b": "sherry-pie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Call Your Girlfriend\" — Robyn",
+        "outcome": "a",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "jaida-essence-hall",
+    "b": "trinity-the-tuck",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Green Light\" — Beyoncé",
+        "outcome": "a",
+        "seasonId": "as07"
+      },
+      {
+        "episode": "7",
+        "song": "\"I Want Love\" — Jessie J",
+        "outcome": "b",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "jaidynn-diore-fierce-and-tempest-dujour",
+    "b": "kandy-ho",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Break Free\" — Ariana Grande ft. Zedd",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "jaidynn-diore-fierce-and-tempest-dujour",
+    "b": "max",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"No More Lies\" — Michel'le",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "jan",
+    "b": "jessica-wild",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Womanizer\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "jan",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Heartbreaker\" — Pat Benatar",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "jan",
+    "b": "widow-vondu",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"This Is My Night\" — Chaka Khan",
+        "outcome": "b",
+        "seasonId": "s12"
+      }
+    ]
+  },
+  {
+    "a": "jane-dont",
+    "b": "juicy-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "Semi",
+        "song": "\"Cha Cha Bitch\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "jane-dont",
+    "b": "kenya-pleaser",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Feels Like Another One\" — Patti LaBelle",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "jane-dont",
+    "b": "nini-coco",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"Garden of Eden\" — Lady Gaga",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "jasmine-kennedie",
+    "b": "jimbo",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Hallucinate\" — Dua Lipa",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jasmine-kennedie",
+    "b": "jorgeous",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Something's Got a Hold on Me\" — Etta James",
+        "outcome": "tie",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "jasmine-kennedie",
+    "b": "kerri-colby",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Un-Break My Heart (Soul-Hex Radio Mix)\" — Toni Braxton",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "jasmine-kennedie",
+    "b": "maddy-morphosis",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Suga Mama\" — Beyoncé",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "jasmine-masters",
+    "b": "kennedy-davenport",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"I Was Gonna Cancel\" — Kylie Minogue",
+        "outcome": "b",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "jasmine-masters",
+    "b": "trinity-the-tuck",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Peanut Butter\" — RuPaul ft. Big Freedia",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "jax",
+    "b": "luxx-noir-london",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"The Right Stuff\" — Vanessa Williams",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "jax",
+    "b": "mistress-isabelle-brooks",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Tell It to My Heart\" — Taylor Dayne",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "jax",
+    "b": "robin-fierce",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"In Your Room\" — The Bangles",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "jaymes-mansfield",
+    "b": "kimora-blac",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Love Shack\" — The B-52's",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "jaymes-mansfield",
+    "b": "lala-ri",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11 (Fame Games Variety Extravaganza)",
+        "song": "\"Rain on Me\" — Lady Gaga & Ariana Grande",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jessica-wild",
+    "b": "rajah-ohara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Coconuts\" — Kim Petras",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jessica-wild",
+    "b": "tatianna",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"He's the Greatest Dancer\" — Sister Sledge",
+        "outcome": "b",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "jewels-sparkles",
+    "b": "onya-nurve",
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"1 Thing\" — Amerie",
+        "outcome": "tie",
+        "seasonId": "s17"
+      },
+      {
+        "episode": "Final",
+        "song": "\"Abracadabra\" — Lady Gaga",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "jewels-sparkles",
+    "b": "suzie-toot",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Woman's World\" — Katy Perry",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "jiggly-caliente",
+    "b": "milan",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Born This Way\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "jiggly-caliente",
+    "b": "serena-chacha",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Free Your Mind\" — En Vogue",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "jiggly-caliente",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Girls Just Want to Have Fun\" — Cyndi Lauper",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "jiggly-caliente",
+    "b": "willam",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Mi Vida Loca\" — Pam Tillis",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "jimbo",
+    "b": "kandy-muse",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale)",
+        "song": "\"Do Ya Wanna Funk\" — Sylvester & Patrick Cowley",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jimbo",
+    "b": "pangina-heals",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"She Bop\" — Cyndi Lauper",
+        "outcome": "b",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jimbo",
+    "b": "shannel",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Bad Reputation\" — Joan Jett",
+        "outcome": "b",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jimbo",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Freak-A-Zoid\" — Midnight Star",
+        "outcome": "a",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon",
+    "b": "monet-x-change",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Night the Lights Went Out in Georgia\" monologue (Designing Women) — Dixie Carter as Julia Sugarbaker",
+        "outcome": "b",
+        "seasonId": "as07"
+      },
+      {
+        "episode": "12 (Finale — Queen of All Queens Final)",
+        "song": "\"Swish Swish\" — Katy Perry ft. Nicki Minaj",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon",
+    "b": "raja",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Better in Color\" — Lizzo",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon",
+    "b": "roxxxy-andrews",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"The Beginning\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon",
+    "b": "shea-coulee",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Queen of All Queens R1)",
+        "song": "\"Judas\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon",
+    "b": "the-vivienne",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Love Will Save the Day (Jellybean & David Morales Remix)\" — Whitney Houston",
+        "outcome": "b",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "jinkx-monsoon",
+    "b": "trinity-the-tuck",
+    "aWins": 2,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Rumour Has It\" — Adele",
+        "outcome": "a",
+        "seasonId": "as07"
+      },
+      {
+        "episode": "10",
+        "song": "\"Kings & Queens\" — Ava Max",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "joella",
+    "b": "kori-king",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Buttons\" — Pussycat Dolls ft. Snoop Dogg",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "joella",
+    "b": "lucky-starzzz",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"(It's Just) The Way That You Love Me\" — Paula Abdul",
+        "outcome": "a",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "joella",
+    "b": "suzie-toot",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Training Season\" — Dua Lipa",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "joey-jay",
+    "b": "kandy-muse",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Call Me Maybe\" — Carly Rae Jepsen",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "joey-jay",
+    "b": "lala-ri",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Fancy\" — Iggy Azalea ft. Charli XCX",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "lady-camden",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Radio\" — Beyoncé",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "lala-ri",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"About Damn Time\" — Lizzo",
+        "outcome": "b",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "lydia-b-kollins",
+    "aWins": 2,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6 (Bracket 2 finale)",
+        "song": "\"Texas Hold 'Em\" — Beyoncé",
+        "outcome": "a",
+        "seasonId": "as10"
+      },
+      {
+        "episode": "12 (Finale — Smackdown R2)",
+        "song": "\"Whenever, Wherever\" — Shakira",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "mistress-isabelle-brooks",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "5 (Bracket 2)",
+        "song": "\"Hot to Go!\" — Chappell Roan",
+        "outcome": "tie",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "orion-story",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"My Head & My Heart\" — Ava Max",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "roxxxy-andrews",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (R1)",
+        "song": "\"Holding Out for a Hero\" — Bonnie Tyler",
+        "outcome": "b",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "jorgeous",
+    "b": "shannel",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Love Come Home (Subgroovers Music Video Edit)\" — Kristine W",
+        "outcome": "tie",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "joslyn-fox",
+    "b": "laganja-estranja",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Stupid Girls\" — Pink",
+        "outcome": "a",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "juicy-love-dion",
+    "b": "kenya-pleaser",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Total Eclipse of the Heart\" — Bonnie Tyler",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "juicy-love-dion",
+    "b": "mia-starr",
+    "aWins": 2,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Pretty Ugly\" — Zara Larsson",
+        "outcome": "tie",
+        "seasonId": "s18"
+      },
+      {
+        "episode": "Final",
+        "song": "\"Cover Girl\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "juicy-love-dion",
+    "b": "nini-coco",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Super Graphic Ultra Modern Girl\" — Chappell Roan",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "juicy-love-dion",
+    "b": "vita-vontesse-starr",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Houdini\" — Dua Lipa",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "manila-luzon",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Nasty\" — Janet Jackson",
+        "outcome": "a",
+        "seasonId": "as01"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "monet-x-change",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Juice\" — Lizzo",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "pandora-boxx",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Shake Your Love\" — Debbie Gibson",
+        "outcome": "a",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "raven",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Dancing on My Own\" — Robyn",
+        "outcome": "tie",
+        "seasonId": "as01"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "sahara-davenport",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Black Velvet\" — Alannah Myles",
+        "outcome": "a",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "shea-coulee",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Make Me Feel\" — Janelle Monáe",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "jujubee",
+    "b": "tatianna",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Something He Can Feel\" — Aretha Franklin",
+        "outcome": "a",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "june-jambalaya",
+    "b": "maddy-morphosis",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"I Love It\" — Kylie Minogue",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "june-jambalaya",
+    "b": "orion-story",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Water Me\" — Lizzo",
+        "outcome": "a",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "kahanna-montrese",
+    "b": "mercedes-iman-diamond",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Work Bitch\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "kahanna-montrese",
+    "b": "soju",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"The Best of Both Worlds\" — Hannah Montana",
+        "outcome": "a",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "kahmora-hall",
+    "b": "tina-burner",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Lady Marmalade\" — Christina Aguilera, Lil' Kim, Mýa, Pink",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "kalorie-karbdashian-williams",
+    "b": "vanessa-vanjie-mateo",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Ain't No Other Man\" — Christina Aguilera",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "kameron-michaels",
+    "b": "miz-cracker",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Nasty Girl\" — Vanity 6",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "kameron-michaels",
+    "b": "monet-x-change",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Good as Hell\" — Lizzo",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "kameron-michaels",
+    "b": "rajah-ohara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Boom Clap\" — Charli XCX",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "kandy-ho",
+    "b": "mrs-kasha-davis",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Lovergirl\" — Teena Marie",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "kandy-ho",
+    "b": "tempest-dujour",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Geronimo\" — RuPaul ft. Lucian Piane",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "kandy-muse",
+    "b": "olivia-lux",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"Strong Enough\" — Cher",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "kandy-muse",
+    "b": "priyanka",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Jumpin', Jumpin'\" — Destiny's Child",
+        "outcome": "b",
+        "seasonId": "as08"
+      }
+    ]
+  },
+  {
+    "a": "kandy-muse",
+    "b": "rose",
+    "aWins": 2,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
+        "outcome": "tie",
+        "seasonId": "s13"
+      },
+      {
+        "episode": "16",
+        "song": "\"Work Bitch\" — Britney Spears",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "kandy-muse",
+    "b": "symone",
+    "aWins": 1,
+    "bWins": 3,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Boss\" — Fifth Harmony",
+        "outcome": "b",
+        "seasonId": "s13"
+      },
+      {
+        "episode": "14",
+        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
+        "outcome": "tie",
+        "seasonId": "s13"
+      },
+      {
+        "episode": "16",
+        "song": "\"Till the World Ends\" — Britney Spears",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "kandy-muse",
+    "b": "tamisha-iman",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Hit 'Em Up Style (Oops!)\" — Blu Cantrell",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "katya",
+    "b": "kennedy-davenport",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Roar\" — Katy Perry",
+        "outcome": "b",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "katya",
+    "b": "sasha-belle",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Twist of Fate\" — Olivia Newton-John",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "kelly-mantle",
+    "b": "vivacious",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Express Yourself\" — Madonna",
+        "outcome": "b",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "kennedy-davenport",
+    "b": "miz-cracker",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Fancy\" — Reba McEntire",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "kennedy-davenport",
+    "b": "pearl",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "b",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "kennedy-davenport",
+    "b": "trixie-mattel",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8 (final)",
+        "song": "\"Wrecking Ball\" — Miley Cyrus",
+        "outcome": "b",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "kennedy-davenport",
+    "b": "violet",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "b",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "kenya-michaels",
+    "b": "latrice-royale",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"(You Make Me Feel Like) A Natural Woman\" — Aretha Franklin",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "kenya-michaels",
+    "b": "milan",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Vogue\" — Madonna",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "kenya-pleaser",
+    "b": "mia-starr",
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Head Over Heels\" — The Go-Go's",
+        "outcome": "a",
+        "seasonId": "s18"
+      },
+      {
+        "episode": "1",
+        "song": "\"Peanut Butter\" — RuPaul ft. Big Freedia",
+        "outcome": "b",
+        "seasonId": "s18"
+      },
+      {
+        "episode": "Semi",
+        "song": "(RuPaul song)",
+        "outcome": "b",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "kim-chi",
+    "b": "naomi-smalls",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"The Realness\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "kori-king",
+    "b": "lana-jarae",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"360\" — Charli XCX",
+        "outcome": "a",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "kori-king",
+    "b": "lydia-b-kollins",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Kiss Me Deadly\" — Lita Ford",
+        "outcome": "b",
+        "seasonId": "s17"
+      },
+      {
+        "episode": "2",
+        "song": "\"360\" — Charli XCX",
+        "outcome": "a",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "kori-king",
+    "b": "suzie-toot",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "Final",
+        "song": "\"APT.\" — Rosé & Bruno Mars",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "kylie-sonique-love",
+    "b": "manila-luzon",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Dirrty\" — Christina Aguilera ft. Redman",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "kylie-sonique-love",
+    "b": "rajah-ohara",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Stupid Love\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "lady-camden",
+    "b": "willow-pill",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "16",
+        "song": "\"Gimme! Gimme! Gimme! (A Man After Midnight)\" — Cher",
+        "outcome": "b",
+        "seasonId": "s14"
+      }
+    ]
+  },
+  {
+    "a": "laganja-estranja",
+    "b": "trinity-k-bonet",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Physical\" — Dua Lipa",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "laila-mcqueen",
+    "b": "naysha-lopez",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Applause\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "s08"
+      }
+    ]
+  },
+  {
+    "a": "lana-jarae",
+    "b": "lydia-b-kollins",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Unholy\" — Sam Smith & Kim Petras",
+        "outcome": "a",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "lana-jarae",
+    "b": "sam-star",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Illusion\" — Dua Lipa",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "lashauwn-beyond",
+    "b": "the-princess",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Bad Girls\" — Donna Summer",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "latrice-royale",
+    "b": "monique-heart",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Sissy That Walk\" — RuPaul",
+        "outcome": "tie",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "latrice-royale",
+    "b": "tammie-brown",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"There's No Business Like Show Business\" — Ethel Merman",
+        "outcome": "a",
+        "seasonId": "as01"
+      }
+    ]
+  },
+  {
+    "a": "latrice-royale",
+    "b": "trinity-the-tuck",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"You Spin Me Round (Like a Record)\" — Dead or Alive",
+        "outcome": "a",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "loosey-laduca",
+    "b": "luxx-noir-london",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "13",
+        "song": "\"For the Girls\" — Hayley Kiyoko",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "loosey-laduca",
+    "b": "salina-estitties",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Running Up That Hill (A Deal with God)\" — Kate Bush",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "loosey-laduca",
+    "b": "spice",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Do You Wanna Touch Me\" — Joan Jett",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "lucky-starzzz",
+    "b": "suzie-toot",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"We Found Love\" — Rihanna ft. Calvin Harris",
+        "outcome": "b",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "luxx-noir-london",
+    "b": "salina-estitties",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"It's All Coming Back to Me Now\" — Céline Dion",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "lydia-b-kollins",
+    "b": "mistress-isabelle-brooks",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11 (Semifinals — Talent Invitational, LSFYL)",
+        "song": "\"Guess\" — Charli XCX & Billie Eilish",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "lydia-b-kollins",
+    "b": "tina-burner",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4 (Bracket 2)",
+        "song": "\"Love Sensation\" — Loleatta Holloway",
+        "outcome": "a",
+        "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "madame-laqueer",
+    "b": "milan",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Trouble\" — Pink",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "malaysia-babydoll-foxx",
+    "b": "marcia-marcia-marcia",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Boys Don't Cry\" — Anitta",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "malaysia-babydoll-foxx",
+    "b": "salina-estitties",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Single Ladies (Put a Ring on It)\" — Beyoncé",
+        "outcome": "b",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "malaysia-babydoll-foxx",
+    "b": "spice",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Don't Go Yet\" — Camila Cabello",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "manila-luzon",
+    "b": "monet-x-change",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Jump to It\" — Aretha Franklin",
+        "outcome": "tie",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "manila-luzon",
+    "b": "monique-heart",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"The Bitch Is Back\" — Tina Turner",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "manila-luzon",
+    "b": "raja",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "15",
+        "song": "\"Champion (DJ BunJoe's Olympic Mix)\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "manila-luzon",
+    "b": "trinity-the-tuck",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"How Will I Know\" — Whitney Houston",
+        "outcome": "a",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "mayhem-miller",
+    "b": "monet-x-change",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Man! I Feel Like a Woman!\" — Shania Twain",
+        "outcome": "b",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "mayhem-miller",
+    "b": "yuhua-hamasaki",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"Celebrity Skin\" — Hole",
+        "outcome": "a",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "megami",
+    "b": "mhiya-iman-lepaige",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Flowers\" — Miley Cyrus",
+        "outcome": "b",
+        "seasonId": "s16"
+      },
+      {
+        "episode": "2",
+        "song": "\"We Got the Beat\" — The Go-Go's",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "megami",
+    "b": "morphine-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "Final",
+        "song": "\"Gonna Make You Sweat\" — C+C Music Factory",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "megami",
+    "b": "q",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"What About\" — Janet Jackson",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "mercedes-iman-diamond",
+    "b": "rajah-ohara",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Living in America\" — James Brown",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "mhiya-iman-lepaige",
+    "b": "morphine-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Dim All the Lights\" — Donna Summer",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "mhiya-iman-lepaige",
+    "b": "plasma",
+    "aWins": 2,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Bloody Mary (Wednesday TikTok ver.)\" — Lady Gaga",
+        "outcome": "a",
+        "seasonId": "s16"
+      },
+      {
+        "episode": "1",
+        "song": "\"Milkshake\" — Kelis",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "mhiya-iman-lepaige",
+    "b": "xunami-muse",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Milkshake\" — Kelis",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "milk",
+    "b": "trinity-k-bonet",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Whatta Man\" — Salt-n-Pepa with En Vogue",
+        "outcome": "b",
+        "seasonId": "s06"
+      }
+    ]
+  },
+  {
+    "a": "mirage",
+    "b": "morphine-love-dion",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"This Time I Know It's for Real\" — Donna Summer",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "miss-fame",
+    "b": "pearl",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Really Don't Care\" — Demi Lovato ft. Cher Lloyd",
+        "outcome": "b",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "miz-cracker",
+    "b": "morgan-mcmichaels",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Where Have You Been\" — Rihanna",
+        "outcome": "tie",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "miz-cracker",
+    "b": "roxxxy-andrews",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"One Last Time\" — Ariana Grande",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "miz-cracker",
+    "b": "shea-coulee",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Make Me Feel\" — Janelle Monáe",
+        "outcome": "b",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "monet-x-change",
+    "b": "naomi-smalls",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Come Rain or Come Shine\" — Judy Garland",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "monet-x-change",
+    "b": "shea-coulee",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Old MacDonald\" — Ella Fitzgerald",
+        "outcome": "b",
+        "seasonId": "as07"
+      },
+      {
+        "episode": "11",
+        "song": "\"Supernova\" — Kylie Minogue",
+        "outcome": "b",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "monet-x-change",
+    "b": "trinity-the-tuck",
+    "aWins": 2,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Fighter\" — Christina Aguilera",
+        "outcome": "tie",
+        "seasonId": "as04"
+      },
+      {
+        "episode": "12 (Finale — Queen of All Queens R1)",
+        "song": "\"So What\" — Pink",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "monet-x-change",
+    "b": "valentina",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Into You\" — Ariana Grande",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "monica-beverly-hillz",
+    "b": "serena-chacha",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Only Girl (In the World)\" — Rihanna",
+        "outcome": "a",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "monique-heart",
+    "b": "the-vixen",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Cut to the Feeling\" — Carly Rae Jepsen",
+        "outcome": "b",
+        "seasonId": "s10"
+      }
+    ]
+  },
+  {
+    "a": "monique-heart",
+    "b": "trinity-the-tuck",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Emotions\" — Mariah Carey",
+        "outcome": "b",
+        "seasonId": "as04"
+      },
+      {
+        "episode": "9",
+        "song": "\"When I Think of You\" — Janet Jackson",
+        "outcome": "b",
+        "seasonId": "as04"
+      }
+    ]
+  },
+  {
+    "a": "morgan-mcmichaels",
+    "b": "sahara-davenport",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Carry On\" — Martha Wash",
+        "outcome": "b",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "morgan-mcmichaels",
+    "b": "sonique",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Two of Hearts\" — Stacey Q",
+        "outcome": "a",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "morphine-love-dion",
+    "b": "sapphira-cristal",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Made You Look\" — Meghan Trainor",
+        "outcome": "b",
+        "seasonId": "s16"
+      },
+      {
+        "episode": "13",
+        "song": "\"Miss Me More\" — Kelsea Ballerini",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "morphine-love-dion",
+    "b": "xunami-muse",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Wanna Dance with Somebody\" — Whitney Houston",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "myki-meeks",
+    "b": "nini-coco",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "Final",
+        "song": "\"Every Girl You've Ever Loved\" — Miley Cyrus ft. Naomi Campbell",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "mystique-summers-madison",
+    "b": "raven",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "3",
+        "song": "\"I Hear You Knockin'\" — Wynonna Judd",
+        "outcome": "b",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "nicole-paige-brooks",
+    "b": "raven",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"My Lovin' (You're Never Gonna Get It)\" — En Vogue",
+        "outcome": "b",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "nina-bonina-brown",
+    "b": "shea-coulee",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Cool for the Summer\" — Demi Lovato",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "nina-bonina-brown",
+    "b": "valentina",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Greedy\" — Ariana Grande",
+        "outcome": "a",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "nina-west",
+    "b": "shannel",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (R1)",
+        "song": "\"You Spin Me Round (Like a Record)\" — Dead or Alive",
+        "outcome": "b",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "nina-west",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"No Scrubs\" — TLC",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "nini-coco",
+    "b": "vita-vontesse-starr",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Enough (Miami)\" — Cardi B",
+        "outcome": "a",
+        "seasonId": "s18"
+      }
+    ]
+  },
+  {
+    "a": "nymphia-wind",
+    "b": "sapphira-cristal",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "Final",
+        "song": "\"Padam Padam\" — Kylie Minogue",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "olivia-lux",
+    "b": "rose",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Ex's & Oh's\" — Elle King",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "olivia-lux",
+    "b": "symone",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"Break My Heart\" — Dua Lipa",
+        "outcome": "b",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "pandora-boxx",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Focus\" — Ariana Grande",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "pearl",
+    "b": "trixie-mattel",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Dreaming\" — Blondie",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "pearl",
+    "b": "violet",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "tie",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "penny-tration",
+    "b": "serena-chacha",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Party in the U.S.A.\" — Miley Cyrus",
+        "outcome": "b",
+        "seasonId": "s05"
+      }
+    ]
+  },
+  {
+    "a": "peppermint",
+    "b": "sasha-velour",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14 (Finale, Final)",
+        "song": "\"It's Not Right But It's Okay\" (Thunderpuss Remix) — Whitney Houston",
+        "outcome": "b",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "peppermint",
+    "b": "trinity-taylor",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14 (Finale, SF1)",
+        "song": "\"Stronger\" — Britney Spears",
+        "outcome": "a",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "phi-phi-ohara",
+    "b": "sharon-needles",
+    "aWins": 1,
+    "bWins": 2,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"It's Raining Men (The Sequel)\" — Martha Wash & RuPaul",
+        "outcome": "tie",
+        "seasonId": "s04"
+      },
+      {
+        "episode": "12",
+        "song": "\"Glamazon\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s04"
+      }
+    ]
+  },
+  {
+    "a": "plane-jane",
+    "b": "q",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Better Be Good to Me\" — Tina Turner",
+        "outcome": "a",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "plastique-tiara",
+    "b": "roxxxy-andrews",
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Super Freaky Girl\" — Nicki Minaj",
+        "outcome": "b",
+        "seasonId": "as09"
+      },
+      {
+        "episode": "8",
+        "song": "\"No One Gets the Prize\" — Diana Ross",
+        "outcome": "b",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "plastique-tiara",
+    "b": "vanessa-vanjie",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (R1)",
+        "song": "\"When I Grow Up\" — The Pussycat Dolls",
+        "outcome": "b",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "plastique-tiara",
+    "b": "vanessa-vanjie-mateo",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"Hood Boy\" — Fantasia",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "q",
+    "b": "sapphira-cristal",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Break My Soul\" — Beyoncé",
+        "outcome": "b",
+        "seasonId": "s16"
+      }
+    ]
+  },
+  {
+    "a": "raja",
+    "b": "the-vivienne",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"Super Freak\" — Rick James",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "raja",
+    "b": "yvie-oddly",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12 (Finale — Herses Smackdown Final)",
+        "song": "\"Sisters Are Doin' It for Themselves\" — Eurythmics & Aretha Franklin",
+        "outcome": "a",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "rajah-ohara",
+    "b": "scarlet-envy",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Last Dance\" — Donna Summer",
+        "outcome": "a",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "raven",
+    "b": "tyra-sanchez",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"Jealous of My Boogie\" — RuPaul",
+        "outcome": "b",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "rebecca-glasscock",
+    "b": "shannel",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Shackles (Praise You)\" — Mary Mary",
+        "outcome": "a",
+        "seasonId": "s01"
+      }
+    ]
+  },
+  {
+    "a": "rose",
+    "b": "symone",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
+        "outcome": "tie",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "roxxxy-andrews",
+    "b": "shannel",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (Smackdown Final)",
+        "song": "\"Break Free\" — Ariana Grande ft. Zedd",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "roxxxy-andrews",
+    "b": "tatianna",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Shake It Off\" — Taylor Swift",
+        "outcome": "a",
+        "seasonId": "as02"
+      }
+    ]
+  },
+  {
+    "a": "roxxxy-andrews",
+    "b": "vanessa-vanjie",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 1,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"Black Cat\" — Janet Jackson",
+        "outcome": "tie",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "sahara-davenport",
+    "b": "shangela",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"Cover Girl (Put the Bass in Your Walk)\" — RuPaul",
+        "outcome": "a",
+        "seasonId": "s02"
+      }
+    ]
+  },
+  {
+    "a": "salina-estitties",
+    "b": "spice",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "9",
+        "song": "\"That's What I Want\" — Lil Nas X",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "sam-star",
+    "b": "suzie-toot",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14",
+        "song": "\"Love Child\" — Diana Ross & The Supremes",
+        "outcome": "a",
+        "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "sasha-velour",
+    "b": "shea-coulee",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "14 (Finale, SF2)",
+        "song": "\"So Emotional\" — Whitney Houston",
+        "outcome": "a",
+        "seasonId": "s09"
+      }
+    ]
+  },
+  {
+    "a": "scarlet-envy",
+    "b": "silky-nutmeg-ganache",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Song for the Lonely\" — Cher",
+        "outcome": "b",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "shangela",
+    "b": "trixie-mattel",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "7",
+        "song": "\"Freaky Money\" — RuPaul feat. Big Freedia",
+        "outcome": "a",
+        "seasonId": "as03"
+      }
+    ]
+  },
+  {
+    "a": "shangela",
+    "b": "venus-d-lite",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "2",
+        "song": "\"The Right Stuff\" — Vanessa Williams",
+        "outcome": "a",
+        "seasonId": "s03"
+      }
+    ]
+  },
+  {
+    "a": "shannel",
+    "b": "vanessa-vanjie",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10 (R2)",
+        "song": "\"I'm Every Woman\" — Chaka Khan",
+        "outcome": "a",
+        "seasonId": "as09"
+      }
+    ]
+  },
+  {
+    "a": "shea-coulee",
+    "b": "vanessa-vanjie-mateo",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "5",
+        "song": "\"Open Your Heart\" — Madonna",
+        "outcome": "a",
+        "seasonId": "as05"
+      }
+    ]
+  },
+  {
+    "a": "shuga-cain",
+    "b": "vanessa-vanjie-mateo",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"No More Drama\" — Mary J. Blige",
+        "outcome": "b",
+        "seasonId": "s11"
+      }
+    ]
+  },
+  {
+    "a": "silky-nutmeg-ganache",
+    "b": "yara-sofia",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Point of No Return\" — Exposé",
+        "outcome": "a",
+        "seasonId": "as06"
+      }
+    ]
+  },
+  {
+    "a": "spice",
+    "b": "sugar",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "4",
+        "song": "\"You Better Run\" — Pat Benatar",
+        "outcome": "a",
+        "seasonId": "s15"
+      }
+    ]
+  },
+  {
+    "a": "symone",
+    "b": "tamisha-iman",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "1",
+        "song": "\"The Pleasure Principle\" — Janet Jackson",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "symone",
+    "b": "utica-queen",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"No Tears Left to Cry\" — Ariana Grande",
+        "outcome": "a",
+        "seasonId": "s13"
+      }
+    ]
+  },
+  {
+    "a": "the-vivienne",
+    "b": "yvie-oddly",
+    "aWins": 1,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "6",
+        "song": "\"Why'd You Come in Here Lookin' Like That\" — Dolly Parton",
+        "outcome": "a",
+        "seasonId": "as07"
+      },
+      {
+        "episode": "12 (Finale — \"She Done Already Done Had Herses\" Smackdown R1)",
+        "song": "\"Push It\" — Salt-N-Pepa",
+        "outcome": "b",
+        "seasonId": "as07"
+      }
+    ]
+  },
+  {
+    "a": "tina-burner",
+    "b": "utica-queen",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "11",
+        "song": "\"My Humps\" — Black Eyed Peas",
+        "outcome": "b",
+        "seasonId": "s13"
       }
     ]
   }

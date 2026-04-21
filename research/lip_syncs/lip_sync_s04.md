@@ -20,4 +20,4 @@ Notes on format:
 | 9 | "I've Got to Use My Imagination" — Gladys Knight & the Pips | DiDa Ritz vs Latrice Royale | Latrice Royale | DiDa returning, still boot |
 | 10 | "(You Make Me Feel Like) A Natural Woman" — Aretha Franklin | Kenya Michaels vs Latrice Royale | Latrice Royale | Kenya out for good |
 | 11 | "No One Else on Earth" — Wynonna Judd | Chad Michaels vs Latrice Royale | Chad Michaels | emotional Latrice exit |
-| 12 | "Glamazon" — RuPaul | Sharon Needles vs Chad Michaels vs Phi Phi O'Hara | none crowned on stage | first 3-way finale lip sync |
+| 12 | "Glamazon" — RuPaul | Sharon Needles vs Chad Michaels vs Phi Phi O'Hara | Sharon Needles | first 3-way finale lip sync; not crowned on stage but Sharon announced as S4 winner |
