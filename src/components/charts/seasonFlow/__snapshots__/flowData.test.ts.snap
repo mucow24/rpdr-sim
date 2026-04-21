@@ -87,7 +87,7 @@ exports[`S5 flow data matches snapshot under fixed seed 1`] = `
       0.072,
       0.167,
     ],
-    "jade": [
+    "jade_jolie": [
       0.114,
       0.107,
       0.12,
@@ -789,7 +789,7 @@ exports[`S5 flow data matches snapshot under fixed seed 1`] = `
         "WIN": 0.024,
       },
     ],
-    "jade": [
+    "jade_jolie": [
       {
         "BTM2": 0.101,
         "ELIM": 0.114,
@@ -1583,7 +1583,7 @@ exports[`S5 flow data matches snapshot under fixed seed 1`] = `
     "ivy",
     "coco",
     "lineysha",
-    "jade",
+    "jade_jolie",
     "monica",
     "honey",
     "vivienne",
@@ -1675,7 +1675,7 @@ exports[`S5 flow data matches snapshot under fixed seed 1`] = `
       0.263,
       0.191,
     ],
-    "jade": [
+    "jade_jolie": [
       1,
       0.886,
       0.779,

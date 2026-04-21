@@ -19,7 +19,7 @@ const season3: SeasonData = {
       color: '#3cb44b',
     },
     {
-      id: 'alexis',
+      id: 'alexis_mateo',
       name: 'Alexis Mateo',
       skills: { comedy: 5, improv: 5, acting: 7, dance: 7, music: 5, design: 4, runway: 6, charisma: 7 },
       lipSync: 7,
@@ -108,14 +108,14 @@ const season3: SeasonData = {
       number: 3,
       archetype: 'acting',
       challengeName: 'Queens in Space',
-      placements: { alexis: 'WIN', shangela: 'WIN', delta: 'BTM2', phoenix: 'BTM2' },
+      placements: { alexis_mateo: 'WIN', shangela: 'WIN', delta: 'BTM2', phoenix: 'BTM2' },
       eliminated: ['phoenix'],
     },
     {
       number: 4,
       archetype: 'dance',
       challengeName: 'Totally Leotarded',
-      placements: { alexis: 'WIN', india: 'BTM2', mimi: 'BTM2' },
+      placements: { alexis_mateo: 'WIN', india: 'BTM2', mimi: 'BTM2' },
       eliminated: ['mimi'],
     },
     {
@@ -136,7 +136,7 @@ const season3: SeasonData = {
       number: 7,
       archetype: 'designChallenge',
       challengeName: 'Face, Face, Face of Cakes',
-      placements: { raja: 'WIN', alexis: 'BTM2', stacy: 'BTM2' },
+      placements: { raja: 'WIN', alexis_mateo: 'BTM2', stacy: 'BTM2' },
       eliminated: ['stacy'],
     },
     {
@@ -150,7 +150,7 @@ const season3: SeasonData = {
       number: 9,
       archetype: 'acting',
       challengeName: 'Life, Liberty, and the Pursuit of Style',
-      placements: { alexis: 'WIN', carmen: 'BTM2', yara: 'BTM2' },
+      placements: { alexis_mateo: 'WIN', carmen: 'BTM2', yara: 'BTM2' },
       eliminated: [],
     },
     {
@@ -164,7 +164,7 @@ const season3: SeasonData = {
       number: 11,
       archetype: 'ball',
       challengeName: 'The Hair Ball',
-      placements: { yara: 'WIN', alexis: 'BTM2', shangela: 'BTM2' },
+      placements: { yara: 'WIN', alexis_mateo: 'BTM2', shangela: 'BTM2' },
       eliminated: ['shangela'],
     },
     {
@@ -178,7 +178,7 @@ const season3: SeasonData = {
       number: 13,
       archetype: 'ball',
       challengeName: 'The Money Ball',
-      placements: { manila: 'WIN', alexis: 'BTM2', yara: 'BTM2' },
+      placements: { manila: 'WIN', alexis_mateo: 'BTM2', yara: 'BTM2' },
       eliminated: ['yara'],
     },
     {

@@ -34,9 +34,11 @@ export interface Queen {
   color: string; // hex color for charts
 }
 
-/** Globally-unique queen identifier. `queen.id` alone is only unique within a
- *  season (11 collisions across S1–S18), so cross-season lookups must use this
- *  form. The engine stays within one season and keeps using `queen.id` directly. */
+/** Globally-unique queen identifier. `queen.id` is canonical per queen but not
+ *  globally unique — 4 queens competed in two main seasons each (Shangela S2/S3,
+ *  Cynthia Lee Fontaine S8/S9, Eureka S9/S10, Vanessa Vanjie Mateo S10/S11) and
+ *  keep the same id in both, so cross-season lookups must use this form. The
+ *  engine stays within one season and keeps using `queen.id` directly. */
 export function queenUid(seasonId: string, queenId: string): string {
   return `${seasonId}:${queenId}`;
 }

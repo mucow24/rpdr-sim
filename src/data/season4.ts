@@ -75,7 +75,7 @@ const season4: SeasonData = {
       color: '#00897b',
     },
     {
-      id: 'princess',
+      id: 'the_princess',
       name: 'The Princess',
       skills: { comedy: 4, improv: 4, acting: 3, dance: 4, music: 3, design: 3, runway: 4, charisma: 4 },
       lipSync: 4,
@@ -108,15 +108,15 @@ const season4: SeasonData = {
       number: 2,
       archetype: 'acting',
       challengeName: 'WTF!: Wrestling\'s Trashiest Fighters',
-      placements: { chad: 'WIN', madame: 'WIN', lashauwn: 'BTM2', princess: 'BTM2' },
+      placements: { chad: 'WIN', madame: 'WIN', lashauwn: 'BTM2', the_princess: 'BTM2' },
       eliminated: ['lashauwn'],
     },
     {
       number: 3,
       archetype: 'branding',
       challengeName: 'Glamazons vs. Champions',
-      placements: { sharon: 'WIN', dida: 'BTM2', princess: 'BTM2' },
-      eliminated: ['princess'],
+      placements: { sharon: 'WIN', dida: 'BTM2', the_princess: 'BTM2' },
+      eliminated: ['the_princess'],
     },
     {
       number: 4,

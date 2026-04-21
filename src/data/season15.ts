@@ -5,7 +5,7 @@ const season15: SeasonData = {
   name: 'Season 15',
   queens: [
     {
-      id: 'sasha',
+      id: 'sasha_colby',
       name: 'Sasha Colby',
       skills: { comedy: 7, improv: 7, acting: 8, dance: 8, music: 6, design: 6, runway: 9, charisma: 9 },
       lipSync: 9,
@@ -103,7 +103,7 @@ const season15: SeasonData = {
       color: '#9966cc',
     },
     {
-      id: 'princess',
+      id: 'princess_poppy',
       name: 'Princess Poppy',
       skills: { comedy: 5, improv: 4, acting: 4, dance: 3, music: 4, design: 4, runway: 4, charisma: 5 },
       lipSync: 3,
@@ -136,13 +136,13 @@ const season15: SeasonData = {
       archetype: 'acting',
       challengeName: 'All Queens Go to Heaven',
       placements: {
-        sasha: 'WIN',
+        sasha_colby: 'WIN',
         loosey: 'HIGH',
         luxx: 'HIGH',
         amethyst: 'BTM2',
-        princess: 'BTM2',
+        princess_poppy: 'BTM2',
       },
-      eliminated: ['princess'],
+      eliminated: ['princess_poppy'],
     },
     {
       number: 4,
@@ -166,7 +166,7 @@ const season15: SeasonData = {
         luxx: 'WIN',
         malaysia: 'HIGH',
         robin: 'HIGH',
-        sasha: 'HIGH',
+        sasha_colby: 'HIGH',
         jax: 'LOW',
         amethyst: 'BTM2',
         salina: 'BTM2',
@@ -180,7 +180,7 @@ const season15: SeasonData = {
       placements: {
         aura: 'WIN',
         mistress: 'HIGH',
-        sasha: 'HIGH',
+        sasha_colby: 'HIGH',
         anetra: 'LOW',
         jax: 'BTM2',
         robin: 'BTM2',
@@ -214,7 +214,7 @@ const season15: SeasonData = {
       archetype: 'ball',
       challengeName: 'The Crystal Ball',
       placements: {
-        sasha: 'WIN',
+        sasha_colby: 'WIN',
         anetra: 'HIGH',
         mistress: 'HIGH',
         loosey: 'LOW',
@@ -228,7 +228,7 @@ const season15: SeasonData = {
       archetype: 'improv',
       challengeName: "50/50's Most Gagworthy Stars",
       placements: {
-        sasha: 'WIN',
+        sasha_colby: 'WIN',
         loosey: 'HIGH',
         luxx: 'HIGH',
         mistress: 'LOW',
@@ -246,7 +246,7 @@ const season15: SeasonData = {
         luxx: 'WIN',
         mistress: 'HIGH',
         salina: 'HIGH',
-        sasha: 'LOW',
+        sasha_colby: 'LOW',
         anetra: 'BTM2',
         marcia: 'BTM2',
       },
@@ -260,7 +260,7 @@ const season15: SeasonData = {
         anetra: 'WIN',
         luxx: 'HIGH',
         mistress: 'HIGH',
-        sasha: 'HIGH',
+        sasha_colby: 'HIGH',
         loosey: 'BTM2',
         salina: 'BTM2',
       },
@@ -273,7 +273,7 @@ const season15: SeasonData = {
       placements: {
         anetra: 'WIN',
         mistress: 'HIGH',
-        sasha: 'HIGH',
+        sasha_colby: 'HIGH',
         loosey: 'BTM2',
         luxx: 'BTM2',
       },
@@ -284,7 +284,7 @@ const season15: SeasonData = {
       archetype: 'girlGroup',
       challengeName: 'Blame It on the Edit',
       placements: {
-        sasha: 'WIN',
+        sasha_colby: 'WIN',
         luxx: 'HIGH',
         anetra: 'BTM2',
         mistress: 'BTM2',

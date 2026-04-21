@@ -61,7 +61,7 @@ const season5: SeasonData = {
       color: '#ec407a',
     },
     {
-      id: 'jade',
+      id: 'jade_jolie',
       name: 'Jade Jolie',
       skills: { comedy: 3, improv: 3, acting: 4, dance: 4, music: 3, design: 4, runway: 5, charisma: 4 },
       lipSync: 4,
@@ -174,9 +174,9 @@ const season5: SeasonData = {
         jinkx: 'HIGH',
         roxxxy: 'HIGH',
         coco: 'BTM2',
-        jade: 'BTM2',
+        jade_jolie: 'BTM2',
       },
-      eliminated: ['jade'],
+      eliminated: ['jade_jolie'],
     },
     {
       number: 7,
