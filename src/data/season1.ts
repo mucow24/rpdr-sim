@@ -12,7 +12,7 @@ const season1: SeasonData = {
       color: '#e6194b',
     },
     {
-      id: 'nina',
+      id: 'nina_flowers',
       name: 'Nina Flowers',
       skills: { comedy: 4, improv: 4, acting: 4, dance: 6, music: 5, design: 7, runway: 7, charisma: 6 },
       lipSync: 6,
@@ -73,7 +73,7 @@ const season1: SeasonData = {
       number: 1,
       archetype: 'designChallenge',
       challengeName: 'Drag on a Dime',
-      placements: { nina: 'WIN', akashia: 'BTM2', porkchop: 'BTM2' },
+      placements: { nina_flowers: 'WIN', akashia: 'BTM2', porkchop: 'BTM2' },
       eliminated: ['porkchop'],
     },
     {

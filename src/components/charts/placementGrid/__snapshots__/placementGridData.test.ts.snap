@@ -11,7 +11,7 @@ exports[`S5 placementGrid data matches snapshot (rounded 6dp) 1`] = `
     "coco",
     "ivy",
     "lineysha",
-    "jade",
+    "jade_jolie",
     "honey",
     "vivienne",
     "monica",
@@ -350,7 +350,7 @@ exports[`S5 placementGrid data matches snapshot (rounded 6dp) 1`] = `
         "8": 0.101,
         "9": 0.128,
       },
-      "queenId": "jade",
+      "queenId": "jade_jolie",
     },
     {
       "argmaxPlace": 10,

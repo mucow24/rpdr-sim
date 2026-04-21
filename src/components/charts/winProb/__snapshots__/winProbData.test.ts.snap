@@ -169,7 +169,7 @@ exports[`S5 winProb data matches snapshot (rounded 6dp) 1`] = `
         0.036,
         0.014,
       ],
-      "queenId": "jade",
+      "queenId": "jade_jolie",
     },
     {
       "probs": [
@@ -266,7 +266,7 @@ exports[`S5 winProb data matches snapshot (rounded 6dp) 1`] = `
     "ivy",
     "coco",
     "lineysha",
-    "jade",
+    "jade_jolie",
     "monica",
     "honey",
     "vivienne",
