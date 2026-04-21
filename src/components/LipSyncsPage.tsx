@@ -47,7 +47,7 @@ export default function LipSyncsPage() {
   // Pan / zoom (user-controllable viewport).
   const [view, setView] = useState({ x: 393.75, y: 332.5, k: 0.125 });
   const viewRef = useRef(view);
-  viewRef.current = view;
+  useEffect(() => { viewRef.current = view; }, [view]);
 
   const width = 900;
   const height = 760;
@@ -138,10 +138,12 @@ export default function LipSyncsPage() {
   const repulsionRef = useRef(repulsion);
   const velocityDecayRef = useRef(velocityDecay);
   const rankStrengthRef = useRef(rankStrength);
-  linkStrengthRef.current = linkStrength;
-  repulsionRef.current = repulsion;
-  velocityDecayRef.current = velocityDecay;
-  rankStrengthRef.current = rankStrength;
+  useEffect(() => {
+    linkStrengthRef.current = linkStrength;
+    repulsionRef.current = repulsion;
+    velocityDecayRef.current = velocityDecay;
+    rankStrengthRef.current = rankStrength;
+  }, [linkStrength, repulsion, velocityDecay, rankStrength]);
 
   // Custom rank force: per-tick vertical acceleration proportional to the
   // node's net-wins score — not a spring toward a target y. That means a
@@ -159,8 +161,7 @@ export default function LipSyncsPage() {
       }
     };
     force.initialize = (ns: SimNode[]) => { nodes = ns; };
-    force.strength = (s?: number) => {
-      if (s === undefined) return strength;
+    force.strength = (s: number) => {
       strength = s;
       return force;
     };
