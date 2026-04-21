@@ -37,7 +37,7 @@ export interface AppState {
   numSimulations: number;
 
   // UI preferences
-  appMode: 'simulation' | 'calibrate' | 'data';
+  appMode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs';
   enabledCalibrateSeasons: string[];
 
   // Season / queen data actions
@@ -69,7 +69,7 @@ export interface AppState {
   setNumSimulations: (n: number) => void;
 
   // UI
-  setAppMode: (mode: 'simulation' | 'calibrate' | 'data') => void;
+  setAppMode: (mode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs') => void;
   toggleCalibrateSeason: (seasonId: string) => void;
   setEnabledCalibrateSeasons: (seasonIds: string[]) => void;
 
