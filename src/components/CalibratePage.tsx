@@ -3,10 +3,11 @@ import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
   BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale, isPass,
-  type BaseStat, type Queen, type SeasonData, type Placement,
+  type BaseStat, type Queen, type SeasonData,
 } from '../engine/types';
 import { ARCHETYPES } from '../data/archetypes';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS } from './charts/common/palette';
+import { skillScore, type HeavyEpisodeRow, type PlacementOrElim } from './calibrateScoring';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -14,15 +15,6 @@ interface RosterEntry {
   seasonId: string;
   seasonName: string;
   queen: Queen;
-}
-
-type PlacementOrElim = Placement | 'ELIM';
-
-interface HeavyEpisodeRow {
-  epNumber: number;
-  challengeName: string;
-  icon: string;
-  placement: PlacementOrElim;
 }
 
 const HEAVY_WEIGHT_THRESHOLD = 0.20;
@@ -48,7 +40,8 @@ function getHeavyEpisodes(
     let total = 0;
     for (const s of BASE_STATS) total += weights[s];
 
-    if (total > 0 && weights[stat] / total >= HEAVY_WEIGHT_THRESHOLD) {
+    const statShare = total > 0 ? weights[stat] / total : 0;
+    if (statShare >= HEAVY_WEIGHT_THRESHOLD) {
       let placement: PlacementOrElim;
       if (ep.eliminated.includes(queenId)) {
         placement = 'ELIM';
@@ -60,6 +53,7 @@ function getHeavyEpisodes(
         challengeName: ep.challengeName,
         icon: ARCHETYPES[ep.archetype].icon,
         placement,
+        statShare,
       });
     }
 
@@ -201,6 +195,12 @@ function HistoryTooltip({
           </tbody>
         </table>
       )}
+      {rows.length > 0 && (
+        <div className="text-[10px] text-amber-300 px-1 pt-1 whitespace-nowrap">
+          <span className="text-amber-500/70">Skill score: </span>
+          {skillScore(rows).toFixed(2)}
+        </div>
+      )}
       <div className="border-t border-amber-500/30 mt-2 pt-2">
         <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
           Same score, other seasons
@@ -220,6 +220,15 @@ function HistoryTooltip({
 const STAT_OPTIONS: { value: StatKey; label: string }[] = [
   ...BASE_STATS.map((c) => ({ value: c as StatKey, label: BASE_STAT_DISPLAY[c] })),
   { value: 'lipSync', label: 'Lip Sync' },
+];
+
+type SortMode = 'season' | 'skill-desc' | 'skill-asc' | 'name';
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'season', label: 'By season' },
+  { value: 'skill-desc', label: 'By skill score (desc)' },
+  { value: 'skill-asc', label: 'By skill score (asc)' },
+  { value: 'name', label: 'By name' },
 ];
 
 // "season5" → "S5"
@@ -252,6 +261,28 @@ function getStatValue(queen: Queen, stat: StatKey): number {
   return stat === 'lipSync' ? queen.lipSync : queen.skills[stat];
 }
 
+function sortEntries(
+  entries: RosterEntry[],
+  sortMode: SortMode,
+  selectedStat: StatKey,
+  seasonsById: Record<string, SeasonData>,
+): RosterEntry[] {
+  if (sortMode === 'season') return entries;
+  if (sortMode === 'name') {
+    return [...entries].sort((a, b) => a.queen.name.localeCompare(b.queen.name));
+  }
+  // skill-desc / skill-asc
+  if (selectedStat === 'lipSync') return entries;
+  const scored = entries.map((entry) => {
+    const season = seasonsById[entry.seasonId];
+    const rows = season ? getHeavyEpisodes(season, entry.queen.id, selectedStat) : [];
+    return { entry, score: skillScore(rows) };
+  });
+  const dir = sortMode === 'skill-desc' ? -1 : 1;
+  scored.sort((a, b) => dir * (a.score - b.score));
+  return scored.map((s) => s.entry);
+}
+
 // One-time cleanup of Calibrate's pre-v2 localStorage keys — their data now
 // lives in the store (under `rpdr-sim-store`).
 const LEGACY_STORAGE_KEYS = [
@@ -268,6 +299,7 @@ export default function CalibratePage() {
   const setEnabledCalibrateSeasons = useStore((s) => s.setEnabledCalibrateSeasons);
 
   const [selectedStat, setSelectedStat] = useState<StatKey>('comedy');
+  const [sortMode, setSortMode] = useState<SortMode>('season');
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
   const [hoveredUid, setHoveredUid] = useState<string | null>(null);
   const [hoveredScore, setHoveredScore] = useState<number | null>(null);
@@ -374,6 +406,20 @@ export default function CalibratePage() {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-xs text-[#888]">
+          Sort queens
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            className="bg-[#1a1a24] border border-[#2a2a3a] text-[#ccc] text-sm rounded px-3 py-1.5 focus:outline-none focus:border-amber-500/50"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* Season filter */}
@@ -412,7 +458,12 @@ export default function CalibratePage() {
       {/* Score rows */}
       <div className="flex flex-col gap-1">
         {scoreRows.map((score) => {
-          const entries = entriesByScore.get(score) ?? [];
+          const entries = sortEntries(
+            entriesByScore.get(score) ?? [],
+            sortMode,
+            selectedStat,
+            seasonsById,
+          );
           return (
             <div
               key={score}
