@@ -199,10 +199,14 @@ for (const f of files) {
     const winnerIds = new Set(row.winners.map((n) => `${slug(n)}-${seasonId}`));
     if (row.winners.length === 0) warnings.push(`No winner match in ${seasonId} ep ${row.episode}: "${row.participants.join(' | ')}" winner?`);
     // Emit pairs.
-    //   - In 3+ way matches with a declared winner: skip loser↔loser pairs
-    //     (those queens didn't face each other head-to-head).
-    //   - "Both won" ties (e.g. S5 Whip My Hair double save) count as a win
-    //     for both sides, so the edge renders gold-gold.
+    //   - In 3+ way matches with a declared winner: only emit winner↔loser
+    //     pairs. Loser-loser pairs never head-to-head'd. Winner-winner pairs
+    //     didn't either — they just all advanced past the eliminated queen
+    //     (e.g. S8 ep 9 "Bob, Kim Chi, Naomi advance"), so marking them as
+    //     mutual ties wrongly credits each other with a win.
+    //   - "Both won" ties in 2-way matches (S5 Whip My Hair double save)
+    //     legitimately count as a win for both sides so the edge renders
+    //     gold-gold.
     //   - No-winner matches (double sashay / uncrowned finale) stay as true
     //     gray-gray ties.
     const isMultiway = ids.length >= 3;
@@ -212,7 +216,7 @@ for (const f of files) {
         const [a, b] = ids[i] < ids[j] ? [ids[i], ids[j]] : [ids[j], ids[i]];
         const aWon = winnerIds.has(a);
         const bWon = winnerIds.has(b);
-        if (isMultiway && hasWinner && !aWon && !bWon) continue;
+        if (isMultiway && hasWinner && (aWon === bWon)) continue;
         const key = `${a}|${b}`;
         if (!pairMap.has(key)) pairMap.set(key, { a, b, aWins: 0, bWins: 0, ties: 0, matches: [] });
         const pair = pairMap.get(key);

@@ -1853,34 +1853,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "adore-delano-s06",
-    "b": "bianca-s06",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "adore-delano-s06",
-    "b": "courtney-s06",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "adore-delano-s06",
     "b": "darienne-lake-s06",
     "aWins": 1,
     "bWins": 0,
@@ -2975,20 +2947,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "bianca-s06",
-    "b": "courtney-s06",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "bianca-s06",
     "b": "darienne-lake-s06",
     "aWins": 1,
     "bWins": 0,
@@ -3040,34 +2998,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "8",
         "song": "\"You Make Me Feel (Mighty Real)\" — Sylvester",
         "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "bob-the-drag-queen-s08",
-    "b": "kim-chi-s08",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "bob-the-drag-queen-s08",
-    "b": "naomi-smalls-s08",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie"
       }
     ]
   },
@@ -4326,20 +4256,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "ginger-minj-and-sasha-belle-s07",
-    "b": "pearl-s07",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle-s07",
     "b": "trixie-mattel-s07",
     "aWins": 1,
     "bWins": 0,
@@ -4349,20 +4265,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "10",
         "song": "\"Show Me Love\" — Robin S.",
         "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle-s07",
-    "b": "violet-s07",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie"
       }
     ]
   },
@@ -4466,44 +4368,11 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "gottmik-s13",
-    "b": "kandy-muse-s13",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "gottmik-s13",
-    "b": "rose-s13",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
-    "a": "gottmik-s13",
     "b": "symone-s13",
-    "aWins": 1,
-    "bWins": 2,
-    "ties": 1,
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
     "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie"
-      },
       {
         "episode": "16",
         "song": "\"Gimme More\" — Britney Spears",
@@ -5818,15 +5687,10 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "kandy-muse-s13",
     "b": "rose-s13",
-    "aWins": 2,
-    "bWins": 1,
-    "ties": 1,
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
     "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie"
-      },
       {
         "episode": "16",
         "song": "\"Work Bitch\" — Britney Spears",
@@ -5837,19 +5701,14 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   {
     "a": "kandy-muse-s13",
     "b": "symone-s13",
-    "aWins": 1,
-    "bWins": 3,
-    "ties": 1,
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
     "matches": [
       {
         "episode": "8",
         "song": "\"Boss\" — Fifth Harmony",
         "outcome": "b"
-      },
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie"
       },
       {
         "episode": "16",
@@ -6019,20 +5878,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "Semi",
         "song": "(RuPaul song)",
         "outcome": "b"
-      }
-    ]
-  },
-  {
-    "a": "kim-chi-s08",
-    "b": "naomi-smalls-s08",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie"
       }
     ]
   },
@@ -7033,20 +6878,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "pearl-s07",
-    "b": "violet-s07",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie"
-      }
-    ]
-  },
-  {
     "a": "penny-tration-s05",
     "b": "serena-chacha-s05",
     "aWins": 0,
@@ -7249,20 +7080,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "6",
         "song": "\"Shackles (Praise You)\" — Mary Mary",
         "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "rose-s13",
-    "b": "symone-s13",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie"
       }
     ]
   },
@@ -9668,36 +9485,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "adore-delano",
-    "b": "bianca",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie",
-        "seasonId": "s06"
-      }
-    ]
-  },
-  {
-    "a": "adore-delano",
-    "b": "courtney",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie",
-        "seasonId": "s06"
-      }
-    ]
-  },
-  {
-    "a": "adore-delano",
     "b": "darienne-lake",
     "aWins": 1,
     "bWins": 0,
@@ -10874,21 +10661,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "bianca",
-    "b": "courtney",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "tie",
-        "seasonId": "s06"
-      }
-    ]
-  },
-  {
-    "a": "bianca",
     "b": "darienne-lake",
     "aWins": 1,
     "bWins": 0,
@@ -10943,36 +10715,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "episode": "8",
         "song": "\"You Make Me Feel (Mighty Real)\" — Sylvester",
         "outcome": "a",
-        "seasonId": "s08"
-      }
-    ]
-  },
-  {
-    "a": "bob-the-drag-queen",
-    "b": "kim-chi",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie",
-        "seasonId": "s08"
-      }
-    ]
-  },
-  {
-    "a": "bob-the-drag-queen",
-    "b": "naomi-smalls",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie",
         "seasonId": "s08"
       }
     ]
@@ -12401,21 +12143,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "ginger-minj-and-sasha-belle",
-    "b": "pearl",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie",
-        "seasonId": "s07"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle",
     "b": "trixie-mattel",
     "aWins": 1,
     "bWins": 0,
@@ -12426,36 +12153,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "\"Show Me Love\" — Robin S.",
         "outcome": "a",
         "seasonId": "s07"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle",
-    "b": "violet",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie",
-        "seasonId": "s07"
-      }
-    ]
-  },
-  {
-    "a": "gottmik",
-    "b": "kandy-muse",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie",
-        "seasonId": "s13"
       }
     ]
   },
@@ -12491,32 +12188,11 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "gottmik",
-    "b": "rose",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie",
-        "seasonId": "s13"
-      }
-    ]
-  },
-  {
-    "a": "gottmik",
     "b": "symone",
-    "aWins": 1,
-    "bWins": 2,
-    "ties": 1,
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
     "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie",
-        "seasonId": "s13"
-      },
       {
         "episode": "16",
         "song": "\"Gimme More\" — Britney Spears",
@@ -13929,16 +13605,10 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   {
     "a": "kandy-muse",
     "b": "rose",
-    "aWins": 2,
-    "bWins": 1,
-    "ties": 1,
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
     "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie",
-        "seasonId": "s13"
-      },
       {
         "episode": "16",
         "song": "\"Work Bitch\" — Britney Spears",
@@ -13950,20 +13620,14 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   {
     "a": "kandy-muse",
     "b": "symone",
-    "aWins": 1,
-    "bWins": 3,
-    "ties": 1,
+    "aWins": 0,
+    "bWins": 2,
+    "ties": 0,
     "matches": [
       {
         "episode": "8",
         "song": "\"Boss\" — Fifth Harmony",
         "outcome": "b",
-        "seasonId": "s13"
-      },
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie",
         "seasonId": "s13"
       },
       {
@@ -14148,21 +13812,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "(RuPaul song)",
         "outcome": "b",
         "seasonId": "s18"
-      }
-    ]
-  },
-  {
-    "a": "kim-chi",
-    "b": "naomi-smalls",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "9",
-        "song": "\"The Realness\" — RuPaul",
-        "outcome": "tie",
-        "seasonId": "s08"
       }
     ]
   },
@@ -15229,21 +14878,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
     ]
   },
   {
-    "a": "pearl",
-    "b": "violet",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "tie",
-        "seasonId": "s07"
-      }
-    ]
-  },
-  {
     "a": "penny-tration",
     "b": "serena-chacha",
     "aWins": 0,
@@ -15453,21 +15087,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "\"Shackles (Praise You)\" — Mary Mary",
         "outcome": "a",
         "seasonId": "s01"
-      }
-    ]
-  },
-  {
-    "a": "rose",
-    "b": "symone",
-    "aWins": 1,
-    "bWins": 1,
-    "ties": 1,
-    "matches": [
-      {
-        "episode": "14",
-        "song": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston",
-        "outcome": "tie",
-        "seasonId": "s13"
       }
     ]
   },
