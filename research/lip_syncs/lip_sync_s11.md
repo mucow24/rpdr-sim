@@ -6,8 +6,8 @@
 | 2 | "Work Bitch" — Britney Spears | Kahanna Montrese vs. Mercedes Iman Diamond | Mercedes | Kahanna out second |
 | 3 | "Waiting for Tonight (Hex Hector Mix)" — Jennifer Lopez | A'keria, Honey, Plastique, Ra'Jah, Scarlet, Shuga (6-way) | 5 safe | Honey Davenport eliminated |
 | 4 | "Living in America" — James Brown | Mercedes Iman Diamond vs. Ra'Jah O'Hara | Ra'Jah | Trump Rusical aftermath |
-| 5 | "Last Dance" — Donna Summer | Ra'Jah O'Hara vs. Scarlet Envy | Ra'Jah | Scarlet's shock exit |
-| 6 | "I'm Your Baby Tonight" — Whitney Houston | Ariel Versace vs. Shuga Cain | Shuga | Draglympics elim |
+| 5 | "I'm Your Baby Tonight" — Whitney Houston | Ariel Versace vs. Shuga Cain | Shuga | Monster Ball elim, Ariel sashays |
+| 6 | "Last Dance" — Donna Summer | Ra'Jah O'Hara vs. Scarlet Envy | Ra'Jah | Draglympics, Scarlet's shock exit |
 | 7 | "Strut" — Sheena Easton | A'keria C. Davenport vs. Ra'Jah O'Hara | A'keria | Ra'Jah finally cut |
 | 8 | "Sorry Not Sorry" — Demi Lovato | Brooke Lynn Hytes vs. Yvie Oddly | Double shantay | one of the best ever |
 | 9 | "Hood Boy" — Fantasia | Plastique Tiara vs. Vanessa Vanjie Mateo | Vanjie | Plastique goes home |

@@ -5,7 +5,7 @@ Format note: AS6 kept the Lip Sync Assassins format from AS5 (Top All Star vs. s
 | Ep | Song | Queens | Winner | Eliminated | Notes |
 |----|------|--------|--------|------------|-------|
 | 1 | "Uptown Funk" — Mark Ronson ft. Bruno Mars | Yara Sofia (top) vs. Coco Montrese (assassin) | Coco Montrese | Serena ChaCha | Coco returns as assassin |
-| 2 | "Miss You Much" — Janet Jackson | Ra'Jah O'Hara (top) vs. Brooke Lynn Hytes (assassin) | Brooke Lynn Hytes | Jiggly Caliente | BLH stuns Ra'Jah |
+| 2 | "Miss You Much" — Janet Jackson | Ra'Jah O'Hara (top) vs. Brooke Lynn Hytes (assassin) | Ra'Jah O'Hara & Brooke Lynn Hytes (tie) | Jiggly Caliente | Both declared winners; Jiggly sashays |
 | 3 | "Physical" — Dua Lipa | Trinity K. Bonet (top) vs. Laganja Estranja (assassin) | Laganja Estranja | Silky Nutmeg Ganache | Laganja's redemption moment |
 | 4 | "Womanizer" — Britney Spears | Jan (top) vs. Jessica Wild (assassin) | Jessica Wild | Yara Sofia | Jessica's chaotic clown win |
 | 5 | "Phone" — Lizzo | Ginger Minj (top) vs. Mayhem Miller (assassin) | Ginger Minj | Scarlet Envy | Ginger finally wins a LSFYL |
