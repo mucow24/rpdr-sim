@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { skillScore, type HeavyEpisodeRow } from './CalibratePage';
+import { skillScore, type HeavyEpisodeRow } from './calibrateScoring';
 
 function row(placement: HeavyEpisodeRow['placement'], statShare = 1): HeavyEpisodeRow {
   return {
