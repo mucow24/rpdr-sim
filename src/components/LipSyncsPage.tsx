@@ -41,6 +41,7 @@ export default function LipSyncsPage() {
   const [repulsion, setRepulsion] = useState(90);
   const [velocityDecay, setVelocityDecay] = useState(0.4);
   const [merge, setMerge] = useState(false);
+  const [disabledSeasons, setDisabledSeasons] = useState<Set<string>>(() => new Set());
 
   // Pan / zoom (user-controllable viewport).
   const [view, setView] = useState({ x: 225, y: 190, k: 0.5 });
@@ -50,49 +51,93 @@ export default function LipSyncsPage() {
   const width = 900;
   const height = 760;
 
-  const { nodes, links } = useMemo(() => {
-    const rawNodes: (LipSyncNode & { seasons?: string[] })[] = merge
+  // Persistent SimNode pool for the current dataset — rebuilt only on the
+  // merge toggle. Toggling seasons filters this pool rather than rebuilding
+  // SimNode objects, so positions survive show/hide cycles.
+  const allNodes = useMemo<SimNode[]>(() => {
+    const raw: (LipSyncNode & { seasons?: string[] })[] = merge
       ? LIP_SYNC_NODES_MERGED.map((n) => ({ id: n.id, name: n.name, seasonId: n.seasonId, seasons: n.seasons }))
-      : LIP_SYNC_NODES;
-    const rawEdges: LipSyncEdge[] = merge
-      ? LIP_SYNC_EDGES_MERGED.map((e) => ({
-          a: e.a, b: e.b, aWins: e.aWins, bWins: e.bWins, ties: e.ties,
-          matches: e.matches.map((m) => ({ episode: m.episode, song: m.song, outcome: m.outcome })),
-        }))
-      : LIP_SYNC_EDGES;
-    const nodes: SimNode[] = rawNodes.map((n) => ({ ...n }));
-    const idSet = new Set(nodes.map((n) => n.id));
-    const links: SimLink[] = rawEdges
-      .filter((e) => idSet.has(e.a) && idSet.has(e.b))
-      .map((e) => ({ ...e, source: e.a, target: e.b }));
-    return { nodes, links };
+      : LIP_SYNC_NODES.map((n) => ({ ...n }));
+    return raw.map((n) => ({ ...n }));
   }, [merge]);
+
+  // In merged view, matches carry seasonId so we can filter per-season; in
+  // unmerged view an edge is entirely within one season and the endpoint
+  // visibility alone handles it.
+  type AnyMatch = { episode: string; song: string; outcome: 'a' | 'b' | 'tie'; seasonId?: string };
+  type AnyEdge = Omit<LipSyncEdge, 'matches'> & { matches: AnyMatch[] };
+
+  const allEdges = useMemo<AnyEdge[]>(() => {
+    return merge
+      ? (LIP_SYNC_EDGES_MERGED as AnyEdge[])
+      : (LIP_SYNC_EDGES as AnyEdge[]);
+  }, [merge]);
+
+  const { nodes, links } = useMemo(() => {
+    const isNodeVisible = (n: SimNode) => {
+      const seasons = n.seasons && n.seasons.length > 0 ? n.seasons : [n.seasonId];
+      return seasons.some((s) => !disabledSeasons.has(s));
+    };
+    const visibleNodes = allNodes.filter(isNodeVisible);
+    const idSet = new Set(visibleNodes.map((n) => n.id));
+    const links: SimLink[] = allEdges
+      .filter((e) => idSet.has(e.a) && idSet.has(e.b))
+      .map((e) => {
+        // Merged edges bundle matches from multiple seasons — drop matches
+        // whose season is disabled and recompute the win/tie counts so an
+        // edge only reflects its currently-enabled lip syncs.
+        if (merge) {
+          const matches = e.matches.filter((m) => !m.seasonId || !disabledSeasons.has(m.seasonId));
+          if (matches.length === 0) return null;
+          let aWins = 0, bWins = 0, ties = 0;
+          for (const m of matches) {
+            if (m.outcome === 'tie') { aWins += 1; bWins += 1; ties += 1; }
+            else if (m.outcome === 'a') aWins += 1;
+            else bWins += 1;
+          }
+          return { ...e, aWins, bWins, ties, matches, source: e.a, target: e.b } as SimLink;
+        }
+        return { ...e, source: e.a, target: e.b } as SimLink;
+      })
+      .filter((l): l is SimLink => l !== null);
+    return { nodes: visibleNodes, links };
+  }, [allNodes, allEdges, disabledSeasons, merge]);
 
   const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
 
+  // Refs for slider values so the sim init effect can read the current
+  // values without adding them as deps (which would cause the sim to re-init
+  // on every slider tweak).
+  const linkStrengthRef = useRef(linkStrength);
+  const repulsionRef = useRef(repulsion);
+  const velocityDecayRef = useRef(velocityDecay);
+  linkStrengthRef.current = linkStrength;
+  repulsionRef.current = repulsion;
+  velocityDecayRef.current = velocityDecay;
+
+  // One-time sim bootstrap per dataset swap (merge toggle). We don't re-init
+  // when visibility changes — see the separate effect below that swaps the
+  // sim's nodes/links in place.
   useEffect(() => {
     const sim = d3
-      .forceSimulation<SimNode>(nodes)
+      .forceSimulation<SimNode>([])
       .force(
         'link',
         d3
-          .forceLink<SimNode, SimLink>(links)
+          .forceLink<SimNode, SimLink>([])
           .id((d) => d.id)
-          .distance(60),
+          .distance(60)
+          .strength(linkStrengthRef.current),
       )
-      .force('charge', d3.forceManyBody<SimNode>().distanceMax(400))
-      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('charge', d3.forceManyBody<SimNode>().distanceMax(400).strength(-repulsionRef.current))
       .force('collide', d3.forceCollide<SimNode>(11))
-      .force('x', d3.forceX(width / 2).strength(0.03))
-      .force('y', d3.forceY(height / 2).strength(0.03))
+      .velocityDecay(velocityDecayRef.current)
       .alpha(1)
       .alphaDecay(0.02)
       .alphaTarget(0.01)
       .alphaMin(0)
       .on('tick', () => {
-        // Recover from numerical blow-up — reseed any NaN positions so lowering
-        // the tension slider brings the graph back.
-        for (const n of nodes) {
+        for (const n of sim.nodes()) {
           if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) {
             n.x = width / 2 + (Math.random() - 0.5) * 100;
             n.y = height / 2 + (Math.random() - 0.5) * 100;
@@ -107,6 +152,16 @@ export default function LipSyncsPage() {
     return () => {
       sim.stop();
     };
+  }, [allNodes]);
+
+  // Swap visible nodes/links into the existing sim without re-initializing.
+  // Slider state, positions of surviving nodes, and alpha all persist.
+  useEffect(() => {
+    const sim = simRef.current;
+    if (!sim) return;
+    sim.nodes(nodes);
+    const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
+    link?.links(links);
   }, [nodes, links]);
 
   // Apply slider changes to live simulation forces without bumping alpha —
@@ -228,7 +283,7 @@ export default function LipSyncsPage() {
       const py = (e.clientY - rect.top) * (height / rect.height);
       setView((v) => {
         const factor = Math.exp(-e.deltaY * 0.001);
-        const nk = Math.max(0.15, Math.min(4, v.k * factor));
+        const nk = Math.max(0.0015, Math.min(4, v.k * factor));
         const nx = px - (px - v.x) * (nk / v.k);
         const ny = py - (py - v.y) * (nk / v.k);
         return { x: nx, y: ny, k: nk };
@@ -297,6 +352,49 @@ export default function LipSyncsPage() {
           />
           <span className="text-[#aaa]">Merge recurring queens</span>
         </label>
+      </div>
+      <div className="mb-3 flex items-center gap-2 text-xs text-[#888] flex-wrap">
+        <span className="text-[#aaa] mr-1">Seasons:</span>
+        {SEASON_ORDER.map((s) => {
+          const on = !disabledSeasons.has(s);
+          const color = seasonColor(s);
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() =>
+                setDisabledSeasons((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(s)) next.delete(s);
+                  else next.add(s);
+                  return next;
+                })
+              }
+              className="px-2 py-0.5 rounded border font-mono transition-colors"
+              style={{
+                borderColor: on ? color : '#2a2a3a',
+                color: on ? color : '#555',
+                background: on ? `${color}18` : 'transparent',
+              }}
+            >
+              {seasonLabel(s)}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setDisabledSeasons(new Set())}
+          className="ml-2 px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          onClick={() => setDisabledSeasons(new Set(SEASON_ORDER))}
+          className="px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]"
+        >
+          None
+        </button>
       </div>
       <div className="bg-[#0a0a10] border border-[#1a1a24] rounded-lg overflow-hidden relative">
         <svg

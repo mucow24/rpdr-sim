@@ -1698,14 +1698,14 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s09"
   },
   {
-    "id": "vanessa-vanjie-as09",
-    "name": "Vanessa Vanjie",
-    "seasonId": "as09"
-  },
-  {
     "id": "vanessa-vanjie-mateo-as05",
     "name": "Vanessa Vanjie Mateo",
     "seasonId": "as05"
+  },
+  {
+    "id": "vanessa-vanjie-mateo-as09",
+    "name": "Vanessa Vanjie Mateo",
+    "seasonId": "as09"
   },
   {
     "id": "vanessa-vanjie-mateo-s10",
@@ -2615,7 +2615,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "angeria-paris-vanmicheals-as09",
-    "b": "vanessa-vanjie-as09",
+    "b": "vanessa-vanjie-mateo-as09",
     "aWins": 1,
     "bWins": 0,
     "ties": 0,
@@ -7142,7 +7142,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "plastique-tiara-as09",
-    "b": "vanessa-vanjie-as09",
+    "b": "vanessa-vanjie-mateo-as09",
     "aWins": 0,
     "bWins": 1,
     "ties": 0,
@@ -7296,7 +7296,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "roxxxy-andrews-as09",
-    "b": "vanessa-vanjie-as09",
+    "b": "vanessa-vanjie-mateo-as09",
     "aWins": 1,
     "bWins": 1,
     "ties": 1,
@@ -7408,7 +7408,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "shannel-as09",
-    "b": "vanessa-vanjie-as09",
+    "b": "vanessa-vanjie-mateo-as09",
     "aWins": 1,
     "bWins": 0,
     "ties": 0,
@@ -9494,21 +9494,14 @@ export const LIP_SYNC_NODES_MERGED: LipSyncNodeMerged[] = [
     ]
   },
   {
-    "id": "vanessa-vanjie",
-    "name": "Vanessa Vanjie",
-    "seasonId": "as09",
-    "seasons": [
-      "as09"
-    ]
-  },
-  {
     "id": "vanessa-vanjie-mateo",
     "name": "Vanessa Vanjie Mateo",
     "seasonId": "s10",
     "seasons": [
       "s10",
       "s11",
-      "as05"
+      "as05",
+      "as09"
     ]
   },
   {
@@ -10539,7 +10532,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "angeria-paris-vanmicheals",
-    "b": "vanessa-vanjie",
+    "b": "vanessa-vanjie-mateo",
     "aWins": 1,
     "bWins": 0,
     "ties": 0,
@@ -15354,9 +15347,9 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "plastique-tiara",
-    "b": "vanessa-vanjie",
+    "b": "vanessa-vanjie-mateo",
     "aWins": 0,
-    "bWins": 1,
+    "bWins": 2,
     "ties": 0,
     "matches": [
       {
@@ -15364,16 +15357,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "\"When I Grow Up\" — The Pussycat Dolls",
         "outcome": "b",
         "seasonId": "as09"
-      }
-    ]
-  },
-  {
-    "a": "plastique-tiara",
-    "b": "vanessa-vanjie-mateo",
-    "aWins": 0,
-    "bWins": 1,
-    "ties": 0,
-    "matches": [
+      },
       {
         "episode": "9",
         "song": "\"Hood Boy\" — Fantasia",
@@ -15519,7 +15503,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "roxxxy-andrews",
-    "b": "vanessa-vanjie",
+    "b": "vanessa-vanjie-mateo",
     "aWins": 1,
     "bWins": 1,
     "ties": 1,
@@ -15639,7 +15623,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "shannel",
-    "b": "vanessa-vanjie",
+    "b": "vanessa-vanjie-mateo",
     "aWins": 1,
     "bWins": 0,
     "ties": 0,
