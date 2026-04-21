@@ -42,15 +42,19 @@ function cleanName(s) {
 }
 
 // Split a "X vs Y [vs Z]" string into participants. Returns [] if not a pairing.
+// Team LSFYLs ("A & B vs C & D", S7 ep 8) are flattened into individual queens;
+// the winner-winner / loser-loser skip in the pair emitter then correctly drops
+// teammate pairs while keeping each cross-team matchup.
 function splitParticipants(raw) {
   const cleaned = raw.trim();
   if (!cleaned) return [];
   // Skip non-pairings: "Kalorie (solo)", "group", "Crystal, Gigi, Jaida (group)" etc.
   if (/\(solo\)|\(alone\)|\(group\)|\(returning queens\)/i.test(cleaned)) return [];
   if (/^—+$/.test(cleaned)) return [];
-  // Split on " vs " or " vs. " (case-insensitive).
+  // Split on " vs " or " vs. " first, then on " & " within each side for teams.
   const parts = cleaned
     .split(/\s+vs\.?\s+/i)
+    .flatMap((s) => s.split(/\s*&\s*/))
     .map(cleanName)
     .filter((n) => n && !/^—+$/.test(n) && /[a-zA-Z]/.test(n));
   if (parts.length < 2) return [];

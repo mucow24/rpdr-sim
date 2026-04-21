@@ -248,11 +248,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s06"
   },
   {
-    "id": "bianca-s06",
-    "name": "Bianca",
-    "seasonId": "s06"
-  },
-  {
     "id": "blair-st-clair-s10",
     "name": "Blair St. Clair",
     "seasonId": "s10"
@@ -331,11 +326,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "id": "coco-montrese-s05",
     "name": "Coco Montrese",
     "seasonId": "s05"
-  },
-  {
-    "id": "courtney-s06",
-    "name": "Courtney",
-    "seasonId": "s06"
   },
   {
     "id": "crystal-envy-s17",
@@ -498,11 +488,6 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s12"
   },
   {
-    "id": "ginger-minj-and-sasha-belle-s07",
-    "name": "Ginger Minj & Sasha Belle",
-    "seasonId": "s07"
-  },
-  {
     "id": "ginger-minj-as06",
     "name": "Ginger Minj",
     "seasonId": "as06"
@@ -511,6 +496,11 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "id": "ginger-minj-as10",
     "name": "Ginger Minj",
     "seasonId": "as10"
+  },
+  {
+    "id": "ginger-minj-s07",
+    "name": "Ginger Minj",
+    "seasonId": "s07"
   },
   {
     "id": "gottmik-as09",
@@ -603,8 +593,8 @@ export const LIP_SYNC_NODES: LipSyncNode[] = [
     "seasonId": "s12"
   },
   {
-    "id": "jaidynn-diore-fierce-and-tempest-dujour-s07",
-    "name": "Jaidynn Diore Fierce & Tempest DuJour",
+    "id": "jaidynn-diore-fierce-s07",
+    "name": "Jaidynn Diore Fierce",
     "seasonId": "s07"
   },
   {
@@ -1853,20 +1843,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
   },
   {
     "a": "adore-delano-s06",
-    "b": "darienne-lake-s06",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "adore-delano-s06",
     "b": "joslyn-fox-s06",
     "aWins": 1,
     "bWins": 0,
@@ -2946,20 +2922,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "bianca-s06",
-    "b": "darienne-lake-s06",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
     "a": "blair-st-clair-s10",
     "b": "the-vixen-s10",
     "aWins": 0,
@@ -3469,20 +3431,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
       {
         "episode": "3",
         "song": "\"When I Grow Up\" — The Pussycat Dolls",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "courtney-s06",
-    "b": "darienne-lake-s06",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
         "outcome": "a"
       }
     ]
@@ -4227,48 +4175,6 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "ginger-minj-and-sasha-belle-s07",
-    "b": "jaidynn-diore-fierce-and-tempest-dujour-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "8",
-        "song": "\"I Think We're Alone Now\" — Tiffany",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle-s07",
-    "b": "kennedy-davenport-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle-s07",
-    "b": "trixie-mattel-s07",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "10",
-        "song": "\"Show Me Love\" — Robin S.",
-        "outcome": "a"
-      }
-    ]
-  },
-  {
     "a": "ginger-minj-as06",
     "b": "heidi-n-closet-as06",
     "aWins": 1,
@@ -4334,6 +4240,62 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
       {
         "episode": "12 (Finale — Smackdown R1)",
         "song": "\"Disease\" — Lady Gaga",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-s07",
+    "b": "jaidynn-diore-fierce-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-s07",
+    "b": "kennedy-davenport-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-s07",
+    "b": "tempest-dujour-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj-s07",
+    "b": "trixie-mattel-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "10",
+        "song": "\"Show Me Love\" — Robin S.",
         "outcome": "a"
       }
     ]
@@ -4624,7 +4586,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "jaidynn-diore-fierce-and-tempest-dujour-s07",
+    "a": "jaidynn-diore-fierce-s07",
     "b": "kandy-ho-s07",
     "aWins": 1,
     "bWins": 0,
@@ -4638,7 +4600,7 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
-    "a": "jaidynn-diore-fierce-and-tempest-dujour-s07",
+    "a": "jaidynn-diore-fierce-s07",
     "b": "max-s07",
     "aWins": 1,
     "bWins": 0,
@@ -4648,6 +4610,20 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
         "episode": "7",
         "song": "\"No More Lies\" — Michel'le",
         "outcome": "a"
+      }
+    ]
+  },
+  {
+    "a": "jaidynn-diore-fierce-s07",
+    "b": "sasha-belle-s07",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "b"
       }
     ]
   },
@@ -7168,6 +7144,20 @@ export const LIP_SYNC_EDGES: LipSyncEdge[] = [
     ]
   },
   {
+    "a": "sasha-belle-s07",
+    "b": "tempest-dujour-s07",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a"
+      }
+    ]
+  },
+  {
     "a": "sasha-velour-s09",
     "b": "shea-coulee-s09",
     "aWins": 1,
@@ -7586,14 +7576,6 @@ export const LIP_SYNC_NODES_MERGED: LipSyncNodeMerged[] = [
     ]
   },
   {
-    "id": "bianca",
-    "name": "Bianca",
-    "seasonId": "s06",
-    "seasons": [
-      "s06"
-    ]
-  },
-  {
     "id": "blair-st-clair",
     "name": "Blair St. Clair",
     "seasonId": "s10",
@@ -7691,14 +7673,6 @@ export const LIP_SYNC_NODES_MERGED: LipSyncNodeMerged[] = [
     "seasons": [
       "s05",
       "as06"
-    ]
-  },
-  {
-    "id": "courtney",
-    "name": "Courtney",
-    "seasonId": "s06",
-    "seasons": [
-      "s06"
     ]
   },
   {
@@ -7904,18 +7878,11 @@ export const LIP_SYNC_NODES_MERGED: LipSyncNodeMerged[] = [
   {
     "id": "ginger-minj",
     "name": "Ginger Minj",
-    "seasonId": "as06",
-    "seasons": [
-      "as06",
-      "as10"
-    ]
-  },
-  {
-    "id": "ginger-minj-and-sasha-belle",
-    "name": "Ginger Minj & Sasha Belle",
     "seasonId": "s07",
     "seasons": [
-      "s07"
+      "s07",
+      "as06",
+      "as10"
     ]
   },
   {
@@ -8028,8 +7995,8 @@ export const LIP_SYNC_NODES_MERGED: LipSyncNodeMerged[] = [
     ]
   },
   {
-    "id": "jaidynn-diore-fierce-and-tempest-dujour",
-    "name": "Jaidynn Diore Fierce & Tempest DuJour",
+    "id": "jaidynn-diore-fierce",
+    "name": "Jaidynn Diore Fierce",
     "seasonId": "s07",
     "seasons": [
       "s07"
@@ -9485,21 +9452,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "adore-delano",
-    "b": "darienne-lake",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "a",
-        "seasonId": "s06"
-      }
-    ]
-  },
-  {
-    "a": "adore-delano",
     "b": "joslyn-fox",
     "aWins": 1,
     "bWins": 0,
@@ -10660,21 +10612,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
     ]
   },
   {
-    "a": "bianca",
-    "b": "darienne-lake",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "a",
-        "seasonId": "s06"
-      }
-    ]
-  },
-  {
     "a": "blair-st-clair",
     "b": "the-vixen",
     "aWins": 0,
@@ -11223,21 +11160,6 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "\"Uptown Funk\" — Mark Ronson ft. Bruno Mars",
         "outcome": "a",
         "seasonId": "as06"
-      }
-    ]
-  },
-  {
-    "a": "courtney",
-    "b": "darienne-lake",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Sissy That Walk\" — RuPaul",
-        "outcome": "a",
-        "seasonId": "s06"
       }
     ]
   },
@@ -12053,6 +11975,21 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
   },
   {
     "a": "ginger-minj",
+    "b": "jaidynn-diore-fierce",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
     "b": "jorgeous",
     "aWins": 1,
     "bWins": 0,
@@ -12063,6 +12000,21 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "\"It's Raining Men\" — The Weather Girls",
         "outcome": "a",
         "seasonId": "as10"
+      }
+    ]
+  },
+  {
+    "a": "ginger-minj",
+    "b": "kennedy-davenport",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "12",
+        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
+        "outcome": "a",
+        "seasonId": "s07"
       }
     ]
   },
@@ -12112,8 +12064,8 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
     ]
   },
   {
-    "a": "ginger-minj-and-sasha-belle",
-    "b": "jaidynn-diore-fierce-and-tempest-dujour",
+    "a": "ginger-minj",
+    "b": "tempest-dujour",
     "aWins": 1,
     "bWins": 0,
     "ties": 0,
@@ -12127,22 +12079,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
     ]
   },
   {
-    "a": "ginger-minj-and-sasha-belle",
-    "b": "kennedy-davenport",
-    "aWins": 1,
-    "bWins": 0,
-    "ties": 0,
-    "matches": [
-      {
-        "episode": "12",
-        "song": "\"Born Naked\" — RuPaul ft. Clairy Browne",
-        "outcome": "a",
-        "seasonId": "s07"
-      }
-    ]
-  },
-  {
-    "a": "ginger-minj-and-sasha-belle",
+    "a": "ginger-minj",
     "b": "trixie-mattel",
     "aWins": 1,
     "bWins": 0,
@@ -12463,7 +12400,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
     ]
   },
   {
-    "a": "jaidynn-diore-fierce-and-tempest-dujour",
+    "a": "jaidynn-diore-fierce",
     "b": "kandy-ho",
     "aWins": 1,
     "bWins": 0,
@@ -12478,7 +12415,7 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
     ]
   },
   {
-    "a": "jaidynn-diore-fierce-and-tempest-dujour",
+    "a": "jaidynn-diore-fierce",
     "b": "max",
     "aWins": 1,
     "bWins": 0,
@@ -12488,6 +12425,21 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "episode": "7",
         "song": "\"No More Lies\" — Michel'le",
         "outcome": "a",
+        "seasonId": "s07"
+      }
+    ]
+  },
+  {
+    "a": "jaidynn-diore-fierce",
+    "b": "sasha-belle",
+    "aWins": 0,
+    "bWins": 1,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "b",
         "seasonId": "s07"
       }
     ]
@@ -15177,6 +15129,21 @@ export const LIP_SYNC_EDGES_MERGED: LipSyncEdgeMerged[] = [
         "song": "\"Love Child\" — Diana Ross & The Supremes",
         "outcome": "a",
         "seasonId": "s17"
+      }
+    ]
+  },
+  {
+    "a": "sasha-belle",
+    "b": "tempest-dujour",
+    "aWins": 1,
+    "bWins": 0,
+    "ties": 0,
+    "matches": [
+      {
+        "episode": "8",
+        "song": "\"I Think We're Alone Now\" — Tiffany",
+        "outcome": "a",
+        "seasonId": "s07"
       }
     ]
   },

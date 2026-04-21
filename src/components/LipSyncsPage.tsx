@@ -10,7 +10,7 @@ import {
   type LipSyncEdge,
 } from '../data/lipSyncs';
 
-type SimNode = LipSyncNode & { seasons?: string[] } & d3.SimulationNodeDatum;
+type SimNode = LipSyncNode & { seasons?: string[]; score?: number } & d3.SimulationNodeDatum;
 type SimLink = LipSyncEdge & d3.SimulationLinkDatum<SimNode> & {
   source: SimNode | string;
   target: SimNode | string;
@@ -40,6 +40,7 @@ export default function LipSyncsPage() {
   const [linkStrength, setLinkStrength] = useState(3);
   const [repulsion, setRepulsion] = useState(4000);
   const [velocityDecay, setVelocityDecay] = useState(0.4);
+  const [rankStrength, setRankStrength] = useState(0);
   const [merge, setMerge] = useState(false);
   const [disabledSeasons, setDisabledSeasons] = useState<Set<string>>(() => new Set());
 
@@ -113,6 +114,18 @@ export default function LipSyncsPage() {
         return { ...e, source: e.a, target: e.b } as SimLink;
       })
       .filter((l): l is SimLink => l !== null);
+
+    // Per-node score = net wins across currently-visible edges. Ties (both
+    // won) contribute equally to both sides and cancel out. Written onto the
+    // SimNode objects so the rank force can read them via a node accessor.
+    const byId = new Map(visibleNodes.map((n) => [n.id, n]));
+    for (const n of visibleNodes) n.score = 0;
+    for (const l of links) {
+      const a = byId.get(l.a as string);
+      const b = byId.get(l.b as string);
+      if (a) a.score = (a.score ?? 0) + (l.aWins - l.bWins);
+      if (b) b.score = (b.score ?? 0) + (l.bWins - l.aWins);
+    }
     return { nodes: visibleNodes, links };
   }, [allNodes, allEdges, disabledSeasons, merge]);
 
@@ -124,9 +137,35 @@ export default function LipSyncsPage() {
   const linkStrengthRef = useRef(linkStrength);
   const repulsionRef = useRef(repulsion);
   const velocityDecayRef = useRef(velocityDecay);
+  const rankStrengthRef = useRef(rankStrength);
   linkStrengthRef.current = linkStrength;
   repulsionRef.current = repulsion;
   velocityDecayRef.current = velocityDecay;
+  rankStrengthRef.current = rankStrength;
+
+  // Custom rank force: per-tick vertical acceleration proportional to the
+  // node's net-wins score — not a spring toward a target y. That means a
+  // +5 queen is constantly pulled up, a -3 queen constantly pushed down,
+  // and equilibrium emerges from the surrounding link/charge forces
+  // (cluster-local instead of collapsing to a global reference line).
+  function createRankForce() {
+    let nodes: SimNode[] = [];
+    let strength = 0;
+    const force = (alpha: number) => {
+      for (const n of nodes) {
+        // SVG y increases downward, so winners (positive score) should
+        // reduce vy. Multiply by alpha so the force cools with the sim.
+        n.vy = (n.vy ?? 0) - (n.score ?? 0) * strength * alpha;
+      }
+    };
+    force.initialize = (ns: SimNode[]) => { nodes = ns; };
+    force.strength = (s?: number) => {
+      if (s === undefined) return strength;
+      strength = s;
+      return force;
+    };
+    return force;
+  }
 
   // One-time sim bootstrap per dataset swap (merge toggle). We don't re-init
   // when visibility changes — see the separate effect below that swaps the
@@ -144,6 +183,7 @@ export default function LipSyncsPage() {
       )
       .force('charge', d3.forceManyBody<SimNode>().distanceMax(400).strength(-repulsionRef.current))
       .force('collide', d3.forceCollide<SimNode>(11))
+      .force('rank', createRankForce().strength(rankStrengthRef.current))
       .velocityDecay(velocityDecayRef.current)
       .alpha(0.1)
       .alphaDecay(0.02)
@@ -185,10 +225,12 @@ export default function LipSyncsPage() {
     if (!sim) return;
     const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
     const charge = sim.force('charge') as d3.ForceManyBody<SimNode> | null;
+    const rank = sim.force('rank') as ReturnType<typeof createRankForce> | null;
     link?.strength(linkStrength);
     charge?.strength(-repulsion);
+    rank?.strength(rankStrength);
     sim.velocityDecay(velocityDecay);
-  }, [linkStrength, repulsion, velocityDecay]);
+  }, [linkStrength, repulsion, velocityDecay, rankStrength]);
 
   // Drag state
   const dragRef = useRef<{ node: SimNode | null; dx: number; dy: number; pointerId: number | null }>({
@@ -355,6 +397,19 @@ export default function LipSyncsPage() {
             className="w-40 accent-amber-500"
           />
           <span className="text-[#666] font-mono text-xs w-12">{velocityDecay.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Rank pull</span>
+          <input
+            type="range"
+            min={0}
+            max={1000}
+            step={1}
+            value={rankStrength}
+            onChange={(e) => setRankStrength(parseFloat(e.target.value))}
+            className="w-40 accent-amber-500"
+          />
+          <span className="text-[#666] font-mono text-xs w-12">{rankStrength.toFixed(0)}</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
