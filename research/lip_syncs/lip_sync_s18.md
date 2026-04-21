@@ -20,9 +20,9 @@ Season 18 aired on MTV from January 2, 2026 and concluded April 2026; as of 2026
 | 11 | "Total Eclipse of the Heart" — Bonnie Tyler | Juicy Love Dion vs Kenya Pleaser | Juicy Love Dion | Kenya eliminated, big ballad |
 | 12 | "We Can't Be Friends (Wait for Your Love)" — Ariana Grande | Discord Addams vs Nini Coco | Nini Coco | Discord eliminated |
 | 13 | "Garden of Eden" — Lady Gaga | Jane Don't vs Nini Coco | Nini Coco | Jane Don't eliminated |
-| 14 | "Super Graphic Ultra Modern Girl" — Chappell Roan | Juicy Love Dion vs Nini Coco | Juicy Love Dion | Nini saved, Juicy eliminated (see note) |
+| 14 | "Super Graphic Ultra Modern Girl" — Chappell Roan | Juicy Love Dion vs Nini Coco | Nini Coco | Juicy eliminated at top 4; returns via Ep 15 Lalaparuza |
 
-Note on ep 14: Per Wikipedia, Juicy Love Dion won the lip sync but Nini Coco advanced to the finale; Juicy was eliminated at top 4 and returned via Lalaparuza. Top 3 finalists: Darlene Mitchell, Myki Meeks, Nini Coco. (Darlene, Myki and Nini made finals without lip syncing at top 4 since Nini/Juicy was the bottom-two; Juicy losing = Juicy out.) Canonical Wikipedia table: Juicy Love Dion eliminated ep 14.
+Note on ep 14: Nini Coco won the LSFYL and advanced to the finale. Juicy Love Dion was eliminated here but returned to the finale by winning the Ep 15 RuPaul-a-Paruza Smackdown. Top 3 finalists: Darlene Mitchell, Myki Meeks, Nini Coco.
 
 ## Episode 15 — RuPaul-a-Paruza Smackdown (returning queens, all-RuPaul songs)
 

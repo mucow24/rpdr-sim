@@ -9,7 +9,7 @@
 | 5 | "Lovergirl" — Teena Marie | Kandy Ho vs. Mrs. Kasha Davis | Kandy Ho | MKD sent home |
 | 6 | "Break Free" — Ariana Grande ft. Zedd | Jaidynn Diore Fierce vs. Kandy Ho | Jaidynn Diore Fierce | Jaidynn upset |
 | 7 | "No More Lies" — Michel'le | Jaidynn Diore Fierce vs. Max | Jaidynn Diore Fierce | Max ousted, shock boot |
-| 8 | "I Think We're Alone Now" — Tiffany | Ginger Minj vs. Jaidynn Diore Fierce | Ginger Minj | Ginger full-throttle comedy |
+| 8 | "I Think We're Alone Now" — Tiffany | Ginger Minj & Sasha Belle vs. Jaidynn Diore Fierce & Tempest DuJour | Ginger Minj & Sasha Belle | team-format LSFYL ("Conjoined Queens"); Jaidynn eliminated |
 | 9 | "Really Don't Care" — Demi Lovato ft. Cher Lloyd | Miss Fame vs. Pearl | Pearl | Pearl fully wakes up |
 | 10 | "Show Me Love" — Robin S. | Ginger Minj vs. Trixie Mattel | Ginger Minj | Trixie's return cut short |
 | 11 | "Roar" — Katy Perry | Katya vs. Kennedy Davenport | Kennedy Davenport | Kennedy splits galore |

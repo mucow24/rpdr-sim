@@ -8,7 +8,7 @@ Format: "All Winners" / "Legendary Legend Stars" — no eliminations during the 
 | 2 | "Rumour Has It" — Adele | Jinkx Monsoon vs Trinity the Tuck | Jinkx Monsoon | — | Jinkx blocks Shea |
 | 3 | "Green Light" — Beyoncé | Jaida Essence Hall vs Trinity the Tuck | Jaida Essence Hall | — | Jaida blocks Jinkx |
 | 4 | "Love Will Save the Day (Jellybean & David Morales Remix)" — Whitney Houston | Jinkx Monsoon vs The Vivienne | The Vivienne | — | Vivienne blocks Monét |
-| 5 | "Better in Color" — Lizzo | — vs Jinkx Monsoon | Jinkx Monsoon | — | Draguation, Jinkx back-to-back |
+| 5 | "Better in Color" — Lizzo | Jinkx Monsoon vs Raja | Jinkx Monsoon | — | Draguation, Jinkx back-to-back |
 | 6 | "Why'd You Come in Here Lookin' Like That" — Dolly Parton | The Vivienne vs Yvie Oddly | The Vivienne | — | Night of 1000 Dollys |
 | 7 | "I Want Love" — Jessie J | Jaida Essence Hall vs Trinity the Tuck | Trinity the Tuck | — | Trinity blocks Yvie |
 | 8 | "Super Freak" — Rick James | Raja vs The Vivienne | Raja | — | Raja blocks Jaida |
@@ -17,9 +17,9 @@ Format: "All Winners" / "Legendary Legend Stars" — no eliminations during the 
 | 11 | "Supernova" — Kylie Minogue | Monét X Change vs Shea Couleé | Shea Couleé | — | Variety show; Monét tiebreaks Trinity in |
 | 12 (Finale — "She Done Already Done Had Herses" Smackdown R1) | "Push It" — Salt-N-Pepa | The Vivienne vs Yvie Oddly | Yvie Oddly | The Vivienne | LaLaPaRuZa R1 |
 | 12 (Finale — Herses Smackdown R1) | "Let's Hear It for the Boy" — Deniece Williams | Jaida Essence Hall vs Raja | Raja | Jaida Essence Hall | LaLaPaRuZa R1 |
-| 12 (Finale — Herses Smackdown Final) | "Judas" — Lady Gaga | Raja vs Yvie Oddly | Raja | Yvie Oddly | Raja = Queen of Herses |
-| 12 (Finale — Queen of All Queens R1) | "So What" — Pink | Shea Couleé vs Trinity the Tuck | Shea Couleé | Trinity the Tuck | LaLaPaRuZa R1 |
-| 12 (Finale — Queen of All Queens R1) | "Sisters Are Doin' It for Themselves" — Eurythmics & Aretha Franklin | Jinkx Monsoon vs Monét X Change | Jinkx Monsoon | — (advances) | LaLaPaRuZa R1 |
-| 12 (Finale — Queen of All Queens Final) | "Swish Swish" — Katy Perry ft. Nicki Minaj | Jinkx Monsoon vs Monét X Change | Jinkx Monsoon | Shea Couleé; Monét X Change (runner-up) | Jinkx crowned Queen of All Queens |
+| 12 (Finale — Herses Smackdown Final) | "Sisters Are Doin' It for Themselves" — Eurythmics & Aretha Franklin | Raja vs Yvie Oddly | Raja | Yvie Oddly | Raja = Queen of Herses |
+| 12 (Finale — Queen of All Queens R1) | "Judas" — Lady Gaga | Jinkx Monsoon vs Shea Couleé | Jinkx Monsoon | Shea Couleé | LaLaPaRuZa R1 |
+| 12 (Finale — Queen of All Queens R1) | "So What" — Pink | Monét X Change vs Trinity the Tuck | Monét X Change | Trinity the Tuck | LaLaPaRuZa R1 |
+| 12 (Finale — Queen of All Queens Final) | "Swish Swish" — Katy Perry ft. Nicki Minaj | Jinkx Monsoon vs Monét X Change | Jinkx Monsoon | Monét X Change (runner-up) | Jinkx crowned Queen of All Queens |
 
 Sources: Wikipedia, "RuPaul's Drag Race All Stars season 7" (episode summaries and Lip syncs table); episode citations from Paramount+ / WOW Presents Plus.
