@@ -41,7 +41,7 @@ export type LipSyncSide = {
 
 export type VerificationReceipt = {
   url: string;
-  revision: number;
+  revision?: number;
   sha256: string;
   fetchedAt: string;
   quote: string;
