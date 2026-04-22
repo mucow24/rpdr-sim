@@ -5482,7 +5482,7 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
     "episode": 14,
     "sequence": 2,
     "type": "regular",
-    "outcome": "tie_with_elim",
+    "outcome": "double_shantay",
     "song": {
       "title": "If",
       "artist": "Janet Jackson",
@@ -5512,14 +5512,8 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
         ]
       }
     ],
-    "eliminated": [
-      {
-        "queens": [
-          "eureka"
-        ]
-      }
-    ],
-    "notes": "tight finalist matchup",
+    "eliminated": [],
+    "notes": "both advance to 3-way final",
     "verified": true,
     "flags": [
       "corrected_from_wiki"
@@ -6026,7 +6020,7 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
     "episode": 9,
     "sequence": 1,
     "type": "regular",
-    "outcome": "double_shantay",
+    "outcome": "single_winner",
     "song": {
       "title": "Hood Boy",
       "artist": "Fantasia",
@@ -6044,7 +6038,13 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
         ]
       }
     ],
-    "winners": [],
+    "winners": [
+      {
+        "queens": [
+          "vanjie"
+        ]
+      }
+    ],
     "eliminated": [
       {
         "queens": [
@@ -6055,7 +6055,6 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
     "notes": "Plastique goes home",
     "verified": true,
     "flags": [
-      "ambiguous_winner",
       "corrected_from_wiki"
     ],
     "verification": {
@@ -6072,7 +6071,7 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
     "episode": 10,
     "sequence": 1,
     "type": "regular",
-    "outcome": "double_shantay",
+    "outcome": "single_winner",
     "song": {
       "title": "No More Drama",
       "artist": "Mary J. Blige",
@@ -6090,7 +6089,13 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
         ]
       }
     ],
-    "winners": [],
+    "winners": [
+      {
+        "queens": [
+          "vanjie"
+        ]
+      }
+    ],
     "eliminated": [
       {
         "queens": [
@@ -6101,7 +6106,6 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
     "notes": "Shuga's emotional exit",
     "verified": true,
     "flags": [
-      "ambiguous_winner",
       "corrected_from_wiki"
     ],
     "verification": {
@@ -7814,53 +7818,6 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
       "sha256": "9174c97a260529e897ae98488984dd3270734d177aefcf6e685a5327c03c84e1",
       "fetchedAt": "2026-04-21T22:37:33.928Z",
       "quote": "Ep 13: Kandy Muse vs. Olivia Lux — \"Strong Enough\" (Cher)"
-    }
-  },
-  {
-    "id": "s13-e14-1",
-    "seasonId": "s13",
-    "episode": 14,
-    "sequence": 1,
-    "type": "regular",
-    "outcome": "double_shantay",
-    "song": {
-      "title": "I Learned from the Best (HQ2 Radio Mix)",
-      "artist": "Whitney Houston",
-      "raw": "\"I Learned from the Best (HQ2 Radio Mix)\" — Whitney Houston"
-    },
-    "sides": [
-      {
-        "queens": [
-          "gottmik"
-        ]
-      },
-      {
-        "queens": [
-          "kandy_muse"
-        ]
-      },
-      {
-        "queens": [
-          "rose"
-        ]
-      },
-      {
-        "queens": [
-          "symone"
-        ]
-      }
-    ],
-    "winners": [],
-    "eliminated": [],
-    "notes": "Top 4 showcase, no elim",
-    "verified": true,
-    "flags": [],
-    "verification": {
-      "url": "https://en.wikipedia.org/wiki/RuPaul%27s_Drag_Race_season_13",
-      "revision": 1332501873,
-      "sha256": "9174c97a260529e897ae98488984dd3270734d177aefcf6e685a5327c03c84e1",
-      "fetchedAt": "2026-04-21T22:37:33.928Z",
-      "quote": "Ep 14: Gottmik vs. Kandy Muse vs. Rosé vs. Symone — \"I Learned from the Best (HQ2 Radio Mix)\" (Whitney Houston)"
     }
   },
   {
