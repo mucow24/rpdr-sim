@@ -113,6 +113,9 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
           .attr('font-weight', 'bold')
           .attr('font-family', 'monospace')
           .style('cursor', 'pointer')
+          .style('text-decoration', (id) =>
+            id === selectedQueenId ? 'underline' : null,
+          )
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
 
@@ -147,24 +150,33 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
       .style('pointer-events', 'none')
       .style('z-index', '100');
 
+    // Muted palette for deselected rows (40% saturation, 70% lightness) so
+    // the selected queen's gold/silver/bronze stays vivid while season-level
+    // shape stays readable.
+    const desaturate = (hex: string) => {
+      const c = d3.hsl(hex);
+      c.s *= 0.4;
+      c.l *= 0.7;
+      return c.formatHex();
+    };
+
     // Stacked bars — segments + cumBefore precomputed in placementDistData.
     for (const row of rows) {
       const { queen, segments, winProb } = row;
-      const isFaded =
+      const isDeselected =
         selectedQueenId !== null && selectedQueenId !== queen.id;
 
       for (const seg of segments) {
         if (seg.prob < 0.001) continue;
         const barWidth = x(seg.prob) - x(0);
+        const baseFill = PLACEMENT_COLORS[seg.place] ?? '#333';
 
         g.append('rect')
           .attr('x', x(seg.cumBefore))
           .attr('y', y(queen.id) ?? 0)
           .attr('width', barWidth)
           .attr('height', y.bandwidth())
-          .attr('fill', PLACEMENT_COLORS[seg.place] ?? '#333')
-          .attr('opacity', isFaded ? 0.25 : 1)
-          .attr('rx', seg.place === 1 ? 2 : 0)
+          .attr('fill', isDeselected ? desaturate(baseFill) : baseFill)
           .style('cursor', 'pointer')
           .on('mouseenter', (event) => {
             const suffix =
