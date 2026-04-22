@@ -4,7 +4,7 @@
 // canonical data is clean, but for now it surfaces all existing bugs.
 
 import { test } from 'vitest';
-import { LIP_SYNCS_CANONICAL, type LipSync } from './lipSyncsCanonical';
+import { LIP_SYNCS_CANONICAL } from './lipSyncsCanonical';
 
 type Violation = { rowId: string; rule: string; detail: string };
 
