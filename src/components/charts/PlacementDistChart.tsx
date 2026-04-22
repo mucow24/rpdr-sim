@@ -113,6 +113,9 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
           .attr('font-weight', 'bold')
           .attr('font-family', 'monospace')
           .style('cursor', 'pointer')
+          .style('text-decoration', (id) =>
+            id === selectedQueenId ? 'underline' : null,
+          )
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
 
