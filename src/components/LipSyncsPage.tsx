@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import {
-  LIP_SYNC_NODES,
-  LIP_SYNC_EDGES,
-  LIP_SYNC_NODES_MERGED,
-  LIP_SYNC_EDGES_MERGED,
+  buildLipSyncGraph,
   seasonLabel,
   type LipSyncNode,
   type LipSyncEdge,
-} from '../data/lipSyncs';
+} from './lipSyncsGraph';
 
-type SimNode = LipSyncNode & { seasons?: string[]; score?: number } & d3.SimulationNodeDatum;
+type SimNode = LipSyncNode & { score?: number } & d3.SimulationNodeDatum;
 type SimLink = LipSyncEdge & d3.SimulationLinkDatum<SimNode> & {
   source: SimNode | string;
   target: SimNode | string;
@@ -58,13 +55,11 @@ export default function LipSyncsPage() {
   //
   // We pre-seed x/y via phyllotaxis at 2x d3-force's default radius so the
   // initial layout explodes less violently before settling.
-  const allNodes = useMemo<SimNode[]>(() => {
-    const raw: (LipSyncNode & { seasons?: string[] })[] = merge
-      ? LIP_SYNC_NODES_MERGED.map((n) => ({ id: n.id, name: n.name, seasonId: n.seasonId, seasons: n.seasons }))
-      : LIP_SYNC_NODES.map((n) => ({ ...n }));
+  const { allNodes, allEdges } = useMemo<{ allNodes: SimNode[]; allEdges: LipSyncEdge[] }>(() => {
+    const { nodes, edges } = buildLipSyncGraph(merge);
     const initialRadius = 20; // d3-force default is 10 → 2x diameter
     const initialAngle = Math.PI * (3 - Math.sqrt(5));
-    return raw.map((n, i) => {
+    const simNodes: SimNode[] = nodes.map((n, i) => {
       const radius = initialRadius * Math.sqrt(0.5 + i);
       const angle = i * initialAngle;
       return {
@@ -73,25 +68,11 @@ export default function LipSyncsPage() {
         y: height / 2 + radius * Math.sin(angle),
       };
     });
-  }, [merge]);
-
-  // In merged view, matches carry seasonId so we can filter per-season; in
-  // unmerged view an edge is entirely within one season and the endpoint
-  // visibility alone handles it.
-  type AnyMatch = { episode: string; song: string; outcome: 'a' | 'b' | 'tie'; seasonId?: string };
-  type AnyEdge = Omit<LipSyncEdge, 'matches'> & { matches: AnyMatch[] };
-
-  const allEdges = useMemo<AnyEdge[]>(() => {
-    return merge
-      ? (LIP_SYNC_EDGES_MERGED as AnyEdge[])
-      : (LIP_SYNC_EDGES as AnyEdge[]);
+    return { allNodes: simNodes, allEdges: edges };
   }, [merge]);
 
   const { nodes, links } = useMemo(() => {
-    const isNodeVisible = (n: SimNode) => {
-      const seasons = n.seasons && n.seasons.length > 0 ? n.seasons : [n.seasonId];
-      return seasons.some((s) => !disabledSeasons.has(s));
-    };
+    const isNodeVisible = (n: SimNode) => n.seasons.some((s) => !disabledSeasons.has(s));
     const visibleNodes = allNodes.filter(isNodeVisible);
     const idSet = new Set(visibleNodes.map((n) => n.id));
     const links: SimLink[] = allEdges
@@ -101,7 +82,7 @@ export default function LipSyncsPage() {
         // whose season is disabled and recompute the win/tie counts so an
         // edge only reflects its currently-enabled lip syncs.
         if (merge) {
-          const matches = e.matches.filter((m) => !m.seasonId || !disabledSeasons.has(m.seasonId));
+          const matches = e.matches.filter((m) => !disabledSeasons.has(m.seasonId));
           if (matches.length === 0) return null;
           let aWins = 0, bWins = 0, ties = 0;
           for (const m of matches) {
@@ -550,9 +531,7 @@ export default function LipSyncsPage() {
             {hovered && hovered.x != null && hovered.y != null && (
               <g transform={`translate(${hovered.x},${hovered.y}) scale(${1 / view.k})`} pointerEvents="none">
                 {(() => {
-                  const label = hovered.seasons && hovered.seasons.length > 0
-                    ? hovered.seasons.map(seasonLabel).join(', ')
-                    : seasonLabel(hovered.seasonId);
+                  const label = hovered.seasons.map(seasonLabel).join(', ');
                   const text = `${hovered.name} · ${label}`;
                   return (
                     <>
