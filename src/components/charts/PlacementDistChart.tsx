@@ -177,7 +177,6 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
           .attr('width', barWidth)
           .attr('height', y.bandwidth())
           .attr('fill', isDeselected ? desaturate(baseFill) : baseFill)
-          .attr('rx', seg.place === 1 ? 2 : 0)
           .style('cursor', 'pointer')
           .on('mouseenter', (event) => {
             const suffix =
