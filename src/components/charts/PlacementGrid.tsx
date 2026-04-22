@@ -246,6 +246,21 @@ export default function PlacementGrid({ onSwitch }: Props = {}) {
           .attr('r', Math.min(cellW, rowH) * 0.15)
           .attr('fill', '#fff')
           .style('pointer-events', 'none');
+
+        // 1.5px border in the queen's color around the selected row. Inset by
+        // half the stroke so it sits inside the row.
+        const strokeW = 1.5;
+        g.append('rect')
+          .attr('x', strokeW / 2)
+          .attr('y', rowY + strokeW / 2)
+          .attr('width', innerWidth - strokeW)
+          .attr('height', rowH - strokeW)
+          .attr('rx', 2)
+          .attr('fill', 'none')
+          .attr('stroke', queen.color)
+          .attr('stroke-width', strokeW)
+          .attr('stroke-opacity', 0.9)
+          .style('pointer-events', 'none');
       }
 
       // Per-cell invisible hit rects for tooltip/click
