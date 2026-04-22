@@ -2085,56 +2085,6 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
     }
   },
   {
-    "id": "s04-e13-1",
-    "seasonId": "s04",
-    "episode": 13,
-    "sequence": 1,
-    "type": "regular",
-    "outcome": "multi_advance",
-    "song": {
-      "title": "Glamazon",
-      "artist": "RuPaul",
-      "raw": "\"Glamazon\" — RuPaul"
-    },
-    "sides": [
-      {
-        "queens": [
-          "sharon"
-        ]
-      },
-      {
-        "queens": [
-          "chad"
-        ]
-      },
-      {
-        "queens": [
-          "phiphi"
-        ]
-      }
-    ],
-    "winners": [
-      {
-        "queens": [
-          "sharon"
-        ]
-      }
-    ],
-    "eliminated": [],
-    "notes": "first 3-way finale lip sync; not crowned on stage but Sharon announced as S4 winner [Wiki: lip sync shown under Ep 13, not Ep 12]",
-    "verified": true,
-    "flags": [
-      "corrected_from_wiki"
-    ],
-    "verification": {
-      "url": "https://en.wikipedia.org/wiki/RuPaul%27s_Drag_Race_season_4",
-      "revision": 1338507859,
-      "sha256": "c043d5fccb6a95371a33334e78b0256ab2866c53747bd9ee37db6ad7731415d3",
-      "fetchedAt": "2026-04-21T22:37:29.051Z",
-      "quote": "Ep 13: Chad Michaels vs. Phi Phi O'Hara vs. Sharon Needles — \"Glamazon\" (RuPaul)"
-    }
-  },
-  {
     "id": "s05-e01-1",
     "seasonId": "s05",
     "episode": 1,
@@ -2673,56 +2623,6 @@ export const LIP_SYNCS_CANONICAL: LipSync[] = [
       "sha256": "d9448efb3cb53e315df236d047a9b6eab3692c793180bc4f3c348593258ac317",
       "fetchedAt": "2026-04-21T22:37:29.571Z",
       "quote": "Ep 11: Detox vs. Jinkx Monsoon — \"Malambo No. 1\" (Yma Sumac)"
-    }
-  },
-  {
-    "id": "s05-e12-1",
-    "seasonId": "s05",
-    "episode": 12,
-    "sequence": 1,
-    "type": "regular",
-    "outcome": "multi_advance",
-    "song": {
-      "title": "The Beginning",
-      "artist": "RuPaul",
-      "raw": "\"The Beginning\" — RuPaul"
-    },
-    "sides": [
-      {
-        "queens": [
-          "jinkx"
-        ]
-      },
-      {
-        "queens": [
-          "alaska"
-        ]
-      },
-      {
-        "queens": [
-          "roxxxy"
-        ]
-      }
-    ],
-    "winners": [
-      {
-        "queens": [
-          "jinkx"
-        ]
-      }
-    ],
-    "eliminated": [],
-    "notes": "3-way pre-crowning finale; Jinkx crowned S5 winner [Wiki: lip sync shown under Ep 12, not Ep 13]",
-    "verified": true,
-    "flags": [
-      "corrected_from_wiki"
-    ],
-    "verification": {
-      "url": "https://en.wikipedia.org/wiki/RuPaul%27s_Drag_Race_season_5",
-      "revision": 1340926879,
-      "sha256": "d9448efb3cb53e315df236d047a9b6eab3692c793180bc4f3c348593258ac317",
-      "fetchedAt": "2026-04-21T22:37:29.571Z",
-      "quote": "Ep 12: Alaska vs. Jinkx Monsoon vs. Roxxxy Andrews — \"The Beginning\" (RuPaul)"
     }
   },
   {
