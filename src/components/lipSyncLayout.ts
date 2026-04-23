@@ -99,21 +99,27 @@ export function computeLipSyncLayout(
     return lvl;
   };
 
-  // level(v) = longestPathToSink(v). Sinks (queens who never lost in the
-  // forward DAG) at L0; each forward edge loser→winner means loser sits one
-  // level deeper than her winner. Widow (lost only to Jan) lands naturally at
-  // Jan.level+1; Hormona on a long S17 chain stacks up near maxLevel.
-  let maxLevel = 0;
+  // d(v) = longestPathToSink(v) in the forward DAG. Then invert so sinks
+  // (season winners who never lost a lip-sync) sit at maxLevel and pure
+  // losers on the longest chain sit at 0. Short-chain singletons (a source
+  // whose only winner is a sink) land tight against that winner at
+  // maxLevel-1, instead of being yanked up to the top.
+  let maxDepth = 0;
   for (const n of nodes) {
     const lvl = computeLevel(n.id);
-    if (lvl > maxLevel) maxLevel = lvl;
+    if (lvl > maxDepth) maxDepth = lvl;
+  }
+  const maxLevel = maxDepth;
+  for (const n of nodes) {
+    levels.set(n.id, maxLevel - (levels.get(n.id) ?? 0));
   }
 
   // Flow computation: at each queen, F = sum of incoming flow from her wins;
-  // she then pushes F+1 through each of her losses. Iterate by descending
-  // level = descending d — d(loser) > d(winner) in the forward DAG, so we
-  // always process predecessors (losers; senders of flow) before successors
-  // (winners; receivers). Backward edges stay at flow 0.
+  // she then pushes F+1 through each of her losses. After the level flip,
+  // losers have SMALLER level than their winners (since d(loser) > d(winner)
+  // and level = maxLevel - d), so we iterate ascending level to process
+  // predecessors (losers; senders of flow) before successors (winners;
+  // receivers). Backward edges stay at flow 0.
   const outForward = new Map<string, DirectedEdge[]>();
   for (const n of nodes) outForward.set(n.id, []);
   for (const d of directed) {
@@ -121,10 +127,10 @@ export function computeLipSyncLayout(
   }
   const incomingFlow = new Map<string, number>();
   for (const n of nodes) incomingFlow.set(n.id, 0);
-  const byDescendingLevel = [...nodes].sort(
-    (a, b) => (levels.get(b.id) ?? 0) - (levels.get(a.id) ?? 0),
+  const byAscendingLevel = [...nodes].sort(
+    (a, b) => (levels.get(a.id) ?? 0) - (levels.get(b.id) ?? 0),
   );
-  for (const n of byDescendingLevel) {
+  for (const n of byAscendingLevel) {
     const F = incomingFlow.get(n.id) ?? 0;
     for (const d of outForward.get(n.id) ?? []) {
       const out = F + 1;
