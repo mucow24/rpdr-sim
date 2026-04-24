@@ -108,6 +108,100 @@ export function computeLipSyncLayout(
     if (lvl > maxLevel) maxLevel = lvl;
   }
 
+  // Post-processing: close "air" under dangling clusters. A cluster like the
+  // S12 sinks (Crystal→Jackie→Widow→Gigi) dead-ends at L3 while the graph's
+  // longest chain reaches L15 — visually they float at the top. For each
+  // current-L0 queen Q, walk down through forward-predecessors (queens who
+  // lost to Q) at exactly level+1. If the contiguous chain can't reach
+  // maxLevel, slide the whole cluster down until it does, or until no
+  // external predecessor connects. Iterate to fixed point.
+  //
+  // "child walking down" = queen who lost to `queen`, since forward edges are
+  // loser→winner so the loser sits at higher L than the winner.
+  const forwardPredecessors = new Map<string, string[]>();
+  for (const n of nodes) forwardPredecessors.set(n.id, []);
+  for (const d of directed) {
+    if (d.isBackward) continue;
+    forwardPredecessors.get(d.to)!.push(d.from);
+  }
+
+  const maxOuterIter = nodes.length * 2;
+  let outerIter = 0;
+  while (outerIter < maxOuterIter) {
+    outerIter += 1;
+    const seeds = nodes.filter((n) => (levels.get(n.id) ?? 0) === 0);
+    if (seeds.length === 0) break;
+    let anyMoved = false;
+    for (const seed of seeds) {
+      const maxInner = nodes.length * 2;
+      let innerIter = 0;
+      while (innerIter < maxInner) {
+        innerIter += 1;
+        // Fresh memoization per inner iteration — levels change between
+        // iterations, so cached check results go stale.
+        const memo = new Map<string, number>();
+        const cluster = new Set<string>();
+        const check = (qid: string): number => {
+          const cached = memo.get(qid);
+          if (cached !== undefined) return cached;
+          cluster.add(qid);
+          const qlvl = levels.get(qid) ?? 0;
+          if (qlvl === maxLevel) {
+            memo.set(qid, maxLevel);
+            return maxLevel;
+          }
+          let maxReach = qlvl;
+          for (const child of forwardPredecessors.get(qid) ?? []) {
+            if ((levels.get(child) ?? 0) === qlvl + 1) {
+              const r = check(child);
+              if (r > maxReach) maxReach = r;
+            }
+          }
+          memo.set(qid, maxReach);
+          return maxReach;
+        };
+        const reached = check(seed.id);
+        if (reached === maxLevel) break;
+        // Slide-by-gap: find smallest (P.level − c.level − 1) over cluster
+        // members c and their external forward-predecessors P. Slide by that
+        // gap so the (c, P) pair becomes contiguous next iteration.
+        let slide = Infinity;
+        for (const cid of cluster) {
+          const clvl = levels.get(cid) ?? 0;
+          for (const pid of forwardPredecessors.get(cid) ?? []) {
+            if (cluster.has(pid)) continue;
+            const plvl = levels.get(pid) ?? 0;
+            if (plvl <= clvl) continue;
+            const gap = plvl - clvl - 1;
+            if (gap < slide) slide = gap;
+          }
+        }
+        if (slide === Infinity) {
+          // No external forward-predecessor exists — the cluster is a
+          // disconnected subgraph (e.g. S18 queens with only intra-S18
+          // matchups, or a true singleton who never lip-synced against anyone
+          // still on the board). Push it to the bottom so its deepest member
+          // lands at maxLevel, rather than leaving it floating at the top.
+          slide = maxLevel - reached;
+        }
+        if (slide <= 0) break;
+        for (const cid of cluster) {
+          levels.set(cid, (levels.get(cid) ?? 0) + slide);
+        }
+        anyMoved = true;
+      }
+    }
+    if (!anyMoved) break;
+  }
+
+  // Recompute maxLevel after slides (defensive — slides are bounded by
+  // existing P.level − 1, so this shouldn't grow, but guard anyway).
+  maxLevel = 0;
+  for (const n of nodes) {
+    const lvl = levels.get(n.id) ?? 0;
+    if (lvl > maxLevel) maxLevel = lvl;
+  }
+
   // Flow computation: at each queen, F = sum of incoming flow from her wins;
   // she then pushes F+1 through each of her losses. Iterate by descending
   // level = descending d — d(loser) > d(winner) in the forward DAG, so we
