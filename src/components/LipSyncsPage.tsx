@@ -158,6 +158,75 @@ export default function LipSyncsPage() {
     return { simNodes, simLinks, maxLevel, feedbackCount };
   }, [disabledSeasons, showCycleEdges]);
 
+  // Dev-only live introspection hook. `window.__lipSync` exposes the current
+  // layout (nodes with level, directed edges with flow/isBackward, maxLevel)
+  // plus convenience queries so the preview server can be interrogated like
+  // a live database — e.g. `__lipSync.find('Jan')`, `__lipSync.chain('widow')`.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const nodeList = simNodes.map((n) => ({
+      id: n.id,
+      name: n.name,
+      level: n.level,
+      seasons: n.seasons,
+    }));
+    const byId = new Map(nodeList.map((n) => [n.id, n]));
+    const edgeList = simLinks.map((l) => {
+      const s = typeof l.source === 'string' ? l.source : l.source.id;
+      const t = typeof l.target === 'string' ? l.target : l.target.id;
+      return {
+        from: s, // loser
+        to: t, // winner
+        isBackward: l.original.isBackward,
+        flow: l.original.flow,
+      };
+    });
+    const nameIndex = new Map<string, typeof nodeList>();
+    for (const n of nodeList) {
+      const k = n.name.toLowerCase();
+      if (!nameIndex.has(k)) nameIndex.set(k, []);
+      nameIndex.get(k)!.push(n);
+    }
+    const find = (q: string) => {
+      const k = q.toLowerCase();
+      const exact = nameIndex.get(k);
+      if (exact) return exact;
+      return nodeList.filter((n) => n.name.toLowerCase().includes(k) || n.id.toLowerCase().includes(k));
+    };
+    const losses = (id: string) => edgeList.filter((e) => e.from === id); // queens id lost to (outgoing)
+    const wins = (id: string) => edgeList.filter((e) => e.to === id); // queens id beat (incoming)
+    const chainDown = (id: string): Array<{ id: string; level: number; name: string }> => {
+      // Walk from id along forward edges to a sink, taking the deepest winner at each step.
+      const path: string[] = [id];
+      const seen = new Set([id]);
+      let cur = id;
+      while (true) {
+        const out = losses(cur).filter((e) => !e.isBackward && !seen.has(e.to));
+        if (out.length === 0) break;
+        out.sort((a, b) => (byId.get(a.to)?.level ?? 0) - (byId.get(b.to)?.level ?? 0));
+        cur = out[0].to;
+        seen.add(cur);
+        path.push(cur);
+      }
+      return path.map((p) => {
+        const n = byId.get(p)!;
+        return { id: n.id, level: n.level, name: n.name };
+      });
+    };
+    // @ts-expect-error — dev debug hatch
+    window.__lipSync = {
+      nodes: nodeList,
+      edges: edgeList,
+      maxLevel,
+      feedbackCount,
+      find,
+      losses,
+      wins,
+      chain: chainDown,
+      byLevel: (lvl: number) => nodeList.filter((n) => n.level === lvl),
+    };
+  }, [simNodes, simLinks, maxLevel, feedbackCount]);
+
   // World Y of each tier plane. Tier 0 is at the TOP, so larger level → smaller Y.
   const tierWorldY = (level: number) => (maxLevel - level) * ROW_HEIGHT;
 
