@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as d3 from 'd3';
 import { buildLipSyncGraph, seasonLabel, type LipSyncNode } from './lipSyncsGraph';
-import { computeLipSyncLayout, type DirectedEdge } from './lipSyncLayout';
+import { computeLipSyncLayout, computeFlow, type DirectedEdge } from './lipSyncLayout';
 
 type SimNode = LipSyncNode & { level: number } & d3.SimulationNodeDatum;
 type SimLink = d3.SimulationLinkDatum<SimNode> & {
@@ -78,34 +78,15 @@ export default function LipSyncsPage() {
   const [hovered, setHovered] = useState<SimNode | null>(null);
   const [disabledSeasons, setDisabledSeasons] = useState<Set<string>>(() => new Set());
 
-  const [linkStrength, setLinkStrength] = useState(0.4);
-  const [linkDistance, setLinkDistance] = useState(30);
-  const [repulsion, setRepulsion] = useState(230);
-  const [repulsionMax, setRepulsionMax] = useState(2200);
-  const [collideRadius, setCollideRadius] = useState(5);
-  const [velocityDecay, setVelocityDecay] = useState(0.3);
   const [showCycleEdges, setShowCycleEdges] = useState(false);
+  const [contiguousOnly, setContiguousOnly] = useState(true);
+  const [nameFilter, setNameFilter] = useState('');
 
   const [thickMin, setThickMin] = useState(1);
   const [thickMax, setThickMax] = useState(8);
   const [lowCutoff, setLowCutoff] = useState(0);
   const [highCutoff, setHighCutoff] = useState(1);
   const [thickExp, setThickExp] = useState(0.5);
-
-  const linkStrengthRef = useRef(linkStrength);
-  const linkDistanceRef = useRef(linkDistance);
-  const repulsionRef = useRef(repulsion);
-  const repulsionMaxRef = useRef(repulsionMax);
-  const collideRadiusRef = useRef(collideRadius);
-  const velocityDecayRef = useRef(velocityDecay);
-  useEffect(() => {
-    linkStrengthRef.current = linkStrength;
-    linkDistanceRef.current = linkDistance;
-    repulsionRef.current = repulsion;
-    repulsionMaxRef.current = repulsionMax;
-    collideRadiusRef.current = collideRadius;
-    velocityDecayRef.current = velocityDecay;
-  }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay]);
 
   const { simNodes, simLinks, maxLevel, feedbackCount } = useMemo(() => {
     const { nodes: allNodes, edges: allEdges } = buildLipSyncGraph(true);
@@ -128,6 +109,18 @@ export default function LipSyncsPage() {
       .filter((e): e is NonNullable<typeof e> => e !== null);
 
     const { levels, maxLevel, directed, feedbackCount, initialX } = computeLipSyncLayout(nodes, edges);
+
+    // Recompute flow over the currently-visible edge set so thickness
+    // reflects what's rendered. When `contiguousOnly` is on, non-contiguous
+    // edges are excluded from the flow pass (they'll stay at flow 0) and
+    // flow through the remaining edges re-adds up accordingly.
+    computeFlow(nodes, levels, directed, (d) => {
+      if (d.isBackward) return false;
+      if (!contiguousOnly) return true;
+      const la = levels.get(d.from) ?? 0;
+      const lb = levels.get(d.to) ?? 0;
+      return Math.abs(la - lb) === 1;
+    });
 
     // Map barycenter initialX (in [LAYOUT_MARGIN, LAYOUT_WIDTH-MARGIN],
     // LAYOUT_WIDTH=1600) into our centered [-PLANE_HALF, PLANE_HALF] X range.
@@ -152,11 +145,12 @@ export default function LipSyncsPage() {
         const s = byId.get(d.from);
         const t = byId.get(d.to);
         if (!s || !t) return null;
+        if (contiguousOnly && Math.abs(s.level - t.level) !== 1) return null;
         return { source: s, target: t, original: d } as SimLink;
       })
       .filter((l): l is SimLink => l !== null);
     return { simNodes, simLinks, maxLevel, feedbackCount };
-  }, [disabledSeasons, showCycleEdges]);
+  }, [disabledSeasons, showCycleEdges, contiguousOnly]);
 
   // Dev-only live introspection hook. `window.__lipSync` exposes the current
   // layout (nodes with level, directed edges with flow/isBackward, maxLevel)
@@ -259,19 +253,15 @@ export default function LipSyncsPage() {
         d3
           .forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .strength((l) =>
-            (l as SimLink).original.isBackward ? 0 : linkStrengthRef.current,
-          )
-          .distance(linkDistanceRef.current),
+          .strength((l) => ((l as SimLink).original.isBackward ? 0 : 0.4))
+          .distance(30),
       )
       .force(
         'charge',
-        d3.forceManyBody<SimNode>()
-          .strength(-repulsionRef.current)
-          .distanceMax(repulsionMaxRef.current),
+        d3.forceManyBody<SimNode>().strength(-230).distanceMax(2200),
       )
-      .force('collide', d3.forceCollide<SimNode>(collideRadiusRef.current))
-      .velocityDecay(velocityDecayRef.current)
+      .force('collide', d3.forceCollide<SimNode>(5))
+      .velocityDecay(0.3)
       .alpha(1)
       .alphaDecay(0.02)
       .alphaMin(0.001)
@@ -281,21 +271,6 @@ export default function LipSyncsPage() {
     simRef.current = sim;
     return () => { sim.stop(); };
   }, [simNodes, simLinks]);
-
-  useEffect(() => {
-    const sim = simRef.current;
-    if (!sim) return;
-    const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
-    const charge = sim.force('charge') as d3.ForceManyBody<SimNode> | null;
-    const collide = sim.force('collide') as d3.ForceCollide<SimNode> | null;
-    link
-      ?.strength((l) => ((l as SimLink).original.isBackward ? 0 : linkStrength))
-      .distance(linkDistance);
-    charge?.strength(-repulsion).distanceMax(repulsionMax);
-    collide?.radius(collideRadius);
-    sim.velocityDecay(velocityDecay);
-    sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
-  }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay]);
 
   // Pointer handling. Middle-drag = orbit, right-drag = pan, wheel = zoom.
   const dragRef = useRef<{
@@ -469,6 +444,8 @@ export default function LipSyncsPage() {
       width: number;
       depth: number;
       gradientId?: string;
+      sId: string;
+      tId: string;
     }[] = [];
     for (let i = 0; i < simLinks.length; i += 1) {
       const l = simLinks[i];
@@ -486,6 +463,8 @@ export default function LipSyncsPage() {
         width: flowWidth(l.original.flow),
         depth: (sp.depth + tp.depth) * 0.5,
         gradientId: l.original.isBackward ? undefined : `ls3-edge-${i}`,
+        sId: sNode.id,
+        tId: tNode.id,
       });
     }
     items.sort((a, b) => b.depth - a.depth);
@@ -504,6 +483,18 @@ export default function LipSyncsPage() {
     return items;
   }, [simNodes, nodeProj]);
 
+  // Queen-name filter: a node matches if the trimmed filter string is a
+  // case-insensitive substring of her name. Empty filter = everyone matches.
+  const matchedIds = useMemo(() => {
+    const q = nameFilter.trim().toLowerCase();
+    if (!q) return null; // null = filter inactive, everyone full-opacity
+    const set = new Set<string>();
+    for (const n of simNodes) {
+      if (n.name.toLowerCase().includes(q)) set.add(n.id);
+    }
+    return set;
+  }, [nameFilter, simNodes]);
+
   const hoveredProj = hovered ? nodeProj.get(hovered.id) ?? null : null;
 
   return (
@@ -512,39 +503,13 @@ export default function LipSyncsPage() {
         {simNodes.length} queens · {simLinks.length} matchups · {maxLevel + 1} tiers · {feedbackCount} feedback edges · middle-drag orbit · right-drag pan · scroll zoom
       </div>
       <div className="mb-3 flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
-        <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Link str</span>
-          <input type="range" min={0} max={2} step={0.01} value={linkStrength} onChange={(e) => setLinkStrength(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
-          <span className="text-[#666] font-mono text-xs w-12">{linkStrength.toFixed(2)}</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Link dist</span>
-          <input type="range" min={1} max={200} step={1} value={linkDistance} onChange={(e) => setLinkDistance(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
-          <span className="text-[#666] font-mono text-xs w-12">{linkDistance.toFixed(0)}</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Repulsion</span>
-          <input type="range" min={0} max={2000} step={1} value={repulsion} onChange={(e) => setRepulsion(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
-          <span className="text-[#666] font-mono text-xs w-12">{repulsion.toFixed(0)}</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Repel max</span>
-          <input type="range" min={0} max={5000} step={1} value={repulsionMax} onChange={(e) => setRepulsionMax(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
-          <span className="text-[#666] font-mono text-xs w-12">{repulsionMax.toFixed(0)}</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Collide r</span>
-          <input type="range" min={0} max={30} step={0.5} value={collideRadius} onChange={(e) => setCollideRadius(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
-          <span className="text-[#666] font-mono text-xs w-12">{collideRadius.toFixed(1)}</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Vel decay</span>
-          <input type="range" min={0} max={1} step={0.01} value={velocityDecay} onChange={(e) => setVelocityDecay(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
-          <span className="text-[#666] font-mono text-xs w-12">{velocityDecay.toFixed(2)}</span>
-        </label>
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" checked={showCycleEdges} onChange={(e) => setShowCycleEdges(e.target.checked)} className="accent-amber-500" />
           <span className="text-[#aaa]">Show cycle edges</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={contiguousOnly} onChange={(e) => setContiguousOnly(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Contiguous only</span>
         </label>
       </div>
       <div className="mb-3 flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
@@ -605,6 +570,31 @@ export default function LipSyncsPage() {
         <button type="button" onClick={() => setDisabledSeasons(new Set())} className="ml-2 px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]">All</button>
         <button type="button" onClick={() => setDisabledSeasons(new Set(SEASON_ORDER))} className="px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]">None</button>
       </div>
+      <div className="mb-3 flex items-center gap-2 text-sm text-[#888]">
+        <span className="text-[#aaa] mr-1">Filter:</span>
+        <div className="relative">
+          <input
+            type="text"
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+            placeholder="queen name…"
+            className="bg-[#0a0a10] border border-[#2a2a3a] rounded px-2 py-0.5 pr-6 text-[#ccc] placeholder:text-[#555] focus:outline-none focus:border-amber-500 w-64"
+          />
+          {nameFilter && (
+            <button
+              type="button"
+              onClick={() => setNameFilter('')}
+              aria-label="Clear filter"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded text-[#888] hover:text-[#ccc] hover:bg-[#2a2a3a] text-xs leading-none"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {matchedIds && (
+          <span className="text-xs text-[#666] font-mono">{matchedIds.size} match{matchedIds.size === 1 ? '' : 'es'}</span>
+        )}
+      </div>
       <div className="bg-[#0a0a10] border border-[#1a1a24] rounded-lg overflow-hidden relative">
         <svg
           ref={svgRef}
@@ -659,34 +649,67 @@ export default function LipSyncsPage() {
               </text>
             );
           })}
-          {edgeRenders.map((e) => (
-            <line
-              key={e.key}
-              x1={e.s.sx}
-              y1={e.s.sy}
-              x2={e.t.sx}
-              y2={e.t.sy}
-              stroke={e.isBackward ? RED : `url(#${e.gradientId})`}
-              strokeOpacity={e.isBackward ? 0.85 : 0.7}
-              strokeWidth={e.isBackward ? Math.max(1.6, e.width) : e.width}
-            />
-          ))}
+          {edgeRenders.map((e) => {
+            const lit = !matchedIds || matchedIds.has(e.sId) || matchedIds.has(e.tId);
+            const baseOp = e.isBackward ? 0.85 : 0.7;
+            const op = lit ? baseOp : baseOp * 0.3;
+            return (
+              <line
+                key={e.key}
+                x1={e.s.sx}
+                y1={e.s.sy}
+                x2={e.t.sx}
+                y2={e.t.sy}
+                stroke={e.isBackward ? RED : `url(#${e.gradientId})`}
+                strokeOpacity={op}
+                strokeWidth={e.isBackward ? Math.max(1.6, e.width) : e.width}
+              />
+            );
+          })}
           {nodeRenders.map(({ n, p }) => {
             const color = seasonColor(n.seasonId);
             const isHover = hovered?.id === n.id;
-            const baseR = isHover ? 9 : 6;
+            const highlighted = matchedIds !== null && matchedIds.has(n.id);
+            const baseR = isHover ? 9 : highlighted ? 8 : 6;
             const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
+            const lit = !matchedIds || matchedIds.has(n.id);
+            const op = lit ? 1 : 0.4;
+            const strokeColor = isHover || highlighted ? '#fff' : '#0a0a10';
+            const strokeW = isHover || highlighted ? 1.5 : 1;
             return (
-              <g key={n.id} transform={`translate(${p.sx},${p.sy}) scale(2)`}>
+              <g key={n.id} transform={`translate(${p.sx},${p.sy}) scale(2)`} opacity={op}>
                 <circle
                   r={r}
                   fill={color}
-                  stroke={isHover ? '#fff' : '#0a0a10'}
-                  strokeWidth={isHover ? 1.5 : 1}
+                  stroke={strokeColor}
+                  strokeWidth={strokeW}
                   style={{ cursor: 'pointer' }}
                   onPointerEnter={() => setHovered(n)}
                   onPointerLeave={() => setHovered((h) => (h?.id === n.id ? null : h))}
                 />
+              </g>
+            );
+          })}
+          {/* Filter-match labels — drawn as a separate top layer so later
+              (closer) node circles don't overdraw earlier labels. */}
+          {matchedIds !== null && nodeRenders.map(({ n, p }) => {
+            if (!matchedIds.has(n.id)) return null;
+            const isHover = hovered?.id === n.id;
+            const baseR = isHover ? 9 : 8;
+            const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
+            return (
+              <g key={`lbl-${n.id}`} transform={`translate(${p.sx},${p.sy}) scale(2)`} pointerEvents="none">
+                <text
+                  x={r + 3}
+                  y={3}
+                  fontSize={10}
+                  fill="#fff"
+                  stroke="#0a0a10"
+                  strokeWidth={2}
+                  paintOrder="stroke"
+                >
+                  [L{n.level}] {n.name}
+                </text>
               </g>
             );
           })}

@@ -108,29 +108,45 @@ export function computeLipSyncLayout(
     if (lvl > maxLevel) maxLevel = lvl;
   }
 
-  // Post-processing: close "air" under dangling clusters. A cluster like the
-  // S12 sinks (Crystal→Jackie→Widow→Gigi) dead-ends at L3 while the graph's
-  // longest chain reaches L15 — visually they float at the top. For each
-  // current-L0 queen Q, walk down through forward-predecessors (queens who
-  // lost to Q) at exactly level+1. If the contiguous chain can't reach
-  // maxLevel, slide the whole cluster down until it does, or until no
-  // external predecessor connects. Iterate to fixed point.
+  // Post-processing: close "air" under floating clusters. For each queen Q,
+  // treat her as a potential cluster seed. The cluster is everything
+  // reachable from Q by contiguous ±1 steps — walking down through her
+  // forward-predecessors (queens who lost to Q) at level+1, AND walking up
+  // through her forward-successors (queens Q lost to) at level-1. Both
+  // directions are valid: a chain like L5→L4←L5→L4 is still contiguous.
   //
-  // "child walking down" = queen who lost to `queen`, since forward edges are
-  // loser→winner so the loser sits at higher L than the winner.
+  // If the cluster's deepest member isn't at maxLevel, slide the whole
+  // cluster DOWN until it hits maxLevel or an external anchor below. We
+  // only slide down — "losing to a legend doesn't make you legend-1", so
+  // we prefer the conservative ranking (closer to the queens the cluster
+  // beat) over the optimistic ranking (closer to the queens who beat the
+  // cluster). Iterate to fixed point.
+  //
+  // Seeds are processed in ascending current-level order so shallow clusters
+  // (which are more likely to be "floating") get resolved first. Every node
+  // is a potential seed, not just L0 queens — a queen mid-tree with air
+  // gaps on both sides is equally "floating" and should slide down too.
   const forwardPredecessors = new Map<string, string[]>();
-  for (const n of nodes) forwardPredecessors.set(n.id, []);
+  const forwardSuccessors = new Map<string, string[]>();
+  for (const n of nodes) {
+    forwardPredecessors.set(n.id, []);
+    forwardSuccessors.set(n.id, []);
+  }
   for (const d of directed) {
     if (d.isBackward) continue;
     forwardPredecessors.get(d.to)!.push(d.from);
+    forwardSuccessors.get(d.from)!.push(d.to);
   }
 
   const maxOuterIter = nodes.length * 2;
   let outerIter = 0;
   while (outerIter < maxOuterIter) {
     outerIter += 1;
-    const seeds = nodes.filter((n) => (levels.get(n.id) ?? 0) === 0);
-    if (seeds.length === 0) break;
+    // Seed list: every node, ordered by current level ascending. Recomputed
+    // each outer iter because levels shift between passes.
+    const seeds = [...nodes].sort(
+      (a, b) => (levels.get(a.id) ?? 0) - (levels.get(b.id) ?? 0),
+    );
     let anyMoved = false;
     for (const seed of seeds) {
       const maxInner = nodes.length * 2;
@@ -141,30 +157,30 @@ export function computeLipSyncLayout(
         // iterations, so cached check results go stale.
         const memo = new Map<string, number>();
         const cluster = new Set<string>();
-        const check = (qid: string): number => {
-          const cached = memo.get(qid);
-          if (cached !== undefined) return cached;
+        let deepest = levels.get(seed.id) ?? 0;
+        const visit = (qid: string): void => {
+          if (memo.has(qid)) return;
+          memo.set(qid, 1);
           cluster.add(qid);
           const qlvl = levels.get(qid) ?? 0;
-          if (qlvl === maxLevel) {
-            memo.set(qid, maxLevel);
-            return maxLevel;
-          }
-          let maxReach = qlvl;
+          if (qlvl > deepest) deepest = qlvl;
+          // Walk down: queens who lost to qid, at qlvl+1.
           for (const child of forwardPredecessors.get(qid) ?? []) {
-            if ((levels.get(child) ?? 0) === qlvl + 1) {
-              const r = check(child);
-              if (r > maxReach) maxReach = r;
-            }
+            if ((levels.get(child) ?? 0) === qlvl + 1) visit(child);
           }
-          memo.set(qid, maxReach);
-          return maxReach;
+          // Walk up: queens qid lost to, at qlvl-1.
+          for (const parent of forwardSuccessors.get(qid) ?? []) {
+            if ((levels.get(parent) ?? 0) === qlvl - 1) visit(parent);
+          }
         };
-        const reached = check(seed.id);
-        if (reached === maxLevel) break;
-        // Slide-by-gap: find smallest (P.level − c.level − 1) over cluster
-        // members c and their external forward-predecessors P. Slide by that
-        // gap so the (c, P) pair becomes contiguous next iteration.
+        visit(seed.id);
+        if (deepest === maxLevel) break;
+        // Slide-down-by-gap: smallest (P.level − c.level − 1) over cluster
+        // members c and their external forward-predecessors P with
+        // P.level > c.level. Slide down by that gap so (c, P) becomes
+        // contiguous next iteration. External successors above the cluster
+        // (P.level < c.level) are ignored — closing the top gap would
+        // require sliding up, which we don't do.
         let slide = Infinity;
         for (const cid of cluster) {
           const clvl = levels.get(cid) ?? 0;
@@ -177,12 +193,8 @@ export function computeLipSyncLayout(
           }
         }
         if (slide === Infinity) {
-          // No external forward-predecessor exists — the cluster is a
-          // disconnected subgraph (e.g. S18 queens with only intra-S18
-          // matchups, or a true singleton who never lip-synced against anyone
-          // still on the board). Push it to the bottom so its deepest member
-          // lands at maxLevel, rather than leaving it floating at the top.
-          slide = maxLevel - reached;
+          // No external anchor below — push cluster so deepest hits maxLevel.
+          slide = maxLevel - deepest;
         }
         if (slide <= 0) break;
         for (const cid of cluster) {
@@ -202,29 +214,80 @@ export function computeLipSyncLayout(
     if (lvl > maxLevel) maxLevel = lvl;
   }
 
-  // Flow computation: at each queen, F = sum of incoming flow from her wins;
-  // she then pushes F+1 through each of her losses. Iterate by descending
-  // level = descending d — d(loser) > d(winner) in the forward DAG, so we
-  // always process predecessors (losers; senders of flow) before successors
-  // (winners; receivers). Backward edges stay at flow 0.
-  const outForward = new Map<string, DirectedEdge[]>();
-  for (const n of nodes) outForward.set(n.id, []);
-  for (const d of directed) {
-    if (!d.isBackward) outForward.get(d.from)!.push(d);
-  }
-  const incomingFlow = new Map<string, number>();
-  for (const n of nodes) incomingFlow.set(n.id, 0);
-  const byDescendingLevel = [...nodes].sort(
-    (a, b) => (levels.get(b.id) ?? 0) - (levels.get(a.id) ?? 0),
-  );
-  for (const n of byDescendingLevel) {
-    const F = incomingFlow.get(n.id) ?? 0;
-    for (const d of outForward.get(n.id) ?? []) {
-      const out = F + 1;
-      d.flow = out;
-      incomingFlow.set(d.to, (incomingFlow.get(d.to) ?? 0) + out);
+  // Pass 2: symmetric corrective. Pass 1 can "pin" a cluster at maxLevel
+  // when its disconnected fallback fires — if that cluster actually has an
+  // external successor above (a queen whose winner is outside the cluster
+  // and much shallower), the cluster got pushed too far down. This pass
+  // pulls such clusters back up. Bidirectional cluster walk, same as Pass 1.
+  // Slide direction is up (toward L0). Seeds = every node, descending
+  // current level. No fallback for fully-disconnected clusters — Pass 1
+  // already placed them, don't undo that.
+  let outerIter2 = 0;
+  while (outerIter2 < maxOuterIter) {
+    outerIter2 += 1;
+    const seeds = [...nodes].sort(
+      (a, b) => (levels.get(b.id) ?? 0) - (levels.get(a.id) ?? 0),
+    );
+    let anyMoved = false;
+    for (const seed of seeds) {
+      const maxInner = nodes.length * 2;
+      let innerIter = 0;
+      while (innerIter < maxInner) {
+        innerIter += 1;
+        const memo = new Map<string, number>();
+        const cluster = new Set<string>();
+        let shallowest = levels.get(seed.id) ?? 0;
+        const visit = (qid: string): void => {
+          if (memo.has(qid)) return;
+          memo.set(qid, 1);
+          cluster.add(qid);
+          const qlvl = levels.get(qid) ?? 0;
+          if (qlvl < shallowest) shallowest = qlvl;
+          for (const child of forwardPredecessors.get(qid) ?? []) {
+            if ((levels.get(child) ?? 0) === qlvl + 1) visit(child);
+          }
+          for (const parent of forwardSuccessors.get(qid) ?? []) {
+            if ((levels.get(parent) ?? 0) === qlvl - 1) visit(parent);
+          }
+        };
+        visit(seed.id);
+        if (shallowest === 0) break;
+        // Slide-up-by-gap: smallest (c.level − P.level − 1) over cluster
+        // members c and their external forward-successors P with
+        // P.level < c.level. Slide up by that gap.
+        let slide = Infinity;
+        for (const cid of cluster) {
+          const clvl = levels.get(cid) ?? 0;
+          for (const pid of forwardSuccessors.get(cid) ?? []) {
+            if (cluster.has(pid)) continue;
+            const plvl = levels.get(pid) ?? 0;
+            if (plvl >= clvl) continue;
+            const gap = clvl - plvl - 1;
+            if (gap < slide) slide = gap;
+          }
+        }
+        if (slide === Infinity) break; // fully disconnected — leave as-is
+        // Cap so shallowest cluster member can't go below 0.
+        if (slide > shallowest) slide = shallowest;
+        if (slide <= 0) break;
+        for (const cid of cluster) {
+          levels.set(cid, (levels.get(cid) ?? 0) - slide);
+        }
+        anyMoved = true;
+      }
     }
+    if (!anyMoved) break;
   }
+
+  // Recompute maxLevel one more time after Pass 2 (queens slid up may have
+  // left the old maxLevel row empty).
+  maxLevel = 0;
+  for (const n of nodes) {
+    const lvl = levels.get(n.id) ?? 0;
+    if (lvl > maxLevel) maxLevel = lvl;
+  }
+
+  computeFlow(nodes, levels, directed);
 
   // Undirected neighbor adjacency (forward edges only — backward edges are
   // the upsets we flagged and shouldn't influence ordering).
@@ -239,6 +302,41 @@ export function computeLipSyncLayout(
   const initialX = barycenterSweep(nodes, levels, maxLevel, neighbors);
 
   return { levels, maxLevel, directed, feedbackCount, initialX };
+}
+
+// Flow: each queen sums her incoming flow (from wins; edges she's the `to` of),
+// then sends F+1 through each of her losses (edges she's the `from` of).
+// Traversing in descending-level order guarantees a loser is processed before
+// her winners, so incoming sums are complete when read. Backward edges and
+// any edge rejected by `isActive` stay at flow 0.
+//
+// Mutates edge.flow in place on the edges passed in. Call once per edge set;
+// re-call after filtering to recompute over the visible subset.
+export function computeFlow(
+  nodes: LipSyncNode[],
+  levels: Map<string, number>,
+  edges: DirectedEdge[],
+  isActive: (e: DirectedEdge) => boolean = (e) => !e.isBackward,
+): void {
+  const outActive = new Map<string, DirectedEdge[]>();
+  for (const n of nodes) outActive.set(n.id, []);
+  for (const d of edges) {
+    d.flow = 0;
+    if (isActive(d)) outActive.get(d.from)!.push(d);
+  }
+  const incomingFlow = new Map<string, number>();
+  for (const n of nodes) incomingFlow.set(n.id, 0);
+  const byDescendingLevel = [...nodes].sort(
+    (a, b) => (levels.get(b.id) ?? 0) - (levels.get(a.id) ?? 0),
+  );
+  for (const n of byDescendingLevel) {
+    const F = incomingFlow.get(n.id) ?? 0;
+    for (const d of outActive.get(n.id) ?? []) {
+      const out = F + 1;
+      d.flow = out;
+      incomingFlow.set(d.to, (incomingFlow.get(d.to) ?? 0) + out);
+    }
+  }
 }
 
 // Sugiyama-style crossing minimization: iteratively reorder nodes within each

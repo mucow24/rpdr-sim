@@ -123,7 +123,7 @@ export const useStore = create<AppState>()(persist((set, get) => ({
 
   numSimulations: 100_000,
 
-  appMode: 'simulation',
+  appMode: 'lip-syncs',
   enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
 
   loadSeason: (seasonId) =>
