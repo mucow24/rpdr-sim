@@ -101,8 +101,7 @@ export function computeLipSyncLayout(
 
   // level(v) = longestPathToSink(v). Sinks (queens who never lost in the
   // forward DAG) at L0; each forward edge loser→winner means loser sits one
-  // level deeper than her winner. Widow (lost only to Jan) lands naturally at
-  // Jan.level+1; Hormona on a long S17 chain stacks up near maxLevel.
+  // level deeper than her winner.
   let maxLevel = 0;
   for (const n of nodes) {
     const lvl = computeLevel(n.id);
