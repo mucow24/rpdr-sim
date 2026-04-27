@@ -30,6 +30,17 @@ const ROW_HEIGHT = 120;
 const PLANE_HALF = 800;
 const RED = '#e5484d';
 
+// Deterministic pseudo-random in [-0.5, 0.5) keyed off the node id. Used
+// for the initial Z spread instead of Math.random() (which is impure
+// during render — eslint react-hooks/purity flags it).
+function jitterFromId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  }
+  return ((h >>> 0) % 100000) / 100000 - 0.5;
+}
+
 const VW = 1600;
 const VH = 450;
 const FOCAL = 1400;
@@ -223,7 +234,7 @@ export default function LipSyncsPage() {
         ...n,
         level,
         x: x3,
-        y: (Math.random() - 0.5) * PLANE_HALF * 3.0,
+        y: jitterFromId(n.id) * PLANE_HALF * 3.0,
       };
       byId.set(n.id, sn);
       return sn;

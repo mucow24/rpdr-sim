@@ -113,6 +113,7 @@ function assertNoConsoleErrors() {
 
 describe('App — simulation mode', () => {
   test('mounts without throwing', async () => {
+    useStore.setState({ appMode: 'simulation' });
     const { default: App } = await import('./App');
     const { container } = render(<App />);
     await flush();
@@ -122,6 +123,7 @@ describe('App — simulation mode', () => {
   });
 
   test('tab switch updates store state', async () => {
+    useStore.setState({ appMode: 'simulation' });
     const { default: App } = await import('./App');
     render(<App />);
     await flush();
