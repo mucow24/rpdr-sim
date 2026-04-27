@@ -98,11 +98,11 @@ export default function LipSyncsPage() {
   // Wide ranges; defaults match what the sim previously had hardcoded.
   const [linkStrength, setLinkStrength] = useState(1);
   const [linkDistance, setLinkDistance] = useState(500);
-  const [repulsion, setRepulsion] = useState(1000);
+  const [repulsion, setRepulsion] = useState(2500);
   const [repulsionMax, setRepulsionMax] = useState(11000);
-  const [collideRadius, setCollideRadius] = useState(25);
-  const [velocityDecay, setVelocityDecay] = useState(0.04);
-  const [alphaDecay, setAlphaDecay] = useState(0.015);
+  const [collideRadius, setCollideRadius] = useState(40);
+  const [velocityDecay, setVelocityDecay] = useState(0.15);
+  const [alphaDecay, setAlphaDecay] = useState(0.025);
   const [alphaTarget, setAlphaTarget] = useState(0);
   const [showPhysics, setShowPhysics] = useState(false);
   const [showEdgeOpts, setShowEdgeOpts] = useState(false);
@@ -223,7 +223,7 @@ export default function LipSyncsPage() {
         ...n,
         level,
         x: x3,
-        y: (Math.random() - 0.5) * PLANE_HALF * 1.6,
+        y: (Math.random() - 0.5) * PLANE_HALF * 3.0,
       };
       byId.set(n.id, sn);
       return sn;
@@ -443,7 +443,63 @@ export default function LipSyncsPage() {
     lastX: number;
     lastY: number;
     moved: boolean;
-  }>({ pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false });
+    // World-space ground point under the cursor at pointerdown. Pan keeps
+    // this point under the cursor throughout the drag — so a click on a
+    // distant point produces a much larger world delta per pixel than a
+    // click on a near point.
+    grabPoint: { x: number; z: number } | null;
+  }>({ pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false, grabPoint: null });
+
+  // Cast a ray from the cursor through the camera and intersect the
+  // ground plane (y = groundY). Returns the world (x, z) of the hit, or
+  // null if the ray doesn't hit (looking above the horizon, etc).
+  function groundHitFromCursor(
+    sxScreen: number,
+    syScreen: number,
+    c: Camera,
+    target: { x: number; y: number; z: number },
+  ): { x: number; z: number } | null {
+    const cyaw = Math.cos(c.yaw);
+    const syaw = Math.sin(c.yaw);
+    const cpitch = Math.cos(c.pitch);
+    const spitch = Math.sin(c.pitch);
+    // Camera position in world.
+    const camX = target.x + c.distance * cpitch * syaw;
+    const camY = target.y + c.distance * spitch;
+    const camZ = target.z + c.distance * cpitch * cyaw;
+    // Ray direction: (rxCam, ryCam, rz2Cam) = (sx-VW/2, -(sy-VH/2), -FOCAL).
+    // Apply inverse pitch + inverse yaw to get world direction.
+    const rxC = sxScreen - VW / 2;
+    const ryC = -(syScreen - VH / 2);
+    const rz2C = -FOCAL;
+    const dyW = ryC * cpitch + rz2C * spitch;
+    const rzAfter = -ryC * spitch + rz2C * cpitch;
+    const dxW = rxC * cyaw + rzAfter * syaw;
+    const dzW = -rxC * syaw + rzAfter * cyaw;
+    if (Math.abs(dyW) < 1e-8) return null;
+    const t = (groundY - camY) / dyW;
+    if (t < 0) return null;
+    return { x: camX + t * dxW, z: camZ + t * dzW };
+  }
+
+  // Convert client-space pointer coords (clientX, clientY from a React
+  // PointerEvent) to SVG viewBox coords (sx ∈ [0,VW], sy ∈ [0,VH]).
+  // Uses the SVG's screen CTM so viewBox + preserveAspectRatio (letterbox /
+  // pillarbox) is handled correctly — a naive bounding-rect scale gets
+  // this wrong whenever the container aspect ratio differs from VW:VH,
+  // which is the difference between a 1:1 grab and a drift-with-distance.
+  function svgCoordsFromClient(clientX: number, clientY: number): { sx: number; sy: number } | null {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const inv = ctm.inverse();
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const out = pt.matrixTransform(inv);
+    return { sx: out.x, sy: out.y };
+  }
 
   function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
     // Only the left button starts a drag. Middle/right are ignored.
@@ -451,6 +507,11 @@ export default function LipSyncsPage() {
     // Suppress browser default (text-selection / drag-scroll) so vertical
     // drags don't nudge the page as the user orbits.
     e.preventDefault();
+    let grab: { x: number; z: number } | null = null;
+    if (e.shiftKey) {
+      const svgPos = svgCoordsFromClient(e.clientX, e.clientY);
+      if (svgPos) grab = groundHitFromCursor(svgPos.sx, svgPos.sy, cam, cameraTarget);
+    }
     dragRef.current = {
       pointerId: e.pointerId,
       mode: e.shiftKey ? 'pan' : 'orbit',
@@ -459,6 +520,7 @@ export default function LipSyncsPage() {
       lastX: e.clientX,
       lastY: e.clientY,
       moved: false,
+      grabPoint: grab,
     };
     svgRef.current?.setPointerCapture?.(e.pointerId);
   }
@@ -479,33 +541,31 @@ export default function LipSyncsPage() {
     }
     if (!d.moved) return;
     if (d.mode === 'pan') {
-      // Ground-plane "grab" pan. Horizontal drag slides the target along
-      // the camera's right-on-ground axis; vertical drag slides it along
-      // the camera's forward-on-ground axis (drag down → target comes
-      // toward the viewer, like grabbing a point in the distance and
-      // pulling it forward). World Y of the target is never touched, so
-      // the camera stays level with the floor.
+      // Grab-the-point pan. The world (x, z) under the cursor at
+      // pointerdown was captured in d.grabPoint; we shift the camera
+      // target so that same world point stays under the cursor as it
+      // moves. Ray-cast from the current cursor through the camera onto
+      // the ground; the delta to grabPoint becomes the panOffset bump.
+      // Naturally faster for distant points (steeper rays = bigger world
+      // delta per pixel) than for near points.
+      const svgPos = svgCoordsFromClient(e.clientX, e.clientY);
+      if (!svgPos || !d.grabPoint) return;
       setCam((c) => {
-        const wpx = c.distance / FOCAL;
-        const cy = Math.cos(c.yaw);
-        const sy = Math.sin(c.yaw);
-        // Right-on-ground (Y=0): rotated +X axis around world Y by yaw.
-        const rightX = cy;
-        const rightZ = -sy;
-        // Forward-on-ground (Y=0): the look direction's XZ component.
-        // Camera looks toward +Z (negated by view), so forward-on-ground
-        // = (-sin(yaw), 0, -cos(yaw)). Drag down (dy>0) → move target
-        // toward the viewer = subtract forward.
-        const fwdX = -sy;
-        const fwdZ = -cy;
-        const wx = -dx * wpx; // drag right → target moves left → scene moves right
-        const wf = dy * wpx; // drag down → camera moves forward (target moves into the distance)
+        const target = {
+          x: cameraTarget.x - cam.panOffset.x + c.panOffset.x,
+          y: cameraTarget.y - cam.panOffset.y + c.panOffset.y,
+          z: cameraTarget.z - cam.panOffset.z + c.panOffset.z,
+        };
+        const hit = groundHitFromCursor(svgPos.sx, svgPos.sy, c, target);
+        if (!hit || !d.grabPoint) return c;
+        const dxw = d.grabPoint.x - hit.x;
+        const dzw = d.grabPoint.z - hit.z;
         return {
           ...c,
           panOffset: {
-            x: c.panOffset.x + rightX * wx + fwdX * wf,
-            y: c.panOffset.y, // ground-plane pan: never lifts the target
-            z: c.panOffset.z + rightZ * wx + fwdZ * wf,
+            x: c.panOffset.x + dxw,
+            y: c.panOffset.y,
+            z: c.panOffset.z + dzw,
           },
         };
       });
@@ -522,7 +582,7 @@ export default function LipSyncsPage() {
     const d = dragRef.current;
     if (d.pointerId !== e.pointerId) return;
     const wasClick = !d.moved;
-    dragRef.current = { pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false };
+    dragRef.current = { pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false, grabPoint: null };
     svgRef.current?.releasePointerCapture?.(e.pointerId);
     if (wasClick) {
       // Empty-space click — deselect. (Clicks on queen dots stop
@@ -678,32 +738,105 @@ export default function LipSyncsPage() {
     return m;
   }, [terminalIdByQueen]);
 
-  // Tier planes, sorted by depth at their centers so the furthest renders
-  // first. Computed inline because cameraTarget shifts per render.
-  const planeRenders = (() => {
-    const planes: { level: number; poly: string; depth: number; fill: string }[] = [];
-    for (let l = 0; l <= maxLevel; l += 1) {
-      const y = tierWorldY(l);
-      const corners = [
-        { x: -PLANE_HALF, y, z: -PLANE_HALF },
-        { x: PLANE_HALF, y, z: -PLANE_HALF },
-        { x: PLANE_HALF, y, z: PLANE_HALF },
-        { x: -PLANE_HALF, y, z: PLANE_HALF },
-      ];
-      const projs = corners.map((c) => project(c, cam, cameraTarget));
-      if (projs.some((p) => p === null)) continue;
-      const poly = (projs as Projected[]).map((p) => `${p.sx},${p.sy}`).join(' ');
-      const center = project({ x: 0, y, z: 0 }, cam, cameraTarget);
-      if (!center) continue;
-      planes.push({
-        level: l,
-        poly,
-        depth: center.depth,
-        fill: `hsl(${(l * 40) % 360}, 40%, 40%)`,
-      });
+  const groundY = tierWorldY(maxLevel);
+  // Checkerboard ground: a finite grid of square tiles in world space,
+  // each clipped against the camera near plane and painted in alternating
+  // light/dark colors. Tile colors index by (i + j) parity. Tiles are
+  // depth-sorted so far ones render first.
+  const groundTiles = (() => {
+    const y = groundY;
+    const cy = Math.cos(cam.yaw);
+    const sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch);
+    const sp = Math.sin(cam.pitch);
+    const NEAR = cam.distance - 1;
+    const toCam = (px: number, py: number, pz: number) => {
+      const dx = px - cameraTarget.x;
+      const dy = py - cameraTarget.y;
+      const dz = pz - cameraTarget.z;
+      const rx = dx * cy - dz * sy;
+      const rz = dx * sy + dz * cy;
+      const ry = dy * cp - rz * sp;
+      const rz2 = dy * sp + rz * cp;
+      return { rx, ry, rz2 };
+    };
+    const projectCam = (c: { rx: number; ry: number; rz2: number }) => {
+      const viewZ = cam.distance - c.rz2;
+      if (viewZ < 1) return null;
+      const scale = FOCAL / viewZ;
+      return {
+        sx: c.rx * scale + VW / 2,
+        sy: -c.ry * scale + VH / 2,
+        depth: viewZ,
+      };
+    };
+
+    const TILE_SIZE = 1500;
+    const TILES_PER_SIDE = 48;
+    const HALF = (TILES_PER_SIDE * TILE_SIZE) / 2;
+    // Off-screen culling slack — accept tiles whose projected center sits
+    // up to one viewport-width outside the view bounds.
+    const MARGIN_X = VW;
+    const MARGIN_Y = VH;
+    type Tile = { key: string; poly: string; fill: string; depth: number };
+    const tiles: Tile[] = [];
+    for (let i = 0; i < TILES_PER_SIDE; i += 1) {
+      const x0 = -HALF + i * TILE_SIZE;
+      const x1 = x0 + TILE_SIZE;
+      for (let j = 0; j < TILES_PER_SIDE; j += 1) {
+        const z0 = -HALF + j * TILE_SIZE;
+        const z1 = z0 + TILE_SIZE;
+        // Quick reject: if the tile center projects far off-screen, skip
+        // entirely. Saves the per-corner transform + clip work for the
+        // 95%+ of tiles that aren't visible at typical camera positions.
+        const center = projectCam(toCam((x0 + x1) / 2, y, (z0 + z1) / 2));
+        if (!center) continue;
+        if (
+          center.sx < -MARGIN_X ||
+          center.sx > VW + MARGIN_X ||
+          center.sy < -MARGIN_Y ||
+          center.sy > VH + MARGIN_Y
+        ) continue;
+        const corners = [
+          toCam(x0, y, z0),
+          toCam(x1, y, z0),
+          toCam(x1, y, z1),
+          toCam(x0, y, z1),
+        ];
+        // Sutherland-Hodgman clip to the near plane.
+        const clipped: { rx: number; ry: number; rz2: number }[] = [];
+        for (let k = 0; k < 4; k += 1) {
+          const a = corners[k];
+          const b = corners[(k + 1) % 4];
+          const aIn = a.rz2 < NEAR;
+          const bIn = b.rz2 < NEAR;
+          if (aIn) clipped.push(a);
+          if (aIn !== bIn) {
+            const t = (NEAR - a.rz2) / (b.rz2 - a.rz2);
+            clipped.push({
+              rx: a.rx + t * (b.rx - a.rx),
+              ry: a.ry + t * (b.ry - a.ry),
+              rz2: NEAR,
+            });
+          }
+        }
+        if (clipped.length < 3) continue;
+        const projs = clipped.map(projectCam);
+        if (projs.some((p) => p === null)) continue;
+        const poly = (projs as { sx: number; sy: number; depth: number }[])
+          .map((p) => `${p.sx},${p.sy}`)
+          .join(' ');
+        const dark = (i + j) % 2 === 0;
+        tiles.push({
+          key: `t${i}-${j}`,
+          poly,
+          fill: dark ? '#3a3a48' : '#9090a8',
+          depth: center.depth,
+        });
+      }
     }
-    planes.sort((a, b) => b.depth - a.depth);
-    return planes;
+    tiles.sort((a, b) => b.depth - a.depth);
+    return tiles;
   })();
 
   // Edges, painted back-to-front with their own gradient defs.
@@ -1030,27 +1163,14 @@ export default function LipSyncsPage() {
             fill="transparent"
             pointerEvents="all"
           />
-          {planeRenders.map((p) => (
+          {groundTiles.map((t) => (
             <polygon
-              key={`plane-${p.level}`}
-              points={p.poly}
-              fill={p.fill}
-              fillOpacity={0.05}
-              stroke="#2a2a3a"
-              strokeOpacity={0.4}
-              strokeWidth={1}
+              key={t.key}
+              points={t.poly}
+              fill={t.fill}
+              fillOpacity={0.5}
             />
           ))}
-          {/* Tier labels — project (left edge, plane-y, 0) and label near it. */}
-          {Array.from({ length: maxLevel + 1 }, (_, l) => {
-            const p = project({ x: -PLANE_HALF, y: tierWorldY(l), z: 0 }, cam, cameraTarget);
-            if (!p) return null;
-            return (
-              <text key={`lbl-${l}`} x={p.sx - 6} y={p.sy + 4} fontSize={11} fill="#3a3a48" textAnchor="end">
-                L{l}
-              </text>
-            );
-          })}
           {edgeRenders.map((e) => {
             const lit = isEdgeLit(e.sId, e.tId);
             const baseOp = e.isBackward ? 0.85 : 0.7;
