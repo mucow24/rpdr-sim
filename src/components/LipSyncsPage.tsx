@@ -31,13 +31,12 @@ const PLANE_HALF = 800;
 const RED = '#e5484d';
 
 const VW = 1600;
-const VH = 900;
+const VH = 450;
 const FOCAL = 1400;
 
 type Camera = {
   yaw: number;
   pitch: number;
-  target: { x: number; y: number; z: number };
   distance: number;
 };
 
@@ -46,10 +45,11 @@ type Projected = { sx: number; sy: number; depth: number; scale: number };
 function project(
   p: { x: number; y: number; z: number },
   cam: Camera,
+  target: { x: number; y: number; z: number },
 ): Projected | null {
-  const dx = p.x - cam.target.x;
-  const dy = p.y - cam.target.y;
-  const dz = p.z - cam.target.z;
+  const dx = p.x - target.x;
+  const dy = p.y - target.y;
+  const dz = p.z - target.z;
   const cy = Math.cos(cam.yaw);
   const sy = Math.sin(cam.yaw);
   // Yaw around world-up (Y).
@@ -88,6 +88,19 @@ export default function LipSyncsPage() {
   const [lowCutoff, setLowCutoff] = useState(0);
   const [highCutoff, setHighCutoff] = useState(1);
   const [thickExp, setThickExp] = useState(0.5);
+
+  // Force-sim physics — exposed so the user can tune layout interactively.
+  // Wide ranges; defaults match what the sim previously had hardcoded.
+  const [linkStrength, setLinkStrength] = useState(1.15);
+  const [linkDistance, setLinkDistance] = useState(220);
+  const [repulsion, setRepulsion] = useState(2200);
+  const [repulsionMax, setRepulsionMax] = useState(2200);
+  const [collideRadius, setCollideRadius] = useState(5);
+  const [velocityDecay, setVelocityDecay] = useState(0.3);
+  const [alphaDecay, setAlphaDecay] = useState(0.02);
+  const [alphaTarget, setAlphaTarget] = useState(0);
+  const [showPhysics, setShowPhysics] = useState(false);
+  const [showEdgeOpts, setShowEdgeOpts] = useState(false);
 
   const { simNodes, simLinks, maxLevel, feedbackCount } = useMemo(() => {
     const { nodes: allNodes, edges: allEdges } = buildLipSyncGraph(true);
@@ -225,23 +238,54 @@ export default function LipSyncsPage() {
   // World Y of each tier plane. Tier 0 is at the TOP, so larger level → smaller Y.
   const tierWorldY = (level: number) => (maxLevel - level) * ROW_HEIGHT;
 
-  const sceneCenterY = (maxLevel * ROW_HEIGHT) / 2;
-
   const [cam, setCam] = useState<Camera>(() => ({
     yaw: 0.4,
     pitch: 0.25,
-    target: { x: 0, y: sceneCenterY, z: 0 },
     distance: 3200,
   }));
-  const camRef = useRef(cam);
-  useEffect(() => { camRef.current = cam; }, [cam]);
 
-  // Recenter vertically when the level count changes (season filter toggles).
-  useEffect(() => {
-    setCam((c) => ({ ...c, target: { ...c.target, y: sceneCenterY } }));
-  }, [sceneCenterY]);
+  // Camera target is locked to the graph's centroid (mean node position).
+  // Recomputed every render (cheap, O(N)) so it tracks the force sim as
+  // it settles. Orbiting and zooming use this target; panning is disabled.
+  let cameraTarget: { x: number; y: number; z: number };
+  {
+    if (simNodes.length === 0) {
+      cameraTarget = { x: 0, y: 0, z: 0 };
+    } else {
+      let sx = 0, sy = 0, sz = 0;
+      for (const n of simNodes) {
+        sx += n.x ?? 0;
+        sy += tierWorldY(n.level);
+        sz += n.y ?? 0;
+      }
+      const k = 1 / simNodes.length;
+      cameraTarget = { x: sx * k, y: sy * k, z: sz * k };
+    }
+  }
 
   const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
+
+  // Refs mirror slider state so the sim-init effect captures fresh values
+  // without re-creating the simulation when sliders move; the live-update
+  // effect below pushes new values into the running sim.
+  const linkStrengthRef = useRef(linkStrength);
+  const linkDistanceRef = useRef(linkDistance);
+  const repulsionRef = useRef(repulsion);
+  const repulsionMaxRef = useRef(repulsionMax);
+  const collideRadiusRef = useRef(collideRadius);
+  const velocityDecayRef = useRef(velocityDecay);
+  const alphaDecayRef = useRef(alphaDecay);
+  const alphaTargetRef = useRef(alphaTarget);
+  useEffect(() => {
+    linkStrengthRef.current = linkStrength;
+    linkDistanceRef.current = linkDistance;
+    repulsionRef.current = repulsion;
+    repulsionMaxRef.current = repulsionMax;
+    collideRadiusRef.current = collideRadius;
+    velocityDecayRef.current = velocityDecay;
+    alphaDecayRef.current = alphaDecay;
+    alphaTargetRef.current = alphaTarget;
+  }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay, alphaDecay, alphaTarget]);
 
   useEffect(() => {
     // d3 sim operates on (sim.x, sim.y) — we interpret those as (x, z) in
@@ -254,17 +298,18 @@ export default function LipSyncsPage() {
         d3
           .forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .strength((l) => ((l as SimLink).original.isBackward ? 0 : 0.4))
-          .distance(30),
+          .strength((l) => ((l as SimLink).original.isBackward ? 0 : linkStrengthRef.current))
+          .distance(linkDistanceRef.current),
       )
       .force(
         'charge',
-        d3.forceManyBody<SimNode>().strength(-230).distanceMax(2200),
+        d3.forceManyBody<SimNode>().strength(-repulsionRef.current).distanceMax(repulsionMaxRef.current),
       )
-      .force('collide', d3.forceCollide<SimNode>(5))
-      .velocityDecay(0.3)
+      .force('collide', d3.forceCollide<SimNode>(collideRadiusRef.current))
+      .velocityDecay(velocityDecayRef.current)
       .alpha(1)
-      .alphaDecay(0.02)
+      .alphaDecay(alphaDecayRef.current)
+      .alphaTarget(alphaTargetRef.current)
       .alphaMin(0.001)
       .on('tick', () => {
         setTick((t) => (t + 1) % 1_000_000);
@@ -273,79 +318,89 @@ export default function LipSyncsPage() {
     return () => { sim.stop(); };
   }, [simNodes, simLinks]);
 
-  // Pointer handling. Middle-drag = orbit, right-drag = pan, wheel = zoom.
+  // Live-tune the running sim when sliders move. Re-warms alpha so the
+  // sim resettles into the new equilibrium.
+  useEffect(() => {
+    const sim = simRef.current;
+    if (!sim) return;
+    const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
+    const charge = sim.force('charge') as d3.ForceManyBody<SimNode> | null;
+    const collide = sim.force('collide') as d3.ForceCollide<SimNode> | null;
+    link
+      ?.strength((l) => ((l as SimLink).original.isBackward ? 0 : linkStrength))
+      .distance(linkDistance);
+    charge?.strength(-repulsion).distanceMax(repulsionMax);
+    collide?.radius(collideRadius);
+    sim.velocityDecay(velocityDecay);
+    sim.alphaDecay(alphaDecay);
+    sim.alphaTarget(alphaTarget);
+    sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
+  }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay, alphaDecay, alphaTarget]);
+
+  // Pointer handling. Left-drag on empty space orbits; left-click on empty
+  // space deselects; left-click on a queen selects (handled in the circle's
+  // onClick, which stopPropagations to keep SVG-level handlers out of it).
+  // Camera target is locked to the graph centroid, so panning is disabled.
+  // Wheel = zoom.
+  const DRAG_THRESHOLD_PX = 4;
   const dragRef = useRef<{
-    mode: 'none' | 'orbit' | 'pan';
     pointerId: number | null;
+    startX: number;
+    startY: number;
     lastX: number;
     lastY: number;
-  }>({ mode: 'none', pointerId: null, lastX: 0, lastY: 0 });
+    moved: boolean;
+  }>({ pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false });
 
   function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
-    // button: 0=left, 1=middle, 2=right. We take middle for orbit, right for
-    // pan. Left is unhandled (no node drag in 3D for now).
-    if (e.button === 1 || e.button === 2) {
-      e.preventDefault();
-      dragRef.current = {
-        mode: e.button === 1 ? 'orbit' : 'pan',
-        pointerId: e.pointerId,
-        lastX: e.clientX,
-        lastY: e.clientY,
-      };
-      svgRef.current?.setPointerCapture?.(e.pointerId);
-    }
+    // Only the left button starts a drag. Middle/right are ignored.
+    if (e.button !== 0) return;
+    // Suppress browser default (text-selection / drag-scroll) so vertical
+    // drags don't nudge the page as the user orbits.
+    e.preventDefault();
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      moved: false,
+    };
+    svgRef.current?.setPointerCapture?.(e.pointerId);
   }
 
   function onPointerMove(e: React.PointerEvent<SVGSVGElement>) {
     const d = dragRef.current;
-    if (d.mode === 'none' || d.pointerId !== e.pointerId) return;
+    if (d.pointerId !== e.pointerId) return;
     const dx = e.clientX - d.lastX;
     const dy = e.clientY - d.lastY;
     d.lastX = e.clientX;
     d.lastY = e.clientY;
-    if (d.mode === 'orbit') {
-      setCam((c) => {
-        const yaw = c.yaw - dx * 0.005;
-        // Clamp pitch to avoid flipping through the poles.
-        const pitch = Math.max(-1.4, Math.min(1.4, c.pitch + dy * 0.005));
-        return { ...c, yaw, pitch };
-      });
-    } else {
-      // Pan in camera-aligned screen space. Convert pixel delta to world-space
-      // at the target's depth using inverse of FOCAL/distance.
-      setCam((c) => {
-        const worldPerPixel = c.distance / FOCAL;
-        const wx = -dx * worldPerPixel;
-        const wy = dy * worldPerPixel;
-        // Apply inverse yaw to wx to shift along world X/Z, leave wy on world Y
-        // (after inverse pitch, but we'll approximate pan as screen-plane).
-        const cy = Math.cos(c.yaw);
-        const sy = Math.sin(c.yaw);
-        const cp = Math.cos(c.pitch);
-        const sp = Math.sin(c.pitch);
-        // Screen-right vector in world space:
-        const rightX = cy;
-        const rightZ = -sy;
-        // Screen-up vector in world space (accounting for pitch):
-        const upX = sy * sp;
-        const upY = cp;
-        const upZ = cy * sp;
-        return {
-          ...c,
-          target: {
-            x: c.target.x + rightX * wx + upX * wy,
-            y: c.target.y + upY * wy,
-            z: c.target.z + rightZ * wx + upZ * wy,
-          },
-        };
-      });
+    if (!d.moved) {
+      const tdx = e.clientX - d.startX;
+      const tdy = e.clientY - d.startY;
+      if (tdx * tdx + tdy * tdy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+        d.moved = true;
+      }
     }
+    if (!d.moved) return;
+    setCam((c) => {
+      const yaw = c.yaw - dx * 0.005;
+      const pitch = Math.max(-1.4, Math.min(1.4, c.pitch + dy * 0.005));
+      return { ...c, yaw, pitch };
+    });
   }
 
   function onPointerUp(e: React.PointerEvent<SVGSVGElement>) {
-    if (dragRef.current.pointerId === e.pointerId) {
-      dragRef.current = { mode: 'none', pointerId: null, lastX: 0, lastY: 0 };
-      svgRef.current?.releasePointerCapture?.(e.pointerId);
+    const d = dragRef.current;
+    if (d.pointerId !== e.pointerId) return;
+    const wasClick = !d.moved;
+    dragRef.current = { pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false };
+    svgRef.current?.releasePointerCapture?.(e.pointerId);
+    if (wasClick) {
+      // Empty-space click — deselect. (Clicks on queen dots stop
+      // propagation, so they never reach this handler.)
+      setSelectedId(null);
     }
   }
 
@@ -363,8 +418,10 @@ export default function LipSyncsPage() {
     return () => svg.removeEventListener('wheel', handler);
   }, []);
 
-  // Precompute projections once per render.
-  const nodeProj = useMemo(() => {
+  // Precompute projections once per render. Computed inline (not memoized)
+  // because node x/y mutate in place on every force-sim tick — useMemo
+  // would cache stale values; cameraTarget also changes per render.
+  const nodeProj = (() => {
     const m = new Map<string, Projected | null>();
     for (const n of simNodes) {
       const nx = n.x;
@@ -373,11 +430,10 @@ export default function LipSyncsPage() {
         m.set(n.id, null);
         continue;
       }
-      m.set(n.id, project({ x: nx, y: tierWorldY(n.level), z: ny }, cam));
+      m.set(n.id, project({ x: nx, y: tierWorldY(n.level), z: ny }, cam, cameraTarget));
     }
     return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simNodes, cam, maxLevel]);
+  })();
 
   const maxFlow = useMemo(() => {
     let m = 0;
@@ -407,8 +463,9 @@ export default function LipSyncsPage() {
     return m;
   }, [simNodes]);
 
-  // Tier planes, sorted by depth at their centers so the furthest renders first.
-  const planeRenders = useMemo(() => {
+  // Tier planes, sorted by depth at their centers so the furthest renders
+  // first. Computed inline because cameraTarget shifts per render.
+  const planeRenders = (() => {
     const planes: { level: number; poly: string; depth: number; fill: string }[] = [];
     for (let l = 0; l <= maxLevel; l += 1) {
       const y = tierWorldY(l);
@@ -418,10 +475,10 @@ export default function LipSyncsPage() {
         { x: PLANE_HALF, y, z: PLANE_HALF },
         { x: -PLANE_HALF, y, z: PLANE_HALF },
       ];
-      const projs = corners.map((c) => project(c, cam));
+      const projs = corners.map((c) => project(c, cam, cameraTarget));
       if (projs.some((p) => p === null)) continue;
       const poly = (projs as Projected[]).map((p) => `${p.sx},${p.sy}`).join(' ');
-      const center = project({ x: 0, y, z: 0 }, cam);
+      const center = project({ x: 0, y, z: 0 }, cam, cameraTarget);
       if (!center) continue;
       planes.push({
         level: l,
@@ -432,8 +489,7 @@ export default function LipSyncsPage() {
     }
     planes.sort((a, b) => b.depth - a.depth);
     return planes;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cam, maxLevel]);
+  })();
 
   // Edges, painted back-to-front with their own gradient defs.
   const edgeRenders = useMemo(() => {
@@ -484,14 +540,16 @@ export default function LipSyncsPage() {
     return items;
   }, [simNodes, nodeProj]);
 
-  // Queen-name filter: a node matches if the trimmed filter string is a
-  // case-insensitive substring of her name. Empty filter = everyone matches.
+  // Queen filter. The search target is the same "[Ln] Name · S1, AS3"
+  // string shown at the top of the tooltip — so a user can type "[L4]"
+  // to get all L4 queens, "AS3" for all AS3 queens, a name fragment, etc.
   const matchedIds = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
     if (!q) return null; // null = filter inactive, everyone full-opacity
     const set = new Set<string>();
     for (const n of simNodes) {
-      if (n.name.toLowerCase().includes(q)) set.add(n.id);
+      const haystack = `[L${n.level}] ${n.name} · ${n.seasons.map(seasonLabel).join(', ')}`;
+      if (haystack.toLowerCase().includes(q)) set.add(n.id);
     }
     return set;
   }, [nameFilter, simNodes]);
@@ -548,7 +606,7 @@ export default function LipSyncsPage() {
   return (
     <div>
       <div className="mb-3 text-sm text-[#888]">
-        {simNodes.length} queens · {simLinks.length} matchups · {maxLevel + 1} tiers · {feedbackCount} feedback edges · middle-drag orbit · right-drag pan · scroll zoom
+        {simNodes.length} queens · {simLinks.length} matchups · {maxLevel + 1} tiers · {feedbackCount} feedback edges · drag orbit · scroll zoom
       </div>
       <div className="mb-3 flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -560,7 +618,72 @@ export default function LipSyncsPage() {
           <span className="text-[#aaa]">Contiguous only</span>
         </label>
       </div>
-      <div className="mb-3 flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() => setShowPhysics((v) => !v)}
+          className="text-xs text-[#888] hover:text-[#ccc] flex items-center gap-1"
+        >
+          <span className="font-mono w-3 inline-block">{showPhysics ? '▾' : '▸'}</span>
+          Physics options
+        </button>
+      </div>
+      {showPhysics && (
+      <div className="mb-3 ml-4 pl-4 border-l border-[#2a2a3a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Link str</span>
+          <input type="range" min={0} max={5} step={0.01} value={linkStrength} onChange={(e) => setLinkStrength(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{linkStrength.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Link dist</span>
+          <input type="range" min={0} max={1000} step={1} value={linkDistance} onChange={(e) => setLinkDistance(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{linkDistance.toFixed(0)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Repulsion</span>
+          <input type="range" min={0} max={10000} step={1} value={repulsion} onChange={(e) => setRepulsion(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{repulsion.toFixed(0)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Repel max</span>
+          <input type="range" min={0} max={20000} step={1} value={repulsionMax} onChange={(e) => setRepulsionMax(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{repulsionMax.toFixed(0)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Collide r</span>
+          <input type="range" min={0} max={200} step={0.5} value={collideRadius} onChange={(e) => setCollideRadius(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{collideRadius.toFixed(1)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Vel decay</span>
+          <input type="range" min={0} max={1} step={0.01} value={velocityDecay} onChange={(e) => setVelocityDecay(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{velocityDecay.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">α decay</span>
+          <input type="range" min={0} max={0.3} step={0.001} value={alphaDecay} onChange={(e) => setAlphaDecay(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{alphaDecay.toFixed(3)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">α target</span>
+          <input type="range" min={0} max={1} step={0.01} value={alphaTarget} onChange={(e) => setAlphaTarget(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{alphaTarget.toFixed(2)}</span>
+        </label>
+      </div>
+      )}
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() => setShowEdgeOpts((v) => !v)}
+          className="text-xs text-[#888] hover:text-[#ccc] flex items-center gap-1"
+        >
+          <span className="font-mono w-3 inline-block">{showEdgeOpts ? '▾' : '▸'}</span>
+          Edge options
+        </button>
+      </div>
+      {showEdgeOpts && (
+      <div className="mb-3 ml-4 pl-4 border-l border-[#2a2a3a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
         <label className="flex items-center gap-2">
           <span className="text-[#aaa] w-20">Thick min</span>
           <input type="range" min={0} max={20} step={0.1} value={thickMin} onChange={(e) => setThickMin(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
@@ -587,6 +710,7 @@ export default function LipSyncsPage() {
           <span className="text-[#666] font-mono text-xs w-12">{thickExp.toFixed(2)}</span>
         </label>
       </div>
+      )}
       <div className="mb-3 flex items-center gap-2 text-xs text-[#888] flex-wrap">
         <span className="text-[#aaa] mr-1">Seasons:</span>
         {SEASON_ORDER.map((s) => {
@@ -682,7 +806,6 @@ export default function LipSyncsPage() {
             height={VH}
             fill="transparent"
             pointerEvents="all"
-            onClick={() => setSelectedId(null)}
           />
           {planeRenders.map((p) => (
             <polygon
@@ -697,7 +820,7 @@ export default function LipSyncsPage() {
           ))}
           {/* Tier labels — project (left edge, plane-y, 0) and label near it. */}
           {Array.from({ length: maxLevel + 1 }, (_, l) => {
-            const p = project({ x: -PLANE_HALF, y: tierWorldY(l), z: 0 }, cam);
+            const p = project({ x: -PLANE_HALF, y: tierWorldY(l), z: 0 }, cam, cameraTarget);
             if (!p) return null;
             return (
               <text key={`lbl-${l}`} x={p.sx - 6} y={p.sy + 4} fontSize={11} fill="#3a3a48" textAnchor="end">
@@ -708,7 +831,10 @@ export default function LipSyncsPage() {
           {edgeRenders.map((e) => {
             const lit = isEdgeLit(e.sId, e.tId);
             const baseOp = e.isBackward ? 0.85 : 0.7;
-            const op = lit ? baseOp : baseOp * 0.3;
+            // Stronger dim when a queen is selected — the user is focused on
+            // her subtree, so push the rest further back.
+            const dimFactor = selectedSubtree ? 0.18 : 0.3;
+            const op = lit ? baseOp : baseOp * dimFactor;
             return (
               <line
                 key={e.key}
@@ -729,7 +855,7 @@ export default function LipSyncsPage() {
             // Radii bumped 50% from prior (6/8/9 → 9/12/13.5).
             const baseR = isHover ? 13.5 : highlighted ? 12 : 9;
             const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
-            const op = isNodeLit(n.id) ? 1 : 0.4;
+            const op = isNodeLit(n.id) ? 1 : selectedSubtree ? 0.27 : 0.4;
             const strokeColor = isHover || highlighted ? '#fff' : '#0a0a10';
             const strokeW = isHover || highlighted ? 1.5 : 1;
             return (
@@ -742,6 +868,7 @@ export default function LipSyncsPage() {
                   style={{ cursor: 'pointer' }}
                   onPointerEnter={() => setHovered(n)}
                   onPointerLeave={() => setHovered((h) => (h?.id === n.id ? null : h))}
+                  onPointerDown={(ev) => ev.stopPropagation()}
                   onClick={(ev) => {
                     ev.stopPropagation();
                     setSelectedId((cur) => (cur === n.id ? null : n.id));
