@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as d3 from 'd3';
-import {
-  buildLipSyncGraph,
-  seasonLabel,
-  type LipSyncNode,
-  type LipSyncEdge,
-} from './lipSyncsGraph';
+import { buildLipSyncGraph, seasonLabel, type LipSyncNode } from './lipSyncsGraph';
+import { computeLipSyncLayout, computeFlow, type DirectedEdge } from './lipSyncLayout';
 
-type SimNode = LipSyncNode & { score?: number } & d3.SimulationNodeDatum;
-type SimLink = LipSyncEdge & d3.SimulationLinkDatum<SimNode> & {
+type SimNode = LipSyncNode & { level: number } & d3.SimulationNodeDatum;
+type SimLink = d3.SimulationLinkDatum<SimNode> & {
+  original: DirectedEdge;
   source: SimNode | string;
   target: SimNode | string;
 };
@@ -25,384 +22,1077 @@ function seasonColor(seasonId: string): string {
   return `hsl(${hue}, 55%, 60%)`;
 }
 
-const GOLD = '#d4af37';
-const LIGHT_GRAY = '#3a414c';
+// In 3D: tiers stack along the world Y axis; in-plane freedom is X and Z.
+// Default vertical gap between tier planes (world-space). Exposed as a
+// slider in the UI so the user can squash or stretch the layering.
+const DEFAULT_ROW_HEIGHT = 256;
+// Half-extent of each tier plane in X and Z. Also defines the (x, z) box
+// the force sim lives in.
+const PLANE_HALF = 800;
+const RED = '#e5484d';
+
+// Deterministic pseudo-random in [-0.5, 0.5) keyed off the node id. Used
+// for the initial Z spread instead of Math.random() (which is impure
+// during render — eslint react-hooks/purity flags it).
+function jitterFromId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  }
+  return ((h >>> 0) % 100000) / 100000 - 0.5;
+}
+
+const VW = 1600;
+const VH = 450;
+const FOCAL = 1400;
+
+type Camera = {
+  yaw: number;
+  pitch: number;
+  distance: number;
+  // Pan offset added to the auto-centroid camera target. Shift-drag adjusts
+  // this; orbit and zoom always pivot around (centroid + panOffset).
+  panOffset: { x: number; y: number; z: number };
+};
+
+type Projected = { sx: number; sy: number; depth: number; scale: number };
+
+function project(
+  p: { x: number; y: number; z: number },
+  cam: Camera,
+  target: { x: number; y: number; z: number },
+): Projected | null {
+  const dx = p.x - target.x;
+  const dy = p.y - target.y;
+  const dz = p.z - target.z;
+  const cy = Math.cos(cam.yaw);
+  const sy = Math.sin(cam.yaw);
+  // Yaw around world-up (Y).
+  const rx = dx * cy - dz * sy;
+  const rz = dx * sy + dz * cy;
+  const cp = Math.cos(cam.pitch);
+  const sp = Math.sin(cam.pitch);
+  // Pitch around camera-right (X).
+  const ry = dy * cp - rz * sp;
+  const rz2 = dy * sp + rz * cp;
+  // Camera looks down -Z after rotation; viewer-space depth is distance - rz2.
+  const viewZ = cam.distance - rz2;
+  if (viewZ < 1) return null;
+  const scale = FOCAL / viewZ;
+  return {
+    sx: rx * scale + VW / 2,
+    sy: -ry * scale + VH / 2,
+    depth: viewZ,
+    scale,
+  };
+}
 
 export default function LipSyncsPage() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [, setTick] = useState(0);
   const [hovered, setHovered] = useState<SimNode | null>(null);
-
-  // Direct force controls.
-  const [linkStrength, setLinkStrength] = useState(3);
-  const [repulsion, setRepulsion] = useState(4000);
-  const [velocityDecay, setVelocityDecay] = useState(0.4);
-  const [rankStrength, setRankStrength] = useState(0);
-  const [merge, setMerge] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [disabledSeasons, setDisabledSeasons] = useState<Set<string>>(() => new Set());
 
-  // Pan / zoom (user-controllable viewport).
-  const [view, setView] = useState({ x: 393.75, y: 332.5, k: 0.125 });
-  const viewRef = useRef(view);
-  useEffect(() => { viewRef.current = view; }, [view]);
+  const [showCycleEdges, setShowCycleEdges] = useState(false);
+  const [contiguousOnly, setContiguousOnly] = useState(true);
+  const [colorByTerminal, setColorByTerminal] = useState(false);
+  const [invertLevels, setInvertLevels] = useState(true);
+  const [nameFilter, setNameFilter] = useState('');
 
-  const width = 900;
-  const height = 760;
+  const [thickMin, setThickMin] = useState(1);
+  const [thickMax, setThickMax] = useState(8);
+  const [lowCutoff, setLowCutoff] = useState(0);
+  const [highCutoff, setHighCutoff] = useState(1);
+  const [thickExp, setThickExp] = useState(0.5);
 
-  // Persistent SimNode pool for the current dataset — rebuilt only on the
-  // merge toggle. Toggling seasons filters this pool rather than rebuilding
-  // SimNode objects, so positions survive show/hide cycles.
-  //
-  // We pre-seed x/y via phyllotaxis at 2x d3-force's default radius so the
-  // initial layout explodes less violently before settling.
-  const { allNodes, allEdges } = useMemo<{ allNodes: SimNode[]; allEdges: LipSyncEdge[] }>(() => {
-    const { nodes, edges } = buildLipSyncGraph(merge);
-    const initialRadius = 20; // d3-force default is 10 → 2x diameter
-    const initialAngle = Math.PI * (3 - Math.sqrt(5));
-    const simNodes: SimNode[] = nodes.map((n, i) => {
-      const radius = initialRadius * Math.sqrt(0.5 + i);
-      const angle = i * initialAngle;
-      return {
-        ...n,
-        x: width / 2 + radius * Math.cos(angle),
-        y: height / 2 + radius * Math.sin(angle),
-      };
-    });
-    return { allNodes: simNodes, allEdges: edges };
-  }, [merge]);
+  // Force-sim physics — exposed so the user can tune layout interactively.
+  // Wide ranges; defaults match what the sim previously had hardcoded.
+  const [linkStrength, setLinkStrength] = useState(1);
+  const [linkDistance, setLinkDistance] = useState(500);
+  const [repulsion, setRepulsion] = useState(2500);
+  const [repulsionMax, setRepulsionMax] = useState(11000);
+  const [collideRadius, setCollideRadius] = useState(40);
+  const [velocityDecay, setVelocityDecay] = useState(0.15);
+  const [alphaDecay, setAlphaDecay] = useState(0.025);
+  const [alphaTarget, setAlphaTarget] = useState(0);
+  const [showPhysics, setShowPhysics] = useState(false);
+  const [showEdgeOpts, setShowEdgeOpts] = useState(false);
+  const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
 
-  const { nodes, links } = useMemo(() => {
-    const isNodeVisible = (n: SimNode) => n.seasons.some((s) => !disabledSeasons.has(s));
-    const visibleNodes = allNodes.filter(isNodeVisible);
-    const idSet = new Set(visibleNodes.map((n) => n.id));
-    const links: SimLink[] = allEdges
-      .filter((e) => idSet.has(e.a) && idSet.has(e.b))
+  const { simNodes, simLinks, maxLevel, feedbackCount } = useMemo(() => {
+    const { nodes: allNodes, edges: allEdges } = buildLipSyncGraph(true);
+    const nodeVisible = (n: LipSyncNode) => n.seasons.some((s) => !disabledSeasons.has(s));
+    const nodes = allNodes.filter(nodeVisible);
+    const kept = new Set(nodes.map((n) => n.id));
+    const edges = allEdges
+      .filter((e) => kept.has(e.a) && kept.has(e.b))
       .map((e) => {
-        // Merged edges bundle matches from multiple seasons — drop matches
-        // whose season is disabled and recompute the win/tie counts so an
-        // edge only reflects its currently-enabled lip syncs.
-        if (merge) {
-          const matches = e.matches.filter((m) => !disabledSeasons.has(m.seasonId));
-          if (matches.length === 0) return null;
-          let aWins = 0, bWins = 0, ties = 0;
-          for (const m of matches) {
-            if (m.outcome === 'tie') { aWins += 1; bWins += 1; ties += 1; }
-            else if (m.outcome === 'a') aWins += 1;
-            else bWins += 1;
-          }
-          return { ...e, aWins, bWins, ties, matches, source: e.a, target: e.b } as SimLink;
+        const matches = e.matches.filter((m) => !disabledSeasons.has(m.seasonId));
+        if (matches.length === 0) return null;
+        let aWins = 0, bWins = 0, ties = 0;
+        for (const m of matches) {
+          if (m.outcome === 'tie') { aWins += 1; bWins += 1; ties += 1; }
+          else if (m.outcome === 'a') aWins += 1;
+          else bWins += 1;
         }
-        return { ...e, source: e.a, target: e.b } as SimLink;
+        return { ...e, aWins, bWins, ties, matches };
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null);
+
+    const { levels, maxLevel, directed, feedbackCount, initialX } = computeLipSyncLayout(nodes, edges, { invertLevels });
+
+    // Compute the active forward-edge predicate. Three modes:
+    //   - !contiguousOnly:        all forward edges active
+    //   - contiguousOnly && !invertLevels:
+    //                             only edges spanning exactly one level
+    //   - contiguousOnly && invertLevels:
+    //                             contiguous edges + non-contiguous edges
+    //                             that bridge otherwise-separate components.
+    //                             Built via union-find — non-contiguous edges
+    //                             are added in order of smallest level-gap
+    //                             first; an edge is kept only when its
+    //                             endpoints are still in different components.
+    const isForwardActive: (d: DirectedEdge) => boolean = (() => {
+      if (!contiguousOnly) return (d) => !d.isBackward;
+      if (!invertLevels) {
+        return (d) => {
+          if (d.isBackward) return false;
+          const la = levels.get(d.from) ?? 0;
+          const lb = levels.get(d.to) ?? 0;
+          return Math.abs(la - lb) === 1;
+        };
+      }
+      // Bridge mode.
+      const parent = new Map<string, string>();
+      for (const n of nodes) parent.set(n.id, n.id);
+      const find = (x: string): string => {
+        let r = x;
+        while (parent.get(r) !== r) r = parent.get(r)!;
+        let cur = x;
+        while (parent.get(cur) !== r) {
+          const next = parent.get(cur)!;
+          parent.set(cur, r);
+          cur = next;
+        }
+        return r;
+      };
+      const union = (a: string, b: string) => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent.set(ra, rb);
+      };
+      // Pass 1: union all contiguous forward edges.
+      for (const d of directed) {
+        if (d.isBackward) continue;
+        const la = levels.get(d.from) ?? 0;
+        const lb = levels.get(d.to) ?? 0;
+        if (Math.abs(la - lb) === 1) union(d.from, d.to);
+      }
+      // Pass 2: consider non-contiguous forward edges, smallest gap first.
+      // Add those whose endpoints are still in different components.
+      const nonCont: DirectedEdge[] = [];
+      for (const d of directed) {
+        if (d.isBackward) continue;
+        const la = levels.get(d.from) ?? 0;
+        const lb = levels.get(d.to) ?? 0;
+        if (Math.abs(la - lb) !== 1) nonCont.push(d);
+      }
+      nonCont.sort((a, b) => {
+        const ga = Math.abs((levels.get(a.from) ?? 0) - (levels.get(a.to) ?? 0));
+        const gb = Math.abs((levels.get(b.from) ?? 0) - (levels.get(b.to) ?? 0));
+        return ga - gb;
+      });
+      const bridges = new Set<DirectedEdge>();
+      for (const d of nonCont) {
+        if (find(d.from) !== find(d.to)) {
+          bridges.add(d);
+          union(d.from, d.to);
+        }
+      }
+      return (d) => {
+        if (d.isBackward) return false;
+        const la = levels.get(d.from) ?? 0;
+        const lb = levels.get(d.to) ?? 0;
+        if (Math.abs(la - lb) === 1) return true;
+        return bridges.has(d);
+      };
+    })();
+
+    // Recompute flow over the currently-visible edge set so thickness
+    // reflects what's rendered. Non-active edges stay at flow 0 and flow
+    // through the remaining edges re-adds up accordingly.
+    computeFlow(nodes, levels, directed, isForwardActive);
+
+    // Map barycenter initialX (in [LAYOUT_MARGIN, LAYOUT_WIDTH-MARGIN],
+    // LAYOUT_WIDTH=1600) into our centered [-PLANE_HALF, PLANE_HALF] X range.
+    // Seed Z with a small random jitter so the sim has gradient to spread on.
+    const byId = new Map<string, SimNode>();
+    const simNodes: SimNode[] = nodes.map((n) => {
+      const level = levels.get(n.id) ?? 0;
+      const ix = initialX.get(n.id) ?? 800;
+      const x3 = ((ix - 800) / 800) * PLANE_HALF;
+      const sn: SimNode = {
+        ...n,
+        level,
+        x: x3,
+        y: jitterFromId(n.id) * PLANE_HALF * 3.0,
+      };
+      byId.set(n.id, sn);
+      return sn;
+    });
+    const simLinks: SimLink[] = directed
+      .filter((d) => {
+        if (d.isBackward) return showCycleEdges;
+        return isForwardActive(d);
+      })
+      .map((d) => {
+        const s = byId.get(d.from);
+        const t = byId.get(d.to);
+        if (!s || !t) return null;
+        return { source: s, target: t, original: d } as SimLink;
       })
       .filter((l): l is SimLink => l !== null);
+    return { simNodes, simLinks, maxLevel, feedbackCount };
+  }, [disabledSeasons, showCycleEdges, contiguousOnly, invertLevels]);
 
-    // Per-node score = net wins across currently-visible edges. Ties (both
-    // won) contribute equally to both sides and cancel out. Written onto the
-    // SimNode objects so the rank force can read them via a node accessor.
-    const byId = new Map(visibleNodes.map((n) => [n.id, n]));
-    for (const n of visibleNodes) n.score = 0;
-    for (const l of links) {
-      const a = byId.get(l.a as string);
-      const b = byId.get(l.b as string);
-      if (a) a.score = (a.score ?? 0) + (l.aWins - l.bWins);
-      if (b) b.score = (b.score ?? 0) + (l.bWins - l.aWins);
+  // Dev-only live introspection hook. `window.__lipSync` exposes the current
+  // layout (nodes with level, directed edges with flow/isBackward, maxLevel)
+  // plus convenience queries so the preview server can be interrogated like
+  // a live database — e.g. `__lipSync.find('Jan')`, `__lipSync.chain('widow')`.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const nodeList = simNodes.map((n) => ({
+      id: n.id,
+      name: n.name,
+      level: n.level,
+      seasons: n.seasons,
+    }));
+    const byId = new Map(nodeList.map((n) => [n.id, n]));
+    const edgeList = simLinks.map((l) => {
+      const s = typeof l.source === 'string' ? l.source : l.source.id;
+      const t = typeof l.target === 'string' ? l.target : l.target.id;
+      return {
+        from: s, // loser
+        to: t, // winner
+        isBackward: l.original.isBackward,
+        flow: l.original.flow,
+      };
+    });
+    const nameIndex = new Map<string, typeof nodeList>();
+    for (const n of nodeList) {
+      const k = n.name.toLowerCase();
+      if (!nameIndex.has(k)) nameIndex.set(k, []);
+      nameIndex.get(k)!.push(n);
     }
-    return { nodes: visibleNodes, links };
-  }, [allNodes, allEdges, disabledSeasons, merge]);
+    const find = (q: string) => {
+      const k = q.toLowerCase();
+      const exact = nameIndex.get(k);
+      if (exact) return exact;
+      return nodeList.filter((n) => n.name.toLowerCase().includes(k) || n.id.toLowerCase().includes(k));
+    };
+    const losses = (id: string) => edgeList.filter((e) => e.from === id); // queens id lost to (outgoing)
+    const wins = (id: string) => edgeList.filter((e) => e.to === id); // queens id beat (incoming)
+    const chainDown = (id: string): Array<{ id: string; level: number; name: string }> => {
+      // Walk from id along forward edges to a sink, taking the deepest winner at each step.
+      const path: string[] = [id];
+      const seen = new Set([id]);
+      let cur = id;
+      while (true) {
+        const out = losses(cur).filter((e) => !e.isBackward && !seen.has(e.to));
+        if (out.length === 0) break;
+        out.sort((a, b) => (byId.get(a.to)?.level ?? 0) - (byId.get(b.to)?.level ?? 0));
+        cur = out[0].to;
+        seen.add(cur);
+        path.push(cur);
+      }
+      return path.map((p) => {
+        const n = byId.get(p)!;
+        return { id: n.id, level: n.level, name: n.name };
+      });
+    };
+    // @ts-expect-error — dev debug hatch
+    window.__lipSync = {
+      nodes: nodeList,
+      edges: edgeList,
+      maxLevel,
+      feedbackCount,
+      find,
+      losses,
+      wins,
+      chain: chainDown,
+      byLevel: (lvl: number) => nodeList.filter((n) => n.level === lvl),
+    };
+  }, [simNodes, simLinks, maxLevel, feedbackCount]);
+
+  // World Y of each tier plane. Tier 0 is at the TOP, so larger level → smaller Y.
+  const tierWorldY = (level: number) => (maxLevel - level) * rowHeight;
+
+  const [cam, setCam] = useState<Camera>(() => ({
+    yaw: 0.4,
+    pitch: 0.25,
+    distance: 3200,
+    panOffset: { x: 0, y: 0, z: 0 },
+  }));
+
+  // Camera target is the graph's centroid (mean node position) plus the
+  // user's pan offset. Recomputed every render (cheap, O(N)) so it tracks
+  // the force sim as it settles. Orbit + zoom pivot around this point;
+  // shift-drag pans by adjusting panOffset.
+  let cameraTarget: { x: number; y: number; z: number };
+  {
+    if (simNodes.length === 0) {
+      cameraTarget = { x: cam.panOffset.x, y: cam.panOffset.y, z: cam.panOffset.z };
+    } else {
+      let sx = 0, sy = 0, sz = 0;
+      for (const n of simNodes) {
+        sx += n.x ?? 0;
+        sy += tierWorldY(n.level);
+        sz += n.y ?? 0;
+      }
+      const k = 1 / simNodes.length;
+      cameraTarget = {
+        x: sx * k + cam.panOffset.x,
+        y: sy * k + cam.panOffset.y,
+        z: sz * k + cam.panOffset.z,
+      };
+    }
+  }
 
   const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
 
-  // Refs for slider values so the sim init effect can read the current
-  // values without adding them as deps (which would cause the sim to re-init
-  // on every slider tweak).
+  // Refs mirror slider state so the sim-init effect captures fresh values
+  // without re-creating the simulation when sliders move; the live-update
+  // effect below pushes new values into the running sim.
   const linkStrengthRef = useRef(linkStrength);
+  const linkDistanceRef = useRef(linkDistance);
   const repulsionRef = useRef(repulsion);
+  const repulsionMaxRef = useRef(repulsionMax);
+  const collideRadiusRef = useRef(collideRadius);
   const velocityDecayRef = useRef(velocityDecay);
-  const rankStrengthRef = useRef(rankStrength);
+  const alphaDecayRef = useRef(alphaDecay);
+  const alphaTargetRef = useRef(alphaTarget);
   useEffect(() => {
     linkStrengthRef.current = linkStrength;
+    linkDistanceRef.current = linkDistance;
     repulsionRef.current = repulsion;
+    repulsionMaxRef.current = repulsionMax;
+    collideRadiusRef.current = collideRadius;
     velocityDecayRef.current = velocityDecay;
-    rankStrengthRef.current = rankStrength;
-  }, [linkStrength, repulsion, velocityDecay, rankStrength]);
+    alphaDecayRef.current = alphaDecay;
+    alphaTargetRef.current = alphaTarget;
+  }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay, alphaDecay, alphaTarget]);
 
-  // Custom rank force: per-tick vertical acceleration proportional to the
-  // node's net-wins score — not a spring toward a target y. That means a
-  // +5 queen is constantly pulled up, a -3 queen constantly pushed down,
-  // and equilibrium emerges from the surrounding link/charge forces
-  // (cluster-local instead of collapsing to a global reference line).
-  function createRankForce() {
-    let nodes: SimNode[] = [];
-    let strength = 0;
-    const force = (alpha: number) => {
-      for (const n of nodes) {
-        // SVG y increases downward, so winners (positive score) should
-        // reduce vy. Multiply by alpha so the force cools with the sim.
-        n.vy = (n.vy ?? 0) - (n.score ?? 0) * strength * alpha;
-      }
-    };
-    force.initialize = (ns: SimNode[]) => { nodes = ns; };
-    force.strength = (s: number) => {
-      strength = s;
-      return force;
-    };
-    return force;
-  }
-
-  // One-time sim bootstrap per dataset swap (merge toggle). We don't re-init
-  // when visibility changes — see the separate effect below that swaps the
-  // sim's nodes/links in place.
   useEffect(() => {
+    // d3 sim operates on (sim.x, sim.y) — we interpret those as (x, z) in
+    // our 3D scene. The tier axis (world Y) is computed from node.level; the
+    // sim has no force on it.
     const sim = d3
-      .forceSimulation<SimNode>([])
+      .forceSimulation<SimNode>(simNodes)
       .force(
         'link',
         d3
-          .forceLink<SimNode, SimLink>([])
+          .forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance(60)
-          .strength(linkStrengthRef.current),
+          .strength((l) => ((l as SimLink).original.isBackward ? 0 : linkStrengthRef.current))
+          .distance(linkDistanceRef.current),
       )
-      .force('charge', d3.forceManyBody<SimNode>().distanceMax(400).strength(-repulsionRef.current))
-      .force('collide', d3.forceCollide<SimNode>(11))
-      .force('rank', createRankForce().strength(rankStrengthRef.current))
+      .force(
+        'charge',
+        d3.forceManyBody<SimNode>().strength(-repulsionRef.current).distanceMax(repulsionMaxRef.current),
+      )
+      .force('collide', d3.forceCollide<SimNode>(collideRadiusRef.current))
       .velocityDecay(velocityDecayRef.current)
-      .alpha(0.1)
-      .alphaDecay(0.02)
-      .alphaTarget(0.01)
-      .alphaMin(0)
-      .on('tick', () => {
-        for (const n of sim.nodes()) {
-          if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) {
-            n.x = width / 2 + (Math.random() - 0.5) * 100;
-            n.y = height / 2 + (Math.random() - 0.5) * 100;
-            n.vx = 0;
-            n.vy = 0;
-          }
-        }
-        setTick((t) => (t + 1) % 1_000_000);
-      });
-
+      // Start cold (alpha 0.02) and ramp linearly to 1.0 over WARMUP_TICKS.
+      // Avoids the explosion that alpha=1 at frame 0 produces under
+      // aggressive force parameters.
+      .alpha(0.02)
+      .alphaDecay(alphaDecayRef.current)
+      .alphaTarget(alphaTargetRef.current)
+      .alphaMin(0.001);
+    const WARMUP_TICKS = 400;
+    let tickCount = 0;
+    sim.on('tick', () => {
+      tickCount += 1;
+      if (tickCount <= WARMUP_TICKS) {
+        const t = tickCount / WARMUP_TICKS;
+        sim.alpha(0.02 + (1 - 0.02) * t);
+      }
+      setTick((tt) => (tt + 1) % 1_000_000);
+    });
     simRef.current = sim;
-    return () => {
-      sim.stop();
-    };
-  }, [allNodes]);
+    return () => { sim.stop(); };
+  }, [simNodes, simLinks]);
 
-  // Swap visible nodes/links into the existing sim without re-initializing.
-  // Slider state, positions of surviving nodes, and alpha all persist.
-  useEffect(() => {
-    const sim = simRef.current;
-    if (!sim) return;
-    sim.nodes(nodes);
-    const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
-    link?.links(links);
-  }, [nodes, links]);
-
-  // Apply slider changes to live simulation forces without bumping alpha —
-  // the perpetual alphaTarget keeps the sim ticking, so tweaks take effect
-  // smoothly instead of jolting the graph every time a slider moves.
+  // Live-tune the running sim when sliders move. Re-warms alpha so the
+  // sim resettles into the new equilibrium.
   useEffect(() => {
     const sim = simRef.current;
     if (!sim) return;
     const link = sim.force('link') as d3.ForceLink<SimNode, SimLink> | null;
     const charge = sim.force('charge') as d3.ForceManyBody<SimNode> | null;
-    const rank = sim.force('rank') as ReturnType<typeof createRankForce> | null;
-    link?.strength(linkStrength);
-    charge?.strength(-repulsion);
-    rank?.strength(rankStrength);
+    const collide = sim.force('collide') as d3.ForceCollide<SimNode> | null;
+    link
+      ?.strength((l) => ((l as SimLink).original.isBackward ? 0 : linkStrength))
+      .distance(linkDistance);
+    charge?.strength(-repulsion).distanceMax(repulsionMax);
+    collide?.radius(collideRadius);
     sim.velocityDecay(velocityDecay);
-  }, [linkStrength, repulsion, velocityDecay, rankStrength]);
+    sim.alphaDecay(alphaDecay);
+    sim.alphaTarget(alphaTarget);
+    sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
+  }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay, alphaDecay, alphaTarget]);
 
-  // Drag state
-  const dragRef = useRef<{ node: SimNode | null; dx: number; dy: number; pointerId: number | null }>({
-    node: null, dx: 0, dy: 0, pointerId: null,
-  });
-  // Pan state
-  const panRef = useRef<{ active: boolean; pointerId: number | null; startX: number; startY: number; viewX: number; viewY: number }>({
-    active: false, pointerId: null, startX: 0, startY: 0, viewX: 0, viewY: 0,
-  });
+  // Pointer handling. Left-drag orbits, shift-left-drag pans (grabs the
+  // field and pulls it around), left-click on empty space deselects, left-
+  // click on a queen selects (handled in the circle's onClick, which stops
+  // propagation to keep SVG-level handlers out of it). Wheel = zoom.
+  const DRAG_THRESHOLD_PX = 4;
+  const dragRef = useRef<{
+    pointerId: number | null;
+    mode: 'orbit' | 'pan';
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    moved: boolean;
+    // World-space ground point under the cursor at pointerdown. Pan keeps
+    // this point under the cursor throughout the drag — so a click on a
+    // distant point produces a much larger world delta per pixel than a
+    // click on a near point.
+    grabPoint: { x: number; z: number } | null;
+  }>({ pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false, grabPoint: null });
 
-  function toSvgCoords(clientX: number, clientY: number): { x: number; y: number } {
-    const svg = svgRef.current;
-    if (!svg) return { x: 0, y: 0 };
-    const rect = svg.getBoundingClientRect();
-    const { x: vx, y: vy, k } = viewRef.current;
-    const px = (clientX - rect.left) * (width / rect.width);
-    const py = (clientY - rect.top) * (height / rect.height);
-    return { x: (px - vx) / k, y: (py - vy) / k };
+  // Cast a ray from the cursor through the camera and intersect the
+  // ground plane (y = groundY). Returns the world (x, z) of the hit, or
+  // null if the ray doesn't hit (looking above the horizon, etc).
+  function groundHitFromCursor(
+    sxScreen: number,
+    syScreen: number,
+    c: Camera,
+    target: { x: number; y: number; z: number },
+  ): { x: number; z: number } | null {
+    const cyaw = Math.cos(c.yaw);
+    const syaw = Math.sin(c.yaw);
+    const cpitch = Math.cos(c.pitch);
+    const spitch = Math.sin(c.pitch);
+    // Camera position in world.
+    const camX = target.x + c.distance * cpitch * syaw;
+    const camY = target.y + c.distance * spitch;
+    const camZ = target.z + c.distance * cpitch * cyaw;
+    // Ray direction: (rxCam, ryCam, rz2Cam) = (sx-VW/2, -(sy-VH/2), -FOCAL).
+    // Apply inverse pitch + inverse yaw to get world direction.
+    const rxC = sxScreen - VW / 2;
+    const ryC = -(syScreen - VH / 2);
+    const rz2C = -FOCAL;
+    const dyW = ryC * cpitch + rz2C * spitch;
+    const rzAfter = -ryC * spitch + rz2C * cpitch;
+    const dxW = rxC * cyaw + rzAfter * syaw;
+    const dzW = -rxC * syaw + rzAfter * cyaw;
+    if (Math.abs(dyW) < 1e-8) return null;
+    const t = (groundY - camY) / dyW;
+    if (t < 0) return null;
+    return { x: camX + t * dxW, z: camZ + t * dzW };
   }
 
-  function onNodePointerDown(e: React.PointerEvent<SVGElement>, node: SimNode) {
-    if (e.button !== 0) return; // only left-click drags nodes
-    e.stopPropagation();
-    // Capture on the SVG root so pointermove keeps firing there.
-    svgRef.current?.setPointerCapture?.(e.pointerId);
-    const { x, y } = toSvgCoords(e.clientX, e.clientY);
+  // Convert client-space pointer coords (clientX, clientY from a React
+  // PointerEvent) to SVG viewBox coords (sx ∈ [0,VW], sy ∈ [0,VH]).
+  // Uses the SVG's screen CTM so viewBox + preserveAspectRatio (letterbox /
+  // pillarbox) is handled correctly — a naive bounding-rect scale gets
+  // this wrong whenever the container aspect ratio differs from VW:VH,
+  // which is the difference between a 1:1 grab and a drift-with-distance.
+  function svgCoordsFromClient(clientX: number, clientY: number): { sx: number; sy: number } | null {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const inv = ctm.inverse();
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const out = pt.matrixTransform(inv);
+    return { sx: out.x, sy: out.y };
+  }
+
+  function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    // Only the left button starts a drag. Middle/right are ignored.
+    if (e.button !== 0) return;
+    // Suppress browser default (text-selection / drag-scroll) so vertical
+    // drags don't nudge the page as the user orbits.
+    e.preventDefault();
+    let grab: { x: number; z: number } | null = null;
+    if (e.shiftKey) {
+      const svgPos = svgCoordsFromClient(e.clientX, e.clientY);
+      if (svgPos) grab = groundHitFromCursor(svgPos.sx, svgPos.sy, cam, cameraTarget);
+    }
     dragRef.current = {
-      node,
-      dx: (node.x ?? 0) - x,
-      dy: (node.y ?? 0) - y,
       pointerId: e.pointerId,
+      mode: e.shiftKey ? 'pan' : 'orbit',
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      moved: false,
+      grabPoint: grab,
     };
-    node.fx = node.x;
-    node.fy = node.y;
+    svgRef.current?.setPointerCapture?.(e.pointerId);
   }
 
   function onPointerMove(e: React.PointerEvent<SVGSVGElement>) {
-    if (dragRef.current.node && dragRef.current.pointerId === e.pointerId) {
-      const { x, y } = toSvgCoords(e.clientX, e.clientY);
-      const n = dragRef.current.node;
-      n.fx = x + dragRef.current.dx;
-      n.fy = y + dragRef.current.dy;
-      // Also update node position immediately so forces don't yank it back this tick.
-      n.x = n.fx;
-      n.y = n.fy;
-      n.vx = 0;
-      n.vy = 0;
-      setTick((t) => (t + 1) % 1_000_000);
-    } else if (panRef.current.active && panRef.current.pointerId === e.pointerId) {
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * (width / rect.width);
-      const py = (e.clientY - rect.top) * (height / rect.height);
-      setView((v) => ({
-        ...v,
-        x: panRef.current.viewX + (px - panRef.current.startX),
-        y: panRef.current.viewY + (py - panRef.current.startY),
-      }));
+    const d = dragRef.current;
+    if (d.pointerId !== e.pointerId) return;
+    const dx = e.clientX - d.lastX;
+    const dy = e.clientY - d.lastY;
+    d.lastX = e.clientX;
+    d.lastY = e.clientY;
+    if (!d.moved) {
+      const tdx = e.clientX - d.startX;
+      const tdy = e.clientY - d.startY;
+      if (tdx * tdx + tdy * tdy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+        d.moved = true;
+      }
+    }
+    if (!d.moved) return;
+    if (d.mode === 'pan') {
+      // Grab-the-point pan. The world (x, z) under the cursor at
+      // pointerdown was captured in d.grabPoint; we shift the camera
+      // target so that same world point stays under the cursor as it
+      // moves. Ray-cast from the current cursor through the camera onto
+      // the ground; the delta to grabPoint becomes the panOffset bump.
+      // Naturally faster for distant points (steeper rays = bigger world
+      // delta per pixel) than for near points.
+      const svgPos = svgCoordsFromClient(e.clientX, e.clientY);
+      if (!svgPos || !d.grabPoint) return;
+      setCam((c) => {
+        const target = {
+          x: cameraTarget.x - cam.panOffset.x + c.panOffset.x,
+          y: cameraTarget.y - cam.panOffset.y + c.panOffset.y,
+          z: cameraTarget.z - cam.panOffset.z + c.panOffset.z,
+        };
+        const hit = groundHitFromCursor(svgPos.sx, svgPos.sy, c, target);
+        if (!hit || !d.grabPoint) return c;
+        const dxw = d.grabPoint.x - hit.x;
+        const dzw = d.grabPoint.z - hit.z;
+        return {
+          ...c,
+          panOffset: {
+            x: c.panOffset.x + dxw,
+            y: c.panOffset.y,
+            z: c.panOffset.z + dzw,
+          },
+        };
+      });
+    } else {
+      setCam((c) => {
+        const yaw = c.yaw - dx * 0.005;
+        const pitch = Math.max(-1.4, Math.min(1.4, c.pitch + dy * 0.005));
+        return { ...c, yaw, pitch };
+      });
     }
   }
 
   function onPointerUp(e: React.PointerEvent<SVGSVGElement>) {
-    if (dragRef.current.node && dragRef.current.pointerId === e.pointerId) {
-      const n = dragRef.current.node;
-      n.fx = null;
-      n.fy = null;
-      dragRef.current = { node: null, dx: 0, dy: 0, pointerId: null };
-      simRef.current?.alphaTarget(0.01);
-      svgRef.current?.releasePointerCapture?.(e.pointerId);
-    }
-    if (panRef.current.active && panRef.current.pointerId === e.pointerId) {
-      panRef.current.active = false;
-      panRef.current.pointerId = null;
-      svgRef.current?.releasePointerCapture?.(e.pointerId);
+    const d = dragRef.current;
+    if (d.pointerId !== e.pointerId) return;
+    const wasClick = !d.moved;
+    dragRef.current = { pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false, grabPoint: null };
+    svgRef.current?.releasePointerCapture?.(e.pointerId);
+    if (wasClick) {
+      // Empty-space click — deselect. (Clicks on queen dots stop
+      // propagation, so they never reach this handler.)
+      setSelectedId(null);
     }
   }
 
-  function onBackgroundPointerDown(e: React.PointerEvent<SVGSVGElement>) {
-    if (e.button === 1) {
-      e.preventDefault();
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      panRef.current = {
-        active: true,
-        pointerId: e.pointerId,
-        startX: (e.clientX - rect.left) * (width / rect.width),
-        startY: (e.clientY - rect.top) * (height / rect.height),
-        viewX: viewRef.current.x,
-        viewY: viewRef.current.y,
-      };
-      svgRef.current?.setPointerCapture?.(e.pointerId);
-    }
-  }
-
-  // Native wheel listener so we can preventDefault (React's synthetic wheel is passive).
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = svg.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * (width / rect.width);
-      const py = (e.clientY - rect.top) * (height / rect.height);
-      setView((v) => {
-        const factor = Math.exp(-e.deltaY * 0.001);
-        const nk = Math.max(0.0015, Math.min(4, v.k * factor));
-        const nx = px - (px - v.x) * (nk / v.k);
-        const ny = py - (py - v.y) * (nk / v.k);
-        return { x: nx, y: ny, k: nk };
+      setCam((c) => {
+        const factor = Math.exp(e.deltaY * 0.001);
+        return { ...c, distance: Math.max(200, Math.min(1000000, c.distance * factor)) };
       });
     };
     svg.addEventListener('wheel', handler, { passive: false });
     return () => svg.removeEventListener('wheel', handler);
-  }, [width, height]);
+  }, []);
 
-  const stats = useMemo(() => ({
-    nodes: nodes.length,
-    edges: links.length,
-  }), [nodes, links]);
+  // Precompute projections once per render. Computed inline (not memoized)
+  // because node x/y mutate in place on every force-sim tick — useMemo
+  // would cache stale values; cameraTarget also changes per render.
+  const nodeProj = (() => {
+    const m = new Map<string, Projected | null>();
+    for (const n of simNodes) {
+      const nx = n.x;
+      const ny = n.y;
+      if (nx === undefined || ny === undefined || !Number.isFinite(nx) || !Number.isFinite(ny)) {
+        m.set(n.id, null);
+        continue;
+      }
+      m.set(n.id, project({ x: nx, y: tierWorldY(n.level), z: ny }, cam, cameraTarget));
+    }
+    return m;
+  })();
+
+  const maxFlow = useMemo(() => {
+    let m = 0;
+    for (const l of simLinks) if (l.original.flow > m) m = l.original.flow;
+    return m;
+  }, [simLinks]);
+  const flowWidth = useCallback((flow: number): number => {
+    if (maxFlow <= 0) return thickMin;
+    const norm = flow / maxFlow;
+    if (norm <= lowCutoff) return thickMin;
+    if (norm >= highCutoff) return thickMax;
+    const span = highCutoff - lowCutoff;
+    if (span <= 0) return thickMin;
+    const t = (norm - lowCutoff) / span;
+    const shaped = Math.pow(t, thickExp);
+    return thickMin + shaped * (thickMax - thickMin);
+  }, [maxFlow, thickMin, thickMax, lowCutoff, highCutoff, thickExp]);
+
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of simNodes) m.set(n.id, n.name);
+    return m;
+  }, [simNodes]);
+  const levelById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of simNodes) m.set(n.id, n.level);
+    return m;
+  }, [simNodes]);
+
+  // For each queen, find her "terminal" by walking up contiguous losses
+  // (forward edges loser→winner where winner.level === loser.level − 1).
+  // When multiple contiguous losses exist, follow the candidate queen with
+  // the highest queen-level flow — i.e. her total incoming flow, the
+  // accumulated weight she receives. Tiebreak by id for determinism. A
+  // terminal is a queen with no contiguous loss available (true sink, or
+  // stuck-at-Lk where all losses skip levels). Each terminal gets a
+  // distinct color; every queen tracing up to her inherits it.
+  const terminalIdByQueen = useMemo(() => {
+    // Per-queen total incoming flow (the weight she receives across her wins).
+    const queenFlow = new Map<string, number>();
+    for (const n of simNodes) queenFlow.set(n.id, 0);
+    for (const l of simLinks) {
+      if (l.original.isBackward) continue;
+      const toId = typeof l.target === 'string' ? l.target : l.target.id;
+      queenFlow.set(toId, (queenFlow.get(toId) ?? 0) + l.original.flow);
+    }
+    // Forward losses adjacency: for each loser, list winner ids.
+    const losses = new Map<string, string[]>();
+    for (const n of simNodes) losses.set(n.id, []);
+    for (const l of simLinks) {
+      if (l.original.isBackward) continue;
+      const fromId = typeof l.source === 'string' ? l.source : l.source.id;
+      const toId = typeof l.target === 'string' ? l.target : l.target.id;
+      losses.get(fromId)?.push(toId);
+    }
+    const cache = new Map<string, string>();
+    const trace = (id: string, stack: Set<string>): string => {
+      const cached = cache.get(id);
+      if (cached !== undefined) return cached;
+      if (stack.has(id)) return id;
+      const myLvl = levelById.get(id);
+      if (myLvl === undefined) {
+        cache.set(id, id);
+        return id;
+      }
+      // Look ahead: pick the contiguous-loss candidate whose eventual
+      // terminal has the highest queen-flow. A candidate that dead-ends
+      // immediately at a low-flow terminal loses to one that traces all
+      // the way up to a high-flow terminal.
+      stack.add(id);
+      let bestTerminal: string | null = null;
+      let bestTerminalFlow = -Infinity;
+      for (const winner of losses.get(id) ?? []) {
+        if (levelById.get(winner) !== myLvl - 1) continue;
+        const t = trace(winner, stack);
+        const tf = queenFlow.get(t) ?? 0;
+        if (tf > bestTerminalFlow || (tf === bestTerminalFlow && (bestTerminal === null || t < bestTerminal))) {
+          bestTerminal = t;
+          bestTerminalFlow = tf;
+        }
+      }
+      stack.delete(id);
+      const result = bestTerminal ?? id;
+      cache.set(id, result);
+      return result;
+    };
+    const m = new Map<string, string>();
+    for (const n of simNodes) m.set(n.id, trace(n.id, new Set()));
+    return m;
+  }, [simNodes, simLinks, levelById]);
+
+  // Distinct hue per terminal. We assign deterministically by sorting
+  // terminal ids — keeps the color stable across renders. Stored as a hue
+  // number so the renderer can vary lightness (terminals bright, non-
+  // terminals darker).
+  const terminalHue = useMemo(() => {
+    const terminals = new Set<string>();
+    for (const t of terminalIdByQueen.values()) terminals.add(t);
+    const sorted = [...terminals].sort();
+    const m = new Map<string, number>();
+    sorted.forEach((id, i) => {
+      m.set(id, Math.round((i * 360) / Math.max(1, sorted.length)));
+    });
+    return m;
+  }, [terminalIdByQueen]);
+
+  // How many queens trace to each terminal. A terminal "owns" color on the
+  // graph only when she has ≥2 queens (herself + at least one descendant).
+  // Singletons — queens who are technically terminals but no one else
+  // traces to them — get the dim non-terminal treatment so they don't
+  // visually compete with the actual anchor terminals.
+  const terminalOwnerCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of terminalIdByQueen.values()) m.set(t, (m.get(t) ?? 0) + 1);
+    return m;
+  }, [terminalIdByQueen]);
+
+  const groundY = tierWorldY(maxLevel);
+  // Checkerboard ground: a finite grid of square tiles in world space,
+  // each clipped against the camera near plane and painted in alternating
+  // light/dark colors. Tile colors index by (i + j) parity. Tiles are
+  // depth-sorted so far ones render first.
+  const groundTiles = (() => {
+    const y = groundY;
+    const cy = Math.cos(cam.yaw);
+    const sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch);
+    const sp = Math.sin(cam.pitch);
+    const NEAR = cam.distance - 1;
+    const toCam = (px: number, py: number, pz: number) => {
+      const dx = px - cameraTarget.x;
+      const dy = py - cameraTarget.y;
+      const dz = pz - cameraTarget.z;
+      const rx = dx * cy - dz * sy;
+      const rz = dx * sy + dz * cy;
+      const ry = dy * cp - rz * sp;
+      const rz2 = dy * sp + rz * cp;
+      return { rx, ry, rz2 };
+    };
+    const projectCam = (c: { rx: number; ry: number; rz2: number }) => {
+      const viewZ = cam.distance - c.rz2;
+      if (viewZ < 1) return null;
+      const scale = FOCAL / viewZ;
+      return {
+        sx: c.rx * scale + VW / 2,
+        sy: -c.ry * scale + VH / 2,
+        depth: viewZ,
+      };
+    };
+
+    const TILE_SIZE = 3000;
+    const TILES_PER_SIDE = 16;
+    const HALF = (TILES_PER_SIDE * TILE_SIZE) / 2;
+    // Off-screen culling slack — accept tiles whose projected center sits
+    // up to one viewport-width outside the view bounds.
+    const MARGIN_X = VW;
+    const MARGIN_Y = VH;
+    type Tile = { key: string; poly: string; fill: string; depth: number };
+    const tiles: Tile[] = [];
+    for (let i = 0; i < TILES_PER_SIDE; i += 1) {
+      const x0 = -HALF + i * TILE_SIZE;
+      const x1 = x0 + TILE_SIZE;
+      for (let j = 0; j < TILES_PER_SIDE; j += 1) {
+        const z0 = -HALF + j * TILE_SIZE;
+        const z1 = z0 + TILE_SIZE;
+        // Quick reject: if the tile center projects far off-screen, skip
+        // entirely. Saves the per-corner transform + clip work for the
+        // 95%+ of tiles that aren't visible at typical camera positions.
+        const center = projectCam(toCam((x0 + x1) / 2, y, (z0 + z1) / 2));
+        if (!center) continue;
+        if (
+          center.sx < -MARGIN_X ||
+          center.sx > VW + MARGIN_X ||
+          center.sy < -MARGIN_Y ||
+          center.sy > VH + MARGIN_Y
+        ) continue;
+        const corners = [
+          toCam(x0, y, z0),
+          toCam(x1, y, z0),
+          toCam(x1, y, z1),
+          toCam(x0, y, z1),
+        ];
+        // Sutherland-Hodgman clip to the near plane.
+        const clipped: { rx: number; ry: number; rz2: number }[] = [];
+        for (let k = 0; k < 4; k += 1) {
+          const a = corners[k];
+          const b = corners[(k + 1) % 4];
+          const aIn = a.rz2 < NEAR;
+          const bIn = b.rz2 < NEAR;
+          if (aIn) clipped.push(a);
+          if (aIn !== bIn) {
+            const t = (NEAR - a.rz2) / (b.rz2 - a.rz2);
+            clipped.push({
+              rx: a.rx + t * (b.rx - a.rx),
+              ry: a.ry + t * (b.ry - a.ry),
+              rz2: NEAR,
+            });
+          }
+        }
+        if (clipped.length < 3) continue;
+        const projs = clipped.map(projectCam);
+        if (projs.some((p) => p === null)) continue;
+        const poly = (projs as { sx: number; sy: number; depth: number }[])
+          .map((p) => `${p.sx},${p.sy}`)
+          .join(' ');
+        const dark = (i + j) % 2 === 0;
+        tiles.push({
+          key: `t${i}-${j}`,
+          poly,
+          fill: dark ? '#3a3a48' : '#9090a8',
+          depth: center.depth,
+        });
+      }
+    }
+    tiles.sort((a, b) => b.depth - a.depth);
+    return tiles;
+  })();
+
+  // Edges, painted back-to-front with their own gradient defs.
+  const edgeRenders = useMemo(() => {
+    const items: {
+      key: string;
+      isBackward: boolean;
+      s: Projected;
+      t: Projected;
+      width: number;
+      depth: number;
+      gradientId?: string;
+      sId: string;
+      tId: string;
+    }[] = [];
+    for (let i = 0; i < simLinks.length; i += 1) {
+      const l = simLinks[i];
+      const sNode = typeof l.source === 'object' ? (l.source as SimNode) : null;
+      const tNode = typeof l.target === 'object' ? (l.target as SimNode) : null;
+      if (!sNode || !tNode) continue;
+      const sp = nodeProj.get(sNode.id);
+      const tp = nodeProj.get(tNode.id);
+      if (!sp || !tp) continue;
+      items.push({
+        key: `e${i}`,
+        isBackward: l.original.isBackward,
+        s: sp,
+        t: tp,
+        width: flowWidth(l.original.flow),
+        depth: (sp.depth + tp.depth) * 0.5,
+        gradientId: l.original.isBackward ? undefined : `ls3-edge-${i}`,
+        sId: sNode.id,
+        tId: tNode.id,
+      });
+    }
+    items.sort((a, b) => b.depth - a.depth);
+    return items;
+  }, [simLinks, nodeProj, flowWidth]);
+
+  // Nodes painted back-to-front.
+  const nodeRenders = useMemo(() => {
+    const items: { n: SimNode; p: Projected }[] = [];
+    for (const n of simNodes) {
+      const p = nodeProj.get(n.id);
+      if (!p) continue;
+      items.push({ n, p });
+    }
+    items.sort((a, b) => b.p.depth - a.p.depth);
+    return items;
+  }, [simNodes, nodeProj]);
+
+  // Queen filter. The search target is the same "[Ln] Name · S1, AS3"
+  // string shown at the top of the tooltip — so a user can type "[L4]"
+  // to get all L4 queens, "AS3" for all AS3 queens, a name fragment, etc.
+  const matchedIds = useMemo(() => {
+    const q = nameFilter.trim().toLowerCase();
+    if (!q) return null; // null = filter inactive, everyone full-opacity
+    const set = new Set<string>();
+    for (const n of simNodes) {
+      const haystack = `[L${n.level}] ${n.name} · ${n.seasons.map(seasonLabel).join(', ')}`;
+      if (haystack.toLowerCase().includes(q)) set.add(n.id);
+    }
+    return set;
+  }, [nameFilter, simNodes]);
+
+  // Selected queen's "loser subtree": all queens she beat, transitively.
+  // Forward edges are loser→winner, so walking backward from selected via
+  // forward-predecessors gives us everyone who lost to her or to someone
+  // in her subtree. Includes the selected queen herself.
+  const selectedSubtree = useMemo(() => {
+    if (!selectedId) return null;
+    const fwdPred = new Map<string, string[]>();
+    for (const n of simNodes) fwdPred.set(n.id, []);
+    for (const l of simLinks) {
+      if (l.original.isBackward) continue;
+      const fromId = typeof l.source === 'string' ? l.source : l.source.id;
+      const toId = typeof l.target === 'string' ? l.target : l.target.id;
+      fwdPred.get(toId)?.push(fromId);
+    }
+    const visited = new Set<string>([selectedId]);
+    const stack = [selectedId];
+    while (stack.length) {
+      const v = stack.pop()!;
+      for (const w of fwdPred.get(v) ?? []) {
+        if (!visited.has(w)) { visited.add(w); stack.push(w); }
+      }
+    }
+    return visited;
+  }, [selectedId, simNodes, simLinks]);
+
+  // Whether a node/edge gets dimmed. When selection or filter is active,
+  // non-participants dim. Selection lights {selected} ∪ subtree; filter
+  // lights matched names; the two compose as a union.
+  const isNodeLit = (id: string): boolean => {
+    if (!selectedSubtree && !matchedIds) return true;
+    if (selectedSubtree?.has(id)) return true;
+    if (matchedIds?.has(id)) return true;
+    return false;
+  };
+  const isEdgeLit = (sId: string, tId: string): boolean => {
+    if (!selectedSubtree && !matchedIds) return true;
+    // Selection: edge lit only if both endpoints are in the subtree —
+    // otherwise the line would stretch into dimmed territory.
+    if (selectedSubtree?.has(sId) && selectedSubtree.has(tId)) return true;
+    // Filter: edge lit if either endpoint matches (matches the existing
+    // filter-only behavior).
+    if (matchedIds && (matchedIds.has(sId) || matchedIds.has(tId))) return true;
+    return false;
+  };
+  const isHighlighted = (id: string): boolean =>
+    id === selectedId || (matchedIds?.has(id) ?? false);
+
+  const hoveredProj = hovered ? nodeProj.get(hovered.id) ?? null : null;
 
   return (
     <div>
       <div className="mb-3 text-sm text-[#888]">
-        {stats.nodes} queens · {stats.edges} matchups · left-click drag · middle-click pan · scroll to zoom
+        {simNodes.length} queens · {simLinks.length} matchups · {maxLevel + 1} tiers · {feedbackCount} feedback edges · drag orbit · shift-drag pan · scroll zoom
       </div>
-      <div className="mb-3 flex items-center gap-6 text-sm text-[#888] flex-wrap">
+      <div className="mb-3 flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={showCycleEdges} onChange={(e) => setShowCycleEdges(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Show cycle edges</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={contiguousOnly} onChange={(e) => setContiguousOnly(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Contiguous only</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={colorByTerminal} onChange={(e) => setColorByTerminal(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Color by terminal</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={invertLevels} onChange={(e) => setInvertLevels(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Invert levels (raw)</span>
+        </label>
+      </div>
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() => setShowPhysics((v) => !v)}
+          className="text-xs text-[#888] hover:text-[#ccc] flex items-center gap-1"
+        >
+          <span className="font-mono w-3 inline-block">{showPhysics ? '▾' : '▸'}</span>
+          Physics options
+        </button>
+      </div>
+      {showPhysics && (
+      <div className="mb-3 ml-4 pl-4 border-l border-[#2a2a3a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
         <label className="flex items-center gap-2">
           <span className="text-[#aaa] w-20">Link str</span>
-          <input
-            type="range"
-            min={0}
-            max={8}
-            step={0.01}
-            value={linkStrength}
-            onChange={(e) => setLinkStrength(parseFloat(e.target.value))}
-            className="w-40 accent-amber-500"
-          />
-          <span className="text-[#666] font-mono text-xs w-12">{linkStrength.toFixed(2)}</span>
+          <input type="range" min={0} max={5} step={0.01} value={linkStrength} onChange={(e) => setLinkStrength(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{linkStrength.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Link dist</span>
+          <input type="range" min={0} max={1000} step={1} value={linkDistance} onChange={(e) => setLinkDistance(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{linkDistance.toFixed(0)}</span>
         </label>
         <label className="flex items-center gap-2">
           <span className="text-[#aaa] w-20">Repulsion</span>
-          <input
-            type="range"
-            min={0}
-            max={8000}
-            step={1}
-            value={repulsion}
-            onChange={(e) => setRepulsion(parseFloat(e.target.value))}
-            className="w-40 accent-amber-500"
-          />
-          <span className="text-[#666] font-mono text-xs w-12">{repulsion.toFixed(0)}</span>
+          <input type="range" min={0} max={10000} step={1} value={repulsion} onChange={(e) => setRepulsion(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{repulsion.toFixed(0)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Repel max</span>
+          <input type="range" min={0} max={20000} step={1} value={repulsionMax} onChange={(e) => setRepulsionMax(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{repulsionMax.toFixed(0)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Collide r</span>
+          <input type="range" min={0} max={200} step={0.5} value={collideRadius} onChange={(e) => setCollideRadius(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{collideRadius.toFixed(1)}</span>
         </label>
         <label className="flex items-center gap-2">
           <span className="text-[#aaa] w-20">Vel decay</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={velocityDecay}
-            onChange={(e) => setVelocityDecay(parseFloat(e.target.value))}
-            className="w-40 accent-amber-500"
-          />
-          <span className="text-[#666] font-mono text-xs w-12">{velocityDecay.toFixed(2)}</span>
+          <input type="range" min={0} max={1} step={0.01} value={velocityDecay} onChange={(e) => setVelocityDecay(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{velocityDecay.toFixed(2)}</span>
         </label>
         <label className="flex items-center gap-2">
-          <span className="text-[#aaa] w-20">Rank pull</span>
+          <span className="text-[#aaa] w-20">α decay</span>
+          <input type="range" min={0} max={0.3} step={0.001} value={alphaDecay} onChange={(e) => setAlphaDecay(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{alphaDecay.toFixed(3)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">α target</span>
+          <input type="range" min={0} max={1} step={0.01} value={alphaTarget} onChange={(e) => setAlphaTarget(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-14">{alphaTarget.toFixed(2)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Row height</span>
           <input
             type="range"
             min={0}
-            max={1000}
+            max={DEFAULT_ROW_HEIGHT * 10}
             step={1}
-            value={rankStrength}
-            onChange={(e) => setRankStrength(parseFloat(e.target.value))}
+            value={rowHeight}
+            onChange={(e) => setRowHeight(parseFloat(e.target.value))}
             className="w-40 accent-amber-500"
           />
-          <span className="text-[#666] font-mono text-xs w-12">{rankStrength.toFixed(0)}</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={merge}
-            onChange={(e) => setMerge(e.target.checked)}
-            className="accent-amber-500"
-          />
-          <span className="text-[#aaa]">Merge recurring queens</span>
+          <span className="text-[#666] font-mono text-xs w-14">{rowHeight.toFixed(0)}</span>
         </label>
       </div>
+      )}
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() => setShowEdgeOpts((v) => !v)}
+          className="text-xs text-[#888] hover:text-[#ccc] flex items-center gap-1"
+        >
+          <span className="font-mono w-3 inline-block">{showEdgeOpts ? '▾' : '▸'}</span>
+          Edge options
+        </button>
+      </div>
+      {showEdgeOpts && (
+      <div className="mb-3 ml-4 pl-4 border-l border-[#2a2a3a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Thick min</span>
+          <input type="range" min={0} max={20} step={0.1} value={thickMin} onChange={(e) => setThickMin(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-12">{thickMin.toFixed(1)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Thick max</span>
+          <input type="range" min={0} max={20} step={0.1} value={thickMax} onChange={(e) => setThickMax(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-12">{thickMax.toFixed(1)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Low cut</span>
+          <input type="range" min={0} max={1} step={0.001} value={lowCutoff} onChange={(e) => setLowCutoff(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-12">{lowCutoff.toFixed(3)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">High cut</span>
+          <input type="range" min={0} max={1} step={0.001} value={highCutoff} onChange={(e) => setHighCutoff(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-12">{highCutoff.toFixed(3)}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Exp</span>
+          <input type="range" min={0} max={5} step={0.01} value={thickExp} onChange={(e) => setThickExp(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
+          <span className="text-[#666] font-mono text-xs w-12">{thickExp.toFixed(2)}</span>
+        </label>
+      </div>
+      )}
       <div className="mb-3 flex items-center gap-2 text-xs text-[#888] flex-wrap">
         <span className="text-[#aaa] mr-1">Seasons:</span>
         {SEASON_ORDER.map((s) => {
@@ -431,29 +1121,42 @@ export default function LipSyncsPage() {
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setDisabledSeasons(new Set())}
-          className="ml-2 px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]"
-        >
-          All
-        </button>
-        <button
-          type="button"
-          onClick={() => setDisabledSeasons(new Set(SEASON_ORDER))}
-          className="px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]"
-        >
-          None
-        </button>
+        <button type="button" onClick={() => setDisabledSeasons(new Set())} className="ml-2 px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]">All</button>
+        <button type="button" onClick={() => setDisabledSeasons(new Set(SEASON_ORDER))} className="px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]">None</button>
+      </div>
+      <div className="mb-3 flex items-center gap-2 text-sm text-[#888]">
+        <span className="text-[#aaa] mr-1">Filter:</span>
+        <div className="relative">
+          <input
+            type="text"
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+            placeholder="queen name…"
+            className="bg-[#0a0a10] border border-[#2a2a3a] rounded px-2 py-0.5 pr-6 text-[#ccc] placeholder:text-[#555] focus:outline-none focus:border-amber-500 w-64"
+          />
+          {nameFilter && (
+            <button
+              type="button"
+              onClick={() => setNameFilter('')}
+              aria-label="Clear filter"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded text-[#888] hover:text-[#ccc] hover:bg-[#2a2a3a] text-xs leading-none"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {matchedIds && (
+          <span className="text-xs text-[#666] font-mono">{matchedIds.size} match{matchedIds.size === 1 ? '' : 'es'}</span>
+        )}
       </div>
       <div className="bg-[#0a0a10] border border-[#1a1a24] rounded-lg overflow-hidden relative">
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox={`0 0 ${VW} ${VH}`}
           width="100%"
-          height={height}
+          height={VH}
           style={{ display: 'block', touchAction: 'none' }}
-          onPointerDown={onBackgroundPointerDown}
+          onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
@@ -461,97 +1164,214 @@ export default function LipSyncsPage() {
           onAuxClick={(e) => e.preventDefault()}
         >
           <defs>
-            {links.map((l, i) => {
-              const s = (typeof l.source === 'object' ? l.source : null) as SimNode | null;
-              const t = (typeof l.target === 'object' ? l.target : null) as SimNode | null;
-              if (!s || !t || !Number.isFinite(s.x) || !Number.isFinite(t.x) || !Number.isFinite(s.y) || !Number.isFinite(t.y)) return null;
-              const aColor = l.aWins > 0 && l.aWins >= l.bWins ? GOLD : LIGHT_GRAY;
-              const bColor = l.bWins > 0 && l.bWins >= l.aWins ? GOLD : LIGHT_GRAY;
-              return (
+            {edgeRenders.map((e) =>
+              e.gradientId ? (
                 <linearGradient
-                  key={i}
-                  id={`ls-edge-${i}`}
+                  key={e.gradientId}
+                  id={e.gradientId}
                   gradientUnits="userSpaceOnUse"
-                  x1={s.x} y1={s.y} x2={t.x} y2={t.y}
+                  x1={e.s.sx}
+                  y1={e.s.sy}
+                  x2={e.t.sx}
+                  y2={e.t.sy}
                 >
-                  <stop offset="0" stopColor={aColor} />
-                  <stop offset="1" stopColor={bColor} />
+                  <stop offset="0" stopColor="#c0c0c0" />
+                  <stop offset="1" stopColor="#d4af37" />
                 </linearGradient>
-              );
-            })}
+              ) : null,
+            )}
           </defs>
-          <rect x={0} y={0} width={width} height={height} fill="transparent" />
-          <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-            {/* Edges */}
-            {links.map((l, i) => {
-              const s = (typeof l.source === 'object' ? l.source : null) as SimNode | null;
-              const t = (typeof l.target === 'object' ? l.target : null) as SimNode | null;
-              if (!s || !t || !Number.isFinite(s.x) || !Number.isFinite(t.x) || !Number.isFinite(s.y) || !Number.isFinite(t.y)) return null;
-              return (
-                <line
-                  key={i}
-                  x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-                  stroke={`url(#ls-edge-${i})`}
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                />
-              );
-            })}
-            {/* Nodes — floor-clamped to 12px rendered diameter (16px on hover)
-                regardless of zoom so nodes stay tappable zoomed out; the hover
-                ring thickness is also zoom-independent. */}
-            {nodes.map((n) => {
-              if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return null;
-              const color = seasonColor(n.seasonId);
-              const isHover = hovered?.id === n.id;
-              const baseR = isHover ? 7 : 5;
-              const floorR = isHover ? 8 : 6;
-              const r = Math.max(baseR, floorR / view.k);
-              const sw = (isHover ? 1.5 : 1) / view.k;
-              return (
-                <g
-                  key={n.id}
-                  transform={`translate(${n.x},${n.y})`}
-                  style={{ cursor: 'grab' }}
-                  onPointerDown={(e) => onNodePointerDown(e, n)}
+          <rect
+            x={0}
+            y={0}
+            width={VW}
+            height={VH}
+            fill="transparent"
+            pointerEvents="all"
+          />
+          {groundTiles.map((t) => (
+            <polygon
+              key={t.key}
+              points={t.poly}
+              fill={t.fill}
+              fillOpacity={0.5}
+            />
+          ))}
+          {edgeRenders.map((e) => {
+            const lit = isEdgeLit(e.sId, e.tId);
+            const baseOp = e.isBackward ? 0.85 : 0.7;
+            // Stronger dim when a queen is selected — the user is focused on
+            // her subtree, so push the rest further back.
+            const dimFactor = selectedSubtree ? 0.18 : 0.3;
+            const op = lit ? baseOp : baseOp * dimFactor;
+            return (
+              <line
+                key={e.key}
+                x1={e.s.sx}
+                y1={e.s.sy}
+                x2={e.t.sx}
+                y2={e.t.sy}
+                stroke={e.isBackward ? RED : `url(#${e.gradientId})`}
+                strokeOpacity={op}
+                strokeWidth={e.isBackward ? Math.max(1.6, e.width) : e.width}
+              />
+            );
+          })}
+          {nodeRenders.map(({ n, p }) => {
+            const isHover = hovered?.id === n.id;
+            const highlighted = isHighlighted(n.id);
+            const isTerminal =
+              colorByTerminal &&
+              terminalIdByQueen.get(n.id) === n.id &&
+              (terminalOwnerCount.get(n.id) ?? 0) > 1;
+            let color: string;
+            if (colorByTerminal) {
+              const hue = terminalHue.get(terminalIdByQueen.get(n.id) ?? n.id);
+              if (hue !== undefined) {
+                // Terminals are bright + saturated; non-terminals are
+                // desaturated so the terminals read as the anchor of
+                // each tree.
+                const sat = isTerminal ? 70 : 35;
+                const light = isTerminal ? 60 : 45;
+                color = `hsl(${hue}, ${sat}%, ${light}%)`;
+              } else {
+                color = seasonColor(n.seasonId);
+              }
+            } else {
+              color = seasonColor(n.seasonId);
+            }
+            // Dot radius scales with perspective (close → big, far → small),
+            // clamped to a 3px floor and a 500px ceiling. Values are pre-
+            // transform; the parent <g scale(2)> doubles them on screen,
+            // so the SVG-unit clamp [1.5, 250] = [3px, 500px] rendered.
+            const baseR = isHover ? 81 : highlighted ? 72 : 54;
+            const r = Math.max(1.5, Math.min(250, baseR * p.scale * 1.2));
+            const op = isNodeLit(n.id) ? 1 : selectedSubtree ? 0.27 : 0.4;
+            const strokeColor = isHover || highlighted || isTerminal ? '#fff' : '#0a0a10';
+            const strokeW = isHover || highlighted ? 1.5 : isTerminal ? 1 : 1;
+            return (
+              <g key={n.id} transform={`translate(${p.sx},${p.sy}) scale(2)`} opacity={op}>
+                <circle
+                  r={r}
+                  fill={color}
+                  stroke={strokeColor}
+                  strokeWidth={strokeW}
+                  style={{ cursor: 'pointer' }}
                   onPointerEnter={() => setHovered(n)}
                   onPointerLeave={() => setHovered((h) => (h?.id === n.id ? null : h))}
+                  onPointerDown={(ev) => ev.stopPropagation()}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    setSelectedId((cur) => (cur === n.id ? null : n.id));
+                  }}
+                />
+              </g>
+            );
+          })}
+          {/* Highlight labels (selected + filter matches) — drawn as a
+              separate top layer so later (closer) node circles don't
+              overdraw earlier labels. */}
+          {nodeRenders.map(({ n, p }) => {
+            if (!isHighlighted(n.id)) return null;
+            const isHover = hovered?.id === n.id;
+            const baseR = isHover ? 81 : 72;
+            const r = Math.max(1.5, Math.min(250, baseR * p.scale * 1.2));
+            return (
+              <g key={`lbl-${n.id}`} transform={`translate(${p.sx},${p.sy}) scale(2)`} pointerEvents="none">
+                <text
+                  x={r + 3}
+                  y={3}
+                  fontSize={10}
+                  fill="#fff"
+                  stroke="#0a0a10"
+                  strokeWidth={2}
+                  paintOrder="stroke"
                 >
-                  <circle
-                    r={r}
-                    fill={color}
-                    stroke={isHover ? '#fff' : '#0a0a10'}
-                    strokeWidth={sw}
-                  />
-                </g>
-              );
-            })}
-            {/* Hover label drawn above all — counter-scaled so tooltip stays
-                the same on-screen size regardless of zoom. */}
-            {hovered && hovered.x != null && hovered.y != null && (
-              <g transform={`translate(${hovered.x},${hovered.y}) scale(${1 / view.k})`} pointerEvents="none">
-                {(() => {
-                  const label = hovered.seasons.map(seasonLabel).join(', ');
-                  const text = `${hovered.name} · ${label}`;
-                  return (
-                    <>
-                      <rect
-                        x={10} y={-10}
-                        width={Math.max(80, text.length * 7 + 20)}
-                        height={20}
-                        rx={3}
-                        fill="#121218"
-                        stroke="#2a2a3a"
-                      />
-                      <text x={14} y={4} fontSize={12} fill="#eee">
-                        {text}
-                      </text>
-                    </>
+                  [L{n.level}] {n.name}
+                </text>
+              </g>
+            );
+          })}
+          {hovered && hoveredProj && (() => {
+            const losses: { seasonId: string; episode: string; song: string; opponent: string; flow: number }[] = [];
+            const wins: { seasonId: string; episode: string; song: string; opponent: string; flow: number }[] = [];
+            for (const l of simLinks) {
+              const d = l.original;
+              const aId = d.original.a;
+              const bId = d.original.b;
+              if (aId !== hovered.id && bId !== hovered.id) continue;
+              const oppId = aId === hovered.id ? bId : aId;
+              const oppName = nameById.get(oppId) ?? oppId;
+              const oppLevel = levelById.get(oppId);
+              const oppLabel = oppLevel !== undefined ? `[L${oppLevel}] ${oppName}` : oppName;
+              for (const m of d.original.matches) {
+                if (m.outcome === 'tie') continue;
+                const winnerId = m.outcome === 'a' ? aId : bId;
+                const hoveredWon = winnerId === hovered.id;
+                const row = { seasonId: m.seasonId, episode: m.episode, song: m.song, opponent: oppLabel, flow: d.flow };
+                if (hoveredWon) wins.push(row); else losses.push(row);
+              }
+            }
+            losses.sort((a, b) => a.episode.localeCompare(b.episode));
+            wins.sort((a, b) => a.episode.localeCompare(b.episode));
+            const lineH = 13;
+            const headerH = 20;
+            const sectionGap = 6;
+            const rowsCount = losses.length + wins.length;
+            const headings = (losses.length ? 1 : 0) + (wins.length ? 1 : 0);
+            const h = headerH + (headings ? sectionGap : 0) + headings * lineH + rowsCount * lineH + 8;
+            const rowText = (r: { seasonId: string; episode: string; opponent: string; flow: number }) =>
+              `${seasonLabel(r.seasonId)} · ${r.episode} · ${r.opponent} · flow ${r.flow}`;
+            const headerText = `[L${hovered.level}] ${hovered.name} · ${hovered.seasons.map(seasonLabel).join(', ')}`;
+            const longest = Math.max(
+              headerText.length,
+              ...losses.map((r) => rowText(r).length),
+              ...wins.map((r) => rowText(r).length),
+              'Losses'.length,
+              'Wins'.length,
+            );
+            const w = Math.max(120, longest * 6.4 + 20);
+            let y = 8;
+            return (
+              <g transform={`translate(${hoveredProj.sx},${hoveredProj.sy}) scale(2)`} pointerEvents="none">
+                <rect x={10} y={-10} width={w} height={h} rx={3} fill="#121218" stroke="#2a2a3a" />
+                <text x={14} y={4} fontSize={12} fill="#eee" fontWeight={600}>
+                  {headerText}
+                </text>
+                {losses.length > 0 && (() => {
+                  const out: ReactNode[] = [];
+                  y += headerH - 6;
+                  out.push(
+                    <text key="lh" x={14} y={y} fontSize={11} fill="#c0c0c0" fontWeight={600}>Losses</text>,
                   );
+                  y += lineH;
+                  for (let i = 0; i < losses.length; i += 1) {
+                    out.push(
+                      <text key={`l-${i}`} x={18} y={y} fontSize={10} fill="#bbb">{rowText(losses[i])}</text>,
+                    );
+                    y += lineH;
+                  }
+                  return out;
+                })()}
+                {wins.length > 0 && (() => {
+                  const out: ReactNode[] = [];
+                  if (losses.length === 0) y += headerH - 6;
+                  else y += sectionGap;
+                  out.push(
+                    <text key="wh" x={14} y={y} fontSize={11} fill="#d4af37" fontWeight={600}>Wins</text>,
+                  );
+                  y += lineH;
+                  for (let i = 0; i < wins.length; i += 1) {
+                    out.push(
+                      <text key={`w-${i}`} x={18} y={y} fontSize={10} fill="#bbb">{rowText(wins[i])}</text>,
+                    );
+                    y += lineH;
+                  }
+                  return out;
                 })()}
               </g>
-            )}
-          </g>
+            );
+          })()}
         </svg>
       </div>
     </div>
