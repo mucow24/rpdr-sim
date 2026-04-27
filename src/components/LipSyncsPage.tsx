@@ -81,6 +81,7 @@ export default function LipSyncsPage() {
 
   const [showCycleEdges, setShowCycleEdges] = useState(false);
   const [contiguousOnly, setContiguousOnly] = useState(true);
+  const [colorByTerminal, setColorByTerminal] = useState(false);
   const [nameFilter, setNameFilter] = useState('');
 
   const [thickMin, setThickMin] = useState(1);
@@ -463,6 +464,94 @@ export default function LipSyncsPage() {
     return m;
   }, [simNodes]);
 
+  // For each queen, find her "terminal" by walking up contiguous losses
+  // (forward edges loser→winner where winner.level === loser.level − 1).
+  // When multiple contiguous losses exist, follow the candidate queen with
+  // the highest queen-level flow — i.e. her total incoming flow, the
+  // accumulated weight she receives. Tiebreak by id for determinism. A
+  // terminal is a queen with no contiguous loss available (true sink, or
+  // stuck-at-Lk where all losses skip levels). Each terminal gets a
+  // distinct color; every queen tracing up to her inherits it.
+  const terminalIdByQueen = useMemo(() => {
+    // Per-queen total incoming flow (the weight she receives across her wins).
+    const queenFlow = new Map<string, number>();
+    for (const n of simNodes) queenFlow.set(n.id, 0);
+    for (const l of simLinks) {
+      if (l.original.isBackward) continue;
+      const toId = typeof l.target === 'string' ? l.target : l.target.id;
+      queenFlow.set(toId, (queenFlow.get(toId) ?? 0) + l.original.flow);
+    }
+    // Forward losses adjacency: for each loser, list winner ids.
+    const losses = new Map<string, string[]>();
+    for (const n of simNodes) losses.set(n.id, []);
+    for (const l of simLinks) {
+      if (l.original.isBackward) continue;
+      const fromId = typeof l.source === 'string' ? l.source : l.source.id;
+      const toId = typeof l.target === 'string' ? l.target : l.target.id;
+      losses.get(fromId)?.push(toId);
+    }
+    const cache = new Map<string, string>();
+    const trace = (id: string, stack: Set<string>): string => {
+      const cached = cache.get(id);
+      if (cached !== undefined) return cached;
+      if (stack.has(id)) return id;
+      const myLvl = levelById.get(id);
+      if (myLvl === undefined) {
+        cache.set(id, id);
+        return id;
+      }
+      // Look ahead: pick the contiguous-loss candidate whose eventual
+      // terminal has the highest queen-flow. A candidate that dead-ends
+      // immediately at a low-flow terminal loses to one that traces all
+      // the way up to a high-flow terminal.
+      stack.add(id);
+      let bestTerminal: string | null = null;
+      let bestTerminalFlow = -Infinity;
+      for (const winner of losses.get(id) ?? []) {
+        if (levelById.get(winner) !== myLvl - 1) continue;
+        const t = trace(winner, stack);
+        const tf = queenFlow.get(t) ?? 0;
+        if (tf > bestTerminalFlow || (tf === bestTerminalFlow && (bestTerminal === null || t < bestTerminal))) {
+          bestTerminal = t;
+          bestTerminalFlow = tf;
+        }
+      }
+      stack.delete(id);
+      const result = bestTerminal ?? id;
+      cache.set(id, result);
+      return result;
+    };
+    const m = new Map<string, string>();
+    for (const n of simNodes) m.set(n.id, trace(n.id, new Set()));
+    return m;
+  }, [simNodes, simLinks, levelById]);
+
+  // Distinct hue per terminal. We assign deterministically by sorting
+  // terminal ids — keeps the color stable across renders. Stored as a hue
+  // number so the renderer can vary lightness (terminals bright, non-
+  // terminals darker).
+  const terminalHue = useMemo(() => {
+    const terminals = new Set<string>();
+    for (const t of terminalIdByQueen.values()) terminals.add(t);
+    const sorted = [...terminals].sort();
+    const m = new Map<string, number>();
+    sorted.forEach((id, i) => {
+      m.set(id, Math.round((i * 360) / Math.max(1, sorted.length)));
+    });
+    return m;
+  }, [terminalIdByQueen]);
+
+  // How many queens trace to each terminal. A terminal "owns" color on the
+  // graph only when she has ≥2 queens (herself + at least one descendant).
+  // Singletons — queens who are technically terminals but no one else
+  // traces to them — get the dim non-terminal treatment so they don't
+  // visually compete with the actual anchor terminals.
+  const terminalOwnerCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of terminalIdByQueen.values()) m.set(t, (m.get(t) ?? 0) + 1);
+    return m;
+  }, [terminalIdByQueen]);
+
   // Tier planes, sorted by depth at their centers so the furthest renders
   // first. Computed inline because cameraTarget shifts per render.
   const planeRenders = (() => {
@@ -616,6 +705,10 @@ export default function LipSyncsPage() {
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" checked={contiguousOnly} onChange={(e) => setContiguousOnly(e.target.checked)} className="accent-amber-500" />
           <span className="text-[#aaa]">Contiguous only</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={colorByTerminal} onChange={(e) => setColorByTerminal(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Color by terminal</span>
         </label>
       </div>
       <div className="mb-3">
@@ -849,15 +942,34 @@ export default function LipSyncsPage() {
             );
           })}
           {nodeRenders.map(({ n, p }) => {
-            const color = seasonColor(n.seasonId);
             const isHover = hovered?.id === n.id;
             const highlighted = isHighlighted(n.id);
+            const isTerminal =
+              colorByTerminal &&
+              terminalIdByQueen.get(n.id) === n.id &&
+              (terminalOwnerCount.get(n.id) ?? 0) > 1;
+            let color: string;
+            if (colorByTerminal) {
+              const hue = terminalHue.get(terminalIdByQueen.get(n.id) ?? n.id);
+              if (hue !== undefined) {
+                // Terminals are bright + saturated; non-terminals are
+                // desaturated so the terminals read as the anchor of
+                // each tree.
+                const sat = isTerminal ? 70 : 35;
+                const light = isTerminal ? 60 : 45;
+                color = `hsl(${hue}, ${sat}%, ${light}%)`;
+              } else {
+                color = seasonColor(n.seasonId);
+              }
+            } else {
+              color = seasonColor(n.seasonId);
+            }
             // Radii bumped 50% from prior (6/8/9 → 9/12/13.5).
             const baseR = isHover ? 13.5 : highlighted ? 12 : 9;
             const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
             const op = isNodeLit(n.id) ? 1 : selectedSubtree ? 0.27 : 0.4;
-            const strokeColor = isHover || highlighted ? '#fff' : '#0a0a10';
-            const strokeW = isHover || highlighted ? 1.5 : 1;
+            const strokeColor = isHover || highlighted || isTerminal ? '#fff' : '#0a0a10';
+            const strokeW = isHover || highlighted ? 1.5 : isTerminal ? 1 : 1;
             return (
               <g key={n.id} transform={`translate(${p.sx},${p.sy}) scale(2)`} opacity={op}>
                 <circle
