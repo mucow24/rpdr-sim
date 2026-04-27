@@ -38,9 +38,19 @@ const LAYOUT_WIDTH = 1600;
 const LAYOUT_MARGIN = 60;
 const BARY_SWEEPS = 24;
 
+export type LayoutOptions = {
+  // When true, swap the layering definition from "longestPathToSink" (sinks
+  // at L0) to "longestPathFromSource" (sources at L0, then inverted so
+  // sources end up at maxLevel visually). Also skips the Pass 1 / Pass 2
+  // cluster-sliding corrections — the user wanted to see the plain
+  // inverted layering without any post-processing first.
+  invertLevels?: boolean;
+};
+
 export function computeLipSyncLayout(
   nodes: LipSyncNode[],
   edges: LipSyncEdge[],
+  options: LayoutOptions = {},
 ): LipSyncLayout {
   const rawDirected: { from: string; to: string; original: LipSyncEdge }[] = [];
   for (const e of edges) {
@@ -106,6 +116,58 @@ export function computeLipSyncLayout(
   for (const n of nodes) {
     const lvl = computeLevel(n.id);
     if (lvl > maxLevel) maxLevel = lvl;
+  }
+
+  // Inverted layering: re-derive levels via longestPathFromSource (sources
+  // — queens with no wins — at user-L0), then flip so sources end up at
+  // maxLevel (visual bottom) and deep-chain winners are at L0 (visual top).
+  // Skips the cluster-sliding passes so the raw layering is visible.
+  if (options.invertLevels) {
+    const forwardPreds = new Map<string, string[]>();
+    for (const n of nodes) forwardPreds.set(n.id, []);
+    for (const d of directed) {
+      if (d.isBackward) continue;
+      forwardPreds.get(d.to)!.push(d.from);
+    }
+    const userLevels = new Map<string, number>();
+    const visiting2 = new Set<string>();
+    const userLevel = (v: string): number => {
+      const c = userLevels.get(v);
+      if (c !== undefined) return c;
+      if (visiting2.has(v)) return 0;
+      visiting2.add(v);
+      let maxIn = -1;
+      for (const u of forwardPreds.get(v) ?? []) {
+        const lu = userLevel(u);
+        if (lu > maxIn) maxIn = lu;
+      }
+      visiting2.delete(v);
+      const lvl = maxIn + 1;
+      userLevels.set(v, lvl);
+      return lvl;
+    };
+    let maxUserL = 0;
+    for (const n of nodes) {
+      const ul = userLevel(n.id);
+      if (ul > maxUserL) maxUserL = ul;
+    }
+    levels.clear();
+    for (const n of nodes) {
+      levels.set(n.id, maxUserL - (userLevels.get(n.id) ?? 0));
+    }
+    maxLevel = maxUserL;
+
+    // Skip cluster-sliding passes; jump straight to flow + barycenter.
+    computeFlow(nodes, levels, directed);
+    const neighbors = new Map<string, string[]>();
+    for (const n of nodes) neighbors.set(n.id, []);
+    for (const d of directed) {
+      if (d.isBackward) continue;
+      neighbors.get(d.from)!.push(d.to);
+      neighbors.get(d.to)!.push(d.from);
+    }
+    const initialX = barycenterSweep(nodes, levels, maxLevel, neighbors);
+    return { levels, maxLevel, directed, feedbackCount, initialX };
   }
 
   // Post-processing: close "air" under floating clusters. For each queen Q,

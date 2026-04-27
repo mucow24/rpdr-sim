@@ -38,6 +38,9 @@ type Camera = {
   yaw: number;
   pitch: number;
   distance: number;
+  // Pan offset added to the auto-centroid camera target. Shift-drag adjusts
+  // this; orbit and zoom always pivot around (centroid + panOffset).
+  panOffset: { x: number; y: number; z: number };
 };
 
 type Projected = { sx: number; sy: number; depth: number; scale: number };
@@ -82,6 +85,7 @@ export default function LipSyncsPage() {
   const [showCycleEdges, setShowCycleEdges] = useState(false);
   const [contiguousOnly, setContiguousOnly] = useState(true);
   const [colorByTerminal, setColorByTerminal] = useState(false);
+  const [invertLevels, setInvertLevels] = useState(true);
   const [nameFilter, setNameFilter] = useState('');
 
   const [thickMin, setThickMin] = useState(1);
@@ -92,13 +96,13 @@ export default function LipSyncsPage() {
 
   // Force-sim physics — exposed so the user can tune layout interactively.
   // Wide ranges; defaults match what the sim previously had hardcoded.
-  const [linkStrength, setLinkStrength] = useState(1.15);
-  const [linkDistance, setLinkDistance] = useState(220);
-  const [repulsion, setRepulsion] = useState(2200);
-  const [repulsionMax, setRepulsionMax] = useState(2200);
-  const [collideRadius, setCollideRadius] = useState(5);
-  const [velocityDecay, setVelocityDecay] = useState(0.3);
-  const [alphaDecay, setAlphaDecay] = useState(0.02);
+  const [linkStrength, setLinkStrength] = useState(1);
+  const [linkDistance, setLinkDistance] = useState(500);
+  const [repulsion, setRepulsion] = useState(1000);
+  const [repulsionMax, setRepulsionMax] = useState(11000);
+  const [collideRadius, setCollideRadius] = useState(25);
+  const [velocityDecay, setVelocityDecay] = useState(0.04);
+  const [alphaDecay, setAlphaDecay] = useState(0.015);
   const [alphaTarget, setAlphaTarget] = useState(0);
   const [showPhysics, setShowPhysics] = useState(false);
   const [showEdgeOpts, setShowEdgeOpts] = useState(false);
@@ -123,19 +127,89 @@ export default function LipSyncsPage() {
       })
       .filter((e): e is NonNullable<typeof e> => e !== null);
 
-    const { levels, maxLevel, directed, feedbackCount, initialX } = computeLipSyncLayout(nodes, edges);
+    const { levels, maxLevel, directed, feedbackCount, initialX } = computeLipSyncLayout(nodes, edges, { invertLevels });
+
+    // Compute the active forward-edge predicate. Three modes:
+    //   - !contiguousOnly:        all forward edges active
+    //   - contiguousOnly && !invertLevels:
+    //                             only edges spanning exactly one level
+    //   - contiguousOnly && invertLevels:
+    //                             contiguous edges + non-contiguous edges
+    //                             that bridge otherwise-separate components.
+    //                             Built via union-find — non-contiguous edges
+    //                             are added in order of smallest level-gap
+    //                             first; an edge is kept only when its
+    //                             endpoints are still in different components.
+    const isForwardActive: (d: DirectedEdge) => boolean = (() => {
+      if (!contiguousOnly) return (d) => !d.isBackward;
+      if (!invertLevels) {
+        return (d) => {
+          if (d.isBackward) return false;
+          const la = levels.get(d.from) ?? 0;
+          const lb = levels.get(d.to) ?? 0;
+          return Math.abs(la - lb) === 1;
+        };
+      }
+      // Bridge mode.
+      const parent = new Map<string, string>();
+      for (const n of nodes) parent.set(n.id, n.id);
+      const find = (x: string): string => {
+        let r = x;
+        while (parent.get(r) !== r) r = parent.get(r)!;
+        let cur = x;
+        while (parent.get(cur) !== r) {
+          const next = parent.get(cur)!;
+          parent.set(cur, r);
+          cur = next;
+        }
+        return r;
+      };
+      const union = (a: string, b: string) => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent.set(ra, rb);
+      };
+      // Pass 1: union all contiguous forward edges.
+      for (const d of directed) {
+        if (d.isBackward) continue;
+        const la = levels.get(d.from) ?? 0;
+        const lb = levels.get(d.to) ?? 0;
+        if (Math.abs(la - lb) === 1) union(d.from, d.to);
+      }
+      // Pass 2: consider non-contiguous forward edges, smallest gap first.
+      // Add those whose endpoints are still in different components.
+      const nonCont: DirectedEdge[] = [];
+      for (const d of directed) {
+        if (d.isBackward) continue;
+        const la = levels.get(d.from) ?? 0;
+        const lb = levels.get(d.to) ?? 0;
+        if (Math.abs(la - lb) !== 1) nonCont.push(d);
+      }
+      nonCont.sort((a, b) => {
+        const ga = Math.abs((levels.get(a.from) ?? 0) - (levels.get(a.to) ?? 0));
+        const gb = Math.abs((levels.get(b.from) ?? 0) - (levels.get(b.to) ?? 0));
+        return ga - gb;
+      });
+      const bridges = new Set<DirectedEdge>();
+      for (const d of nonCont) {
+        if (find(d.from) !== find(d.to)) {
+          bridges.add(d);
+          union(d.from, d.to);
+        }
+      }
+      return (d) => {
+        if (d.isBackward) return false;
+        const la = levels.get(d.from) ?? 0;
+        const lb = levels.get(d.to) ?? 0;
+        if (Math.abs(la - lb) === 1) return true;
+        return bridges.has(d);
+      };
+    })();
 
     // Recompute flow over the currently-visible edge set so thickness
-    // reflects what's rendered. When `contiguousOnly` is on, non-contiguous
-    // edges are excluded from the flow pass (they'll stay at flow 0) and
-    // flow through the remaining edges re-adds up accordingly.
-    computeFlow(nodes, levels, directed, (d) => {
-      if (d.isBackward) return false;
-      if (!contiguousOnly) return true;
-      const la = levels.get(d.from) ?? 0;
-      const lb = levels.get(d.to) ?? 0;
-      return Math.abs(la - lb) === 1;
-    });
+    // reflects what's rendered. Non-active edges stay at flow 0 and flow
+    // through the remaining edges re-adds up accordingly.
+    computeFlow(nodes, levels, directed, isForwardActive);
 
     // Map barycenter initialX (in [LAYOUT_MARGIN, LAYOUT_WIDTH-MARGIN],
     // LAYOUT_WIDTH=1600) into our centered [-PLANE_HALF, PLANE_HALF] X range.
@@ -149,23 +223,25 @@ export default function LipSyncsPage() {
         ...n,
         level,
         x: x3,
-        y: (Math.random() - 0.5) * PLANE_HALF * 0.6,
+        y: (Math.random() - 0.5) * PLANE_HALF * 1.6,
       };
       byId.set(n.id, sn);
       return sn;
     });
     const simLinks: SimLink[] = directed
-      .filter((d) => showCycleEdges || !d.isBackward)
+      .filter((d) => {
+        if (d.isBackward) return showCycleEdges;
+        return isForwardActive(d);
+      })
       .map((d) => {
         const s = byId.get(d.from);
         const t = byId.get(d.to);
         if (!s || !t) return null;
-        if (contiguousOnly && Math.abs(s.level - t.level) !== 1) return null;
         return { source: s, target: t, original: d } as SimLink;
       })
       .filter((l): l is SimLink => l !== null);
     return { simNodes, simLinks, maxLevel, feedbackCount };
-  }, [disabledSeasons, showCycleEdges, contiguousOnly]);
+  }, [disabledSeasons, showCycleEdges, contiguousOnly, invertLevels]);
 
   // Dev-only live introspection hook. `window.__lipSync` exposes the current
   // layout (nodes with level, directed edges with flow/isBackward, maxLevel)
@@ -243,15 +319,17 @@ export default function LipSyncsPage() {
     yaw: 0.4,
     pitch: 0.25,
     distance: 3200,
+    panOffset: { x: 0, y: 0, z: 0 },
   }));
 
-  // Camera target is locked to the graph's centroid (mean node position).
-  // Recomputed every render (cheap, O(N)) so it tracks the force sim as
-  // it settles. Orbiting and zooming use this target; panning is disabled.
+  // Camera target is the graph's centroid (mean node position) plus the
+  // user's pan offset. Recomputed every render (cheap, O(N)) so it tracks
+  // the force sim as it settles. Orbit + zoom pivot around this point;
+  // shift-drag pans by adjusting panOffset.
   let cameraTarget: { x: number; y: number; z: number };
   {
     if (simNodes.length === 0) {
-      cameraTarget = { x: 0, y: 0, z: 0 };
+      cameraTarget = { x: cam.panOffset.x, y: cam.panOffset.y, z: cam.panOffset.z };
     } else {
       let sx = 0, sy = 0, sz = 0;
       for (const n of simNodes) {
@@ -260,7 +338,11 @@ export default function LipSyncsPage() {
         sz += n.y ?? 0;
       }
       const k = 1 / simNodes.length;
-      cameraTarget = { x: sx * k, y: sy * k, z: sz * k };
+      cameraTarget = {
+        x: sx * k + cam.panOffset.x,
+        y: sy * k + cam.panOffset.y,
+        z: sz * k + cam.panOffset.z,
+      };
     }
   }
 
@@ -308,13 +390,23 @@ export default function LipSyncsPage() {
       )
       .force('collide', d3.forceCollide<SimNode>(collideRadiusRef.current))
       .velocityDecay(velocityDecayRef.current)
-      .alpha(1)
+      // Start cold (alpha 0.02) and ramp linearly to 1.0 over WARMUP_TICKS.
+      // Avoids the explosion that alpha=1 at frame 0 produces under
+      // aggressive force parameters.
+      .alpha(0.02)
       .alphaDecay(alphaDecayRef.current)
       .alphaTarget(alphaTargetRef.current)
-      .alphaMin(0.001)
-      .on('tick', () => {
-        setTick((t) => (t + 1) % 1_000_000);
-      });
+      .alphaMin(0.001);
+    const WARMUP_TICKS = 400;
+    let tickCount = 0;
+    sim.on('tick', () => {
+      tickCount += 1;
+      if (tickCount <= WARMUP_TICKS) {
+        const t = tickCount / WARMUP_TICKS;
+        sim.alpha(0.02 + (1 - 0.02) * t);
+      }
+      setTick((tt) => (tt + 1) % 1_000_000);
+    });
     simRef.current = sim;
     return () => { sim.stop(); };
   }, [simNodes, simLinks]);
@@ -338,20 +430,20 @@ export default function LipSyncsPage() {
     sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
   }, [linkStrength, linkDistance, repulsion, repulsionMax, collideRadius, velocityDecay, alphaDecay, alphaTarget]);
 
-  // Pointer handling. Left-drag on empty space orbits; left-click on empty
-  // space deselects; left-click on a queen selects (handled in the circle's
-  // onClick, which stopPropagations to keep SVG-level handlers out of it).
-  // Camera target is locked to the graph centroid, so panning is disabled.
-  // Wheel = zoom.
+  // Pointer handling. Left-drag orbits, shift-left-drag pans (grabs the
+  // field and pulls it around), left-click on empty space deselects, left-
+  // click on a queen selects (handled in the circle's onClick, which stops
+  // propagation to keep SVG-level handlers out of it). Wheel = zoom.
   const DRAG_THRESHOLD_PX = 4;
   const dragRef = useRef<{
     pointerId: number | null;
+    mode: 'orbit' | 'pan';
     startX: number;
     startY: number;
     lastX: number;
     lastY: number;
     moved: boolean;
-  }>({ pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false });
+  }>({ pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false });
 
   function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
     // Only the left button starts a drag. Middle/right are ignored.
@@ -361,6 +453,7 @@ export default function LipSyncsPage() {
     e.preventDefault();
     dragRef.current = {
       pointerId: e.pointerId,
+      mode: e.shiftKey ? 'pan' : 'orbit',
       startX: e.clientX,
       startY: e.clientY,
       lastX: e.clientX,
@@ -385,18 +478,51 @@ export default function LipSyncsPage() {
       }
     }
     if (!d.moved) return;
-    setCam((c) => {
-      const yaw = c.yaw - dx * 0.005;
-      const pitch = Math.max(-1.4, Math.min(1.4, c.pitch + dy * 0.005));
-      return { ...c, yaw, pitch };
-    });
+    if (d.mode === 'pan') {
+      // Ground-plane "grab" pan. Horizontal drag slides the target along
+      // the camera's right-on-ground axis; vertical drag slides it along
+      // the camera's forward-on-ground axis (drag down → target comes
+      // toward the viewer, like grabbing a point in the distance and
+      // pulling it forward). World Y of the target is never touched, so
+      // the camera stays level with the floor.
+      setCam((c) => {
+        const wpx = c.distance / FOCAL;
+        const cy = Math.cos(c.yaw);
+        const sy = Math.sin(c.yaw);
+        // Right-on-ground (Y=0): rotated +X axis around world Y by yaw.
+        const rightX = cy;
+        const rightZ = -sy;
+        // Forward-on-ground (Y=0): the look direction's XZ component.
+        // Camera looks toward +Z (negated by view), so forward-on-ground
+        // = (-sin(yaw), 0, -cos(yaw)). Drag down (dy>0) → move target
+        // toward the viewer = subtract forward.
+        const fwdX = -sy;
+        const fwdZ = -cy;
+        const wx = -dx * wpx; // drag right → target moves left → scene moves right
+        const wf = dy * wpx; // drag down → camera moves forward (target moves into the distance)
+        return {
+          ...c,
+          panOffset: {
+            x: c.panOffset.x + rightX * wx + fwdX * wf,
+            y: c.panOffset.y, // ground-plane pan: never lifts the target
+            z: c.panOffset.z + rightZ * wx + fwdZ * wf,
+          },
+        };
+      });
+    } else {
+      setCam((c) => {
+        const yaw = c.yaw - dx * 0.005;
+        const pitch = Math.max(-1.4, Math.min(1.4, c.pitch + dy * 0.005));
+        return { ...c, yaw, pitch };
+      });
+    }
   }
 
   function onPointerUp(e: React.PointerEvent<SVGSVGElement>) {
     const d = dragRef.current;
     if (d.pointerId !== e.pointerId) return;
     const wasClick = !d.moved;
-    dragRef.current = { pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false };
+    dragRef.current = { pointerId: null, mode: 'orbit', startX: 0, startY: 0, lastX: 0, lastY: 0, moved: false };
     svgRef.current?.releasePointerCapture?.(e.pointerId);
     if (wasClick) {
       // Empty-space click — deselect. (Clicks on queen dots stop
@@ -412,7 +538,7 @@ export default function LipSyncsPage() {
       e.preventDefault();
       setCam((c) => {
         const factor = Math.exp(e.deltaY * 0.001);
-        return { ...c, distance: Math.max(200, Math.min(20000, c.distance * factor)) };
+        return { ...c, distance: Math.max(200, Math.min(1000000, c.distance * factor)) };
       });
     };
     svg.addEventListener('wheel', handler, { passive: false });
@@ -695,7 +821,7 @@ export default function LipSyncsPage() {
   return (
     <div>
       <div className="mb-3 text-sm text-[#888]">
-        {simNodes.length} queens · {simLinks.length} matchups · {maxLevel + 1} tiers · {feedbackCount} feedback edges · drag orbit · scroll zoom
+        {simNodes.length} queens · {simLinks.length} matchups · {maxLevel + 1} tiers · {feedbackCount} feedback edges · drag orbit · shift-drag pan · scroll zoom
       </div>
       <div className="mb-3 flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -709,6 +835,10 @@ export default function LipSyncsPage() {
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" checked={colorByTerminal} onChange={(e) => setColorByTerminal(e.target.checked)} className="accent-amber-500" />
           <span className="text-[#aaa]">Color by terminal</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={invertLevels} onChange={(e) => setInvertLevels(e.target.checked)} className="accent-amber-500" />
+          <span className="text-[#aaa]">Invert levels (raw)</span>
         </label>
       </div>
       <div className="mb-3">
