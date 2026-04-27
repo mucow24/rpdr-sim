@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as d3 from 'd3';
 import { buildLipSyncGraph, seasonLabel, type LipSyncNode } from './lipSyncsGraph';
 import { computeLipSyncLayout, computeFlow, type DirectedEdge } from './lipSyncLayout';
@@ -23,8 +23,9 @@ function seasonColor(seasonId: string): string {
 }
 
 // In 3D: tiers stack along the world Y axis; in-plane freedom is X and Z.
-// ROW_HEIGHT becomes the vertical gap between tier planes (world-space).
-const ROW_HEIGHT = 120;
+// Default vertical gap between tier planes (world-space). Exposed as a
+// slider in the UI so the user can squash or stretch the layering.
+const DEFAULT_ROW_HEIGHT = 256;
 // Half-extent of each tier plane in X and Z. Also defines the (x, z) box
 // the force sim lives in.
 const PLANE_HALF = 800;
@@ -117,6 +118,7 @@ export default function LipSyncsPage() {
   const [alphaTarget, setAlphaTarget] = useState(0);
   const [showPhysics, setShowPhysics] = useState(false);
   const [showEdgeOpts, setShowEdgeOpts] = useState(false);
+  const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
 
   const { simNodes, simLinks, maxLevel, feedbackCount } = useMemo(() => {
     const { nodes: allNodes, edges: allEdges } = buildLipSyncGraph(true);
@@ -324,7 +326,7 @@ export default function LipSyncsPage() {
   }, [simNodes, simLinks, maxLevel, feedbackCount]);
 
   // World Y of each tier plane. Tier 0 is at the TOP, so larger level → smaller Y.
-  const tierWorldY = (level: number) => (maxLevel - level) * ROW_HEIGHT;
+  const tierWorldY = (level: number) => (maxLevel - level) * rowHeight;
 
   const [cam, setCam] = useState<Camera>(() => ({
     yaw: 0.4,
@@ -638,7 +640,7 @@ export default function LipSyncsPage() {
     for (const l of simLinks) if (l.original.flow > m) m = l.original.flow;
     return m;
   }, [simLinks]);
-  const flowWidth = (flow: number): number => {
+  const flowWidth = useCallback((flow: number): number => {
     if (maxFlow <= 0) return thickMin;
     const norm = flow / maxFlow;
     if (norm <= lowCutoff) return thickMin;
@@ -648,7 +650,7 @@ export default function LipSyncsPage() {
     const t = (norm - lowCutoff) / span;
     const shaped = Math.pow(t, thickExp);
     return thickMin + shaped * (thickMax - thickMin);
-  };
+  }, [maxFlow, thickMin, thickMax, lowCutoff, highCutoff, thickExp]);
 
   const nameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -782,8 +784,8 @@ export default function LipSyncsPage() {
       };
     };
 
-    const TILE_SIZE = 1500;
-    const TILES_PER_SIDE = 48;
+    const TILE_SIZE = 3000;
+    const TILES_PER_SIDE = 16;
     const HALF = (TILES_PER_SIDE * TILE_SIZE) / 2;
     // Off-screen culling slack — accept tiles whose projected center sits
     // up to one viewport-width outside the view bounds.
@@ -1037,6 +1039,19 @@ export default function LipSyncsPage() {
           <input type="range" min={0} max={1} step={0.01} value={alphaTarget} onChange={(e) => setAlphaTarget(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
           <span className="text-[#666] font-mono text-xs w-14">{alphaTarget.toFixed(2)}</span>
         </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[#aaa] w-20">Row height</span>
+          <input
+            type="range"
+            min={0}
+            max={DEFAULT_ROW_HEIGHT * 10}
+            step={1}
+            value={rowHeight}
+            onChange={(e) => setRowHeight(parseFloat(e.target.value))}
+            className="w-40 accent-amber-500"
+          />
+          <span className="text-[#666] font-mono text-xs w-14">{rowHeight.toFixed(0)}</span>
+        </label>
       </div>
       )}
       <div className="mb-3">
@@ -1225,9 +1240,12 @@ export default function LipSyncsPage() {
             } else {
               color = seasonColor(n.seasonId);
             }
-            // Radii bumped 50% from prior (6/8/9 → 9/12/13.5).
-            const baseR = isHover ? 13.5 : highlighted ? 12 : 9;
-            const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
+            // Dot radius scales with perspective (close → big, far → small),
+            // clamped to a 3px floor and a 500px ceiling. Values are pre-
+            // transform; the parent <g scale(2)> doubles them on screen,
+            // so the SVG-unit clamp [1.5, 250] = [3px, 500px] rendered.
+            const baseR = isHover ? 81 : highlighted ? 72 : 54;
+            const r = Math.max(1.5, Math.min(250, baseR * p.scale * 1.2));
             const op = isNodeLit(n.id) ? 1 : selectedSubtree ? 0.27 : 0.4;
             const strokeColor = isHover || highlighted || isTerminal ? '#fff' : '#0a0a10';
             const strokeW = isHover || highlighted ? 1.5 : isTerminal ? 1 : 1;
@@ -1256,8 +1274,8 @@ export default function LipSyncsPage() {
           {nodeRenders.map(({ n, p }) => {
             if (!isHighlighted(n.id)) return null;
             const isHover = hovered?.id === n.id;
-            const baseR = isHover ? 13.5 : 12;
-            const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
+            const baseR = isHover ? 81 : 72;
+            const r = Math.max(1.5, Math.min(250, baseR * p.scale * 1.2));
             return (
               <g key={`lbl-${n.id}`} transform={`translate(${p.sx},${p.sy}) scale(2)`} pointerEvents="none">
                 <text
