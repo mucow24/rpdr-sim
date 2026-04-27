@@ -76,6 +76,7 @@ export default function LipSyncsPage() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [, setTick] = useState(0);
   const [hovered, setHovered] = useState<SimNode | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [disabledSeasons, setDisabledSeasons] = useState<Set<string>>(() => new Set());
 
   const [showCycleEdges, setShowCycleEdges] = useState(false);
@@ -495,6 +496,53 @@ export default function LipSyncsPage() {
     return set;
   }, [nameFilter, simNodes]);
 
+  // Selected queen's "loser subtree": all queens she beat, transitively.
+  // Forward edges are loser→winner, so walking backward from selected via
+  // forward-predecessors gives us everyone who lost to her or to someone
+  // in her subtree. Includes the selected queen herself.
+  const selectedSubtree = useMemo(() => {
+    if (!selectedId) return null;
+    const fwdPred = new Map<string, string[]>();
+    for (const n of simNodes) fwdPred.set(n.id, []);
+    for (const l of simLinks) {
+      if (l.original.isBackward) continue;
+      const fromId = typeof l.source === 'string' ? l.source : l.source.id;
+      const toId = typeof l.target === 'string' ? l.target : l.target.id;
+      fwdPred.get(toId)?.push(fromId);
+    }
+    const visited = new Set<string>([selectedId]);
+    const stack = [selectedId];
+    while (stack.length) {
+      const v = stack.pop()!;
+      for (const w of fwdPred.get(v) ?? []) {
+        if (!visited.has(w)) { visited.add(w); stack.push(w); }
+      }
+    }
+    return visited;
+  }, [selectedId, simNodes, simLinks]);
+
+  // Whether a node/edge gets dimmed. When selection or filter is active,
+  // non-participants dim. Selection lights {selected} ∪ subtree; filter
+  // lights matched names; the two compose as a union.
+  const isNodeLit = (id: string): boolean => {
+    if (!selectedSubtree && !matchedIds) return true;
+    if (selectedSubtree?.has(id)) return true;
+    if (matchedIds?.has(id)) return true;
+    return false;
+  };
+  const isEdgeLit = (sId: string, tId: string): boolean => {
+    if (!selectedSubtree && !matchedIds) return true;
+    // Selection: edge lit only if both endpoints are in the subtree —
+    // otherwise the line would stretch into dimmed territory.
+    if (selectedSubtree?.has(sId) && selectedSubtree.has(tId)) return true;
+    // Filter: edge lit if either endpoint matches (matches the existing
+    // filter-only behavior).
+    if (matchedIds && (matchedIds.has(sId) || matchedIds.has(tId))) return true;
+    return false;
+  };
+  const isHighlighted = (id: string): boolean =>
+    id === selectedId || (matchedIds?.has(id) ?? false);
+
   const hoveredProj = hovered ? nodeProj.get(hovered.id) ?? null : null;
 
   return (
@@ -627,7 +675,15 @@ export default function LipSyncsPage() {
               ) : null,
             )}
           </defs>
-          <rect x={0} y={0} width={VW} height={VH} fill="transparent" />
+          <rect
+            x={0}
+            y={0}
+            width={VW}
+            height={VH}
+            fill="transparent"
+            pointerEvents="all"
+            onClick={() => setSelectedId(null)}
+          />
           {planeRenders.map((p) => (
             <polygon
               key={`plane-${p.level}`}
@@ -650,7 +706,7 @@ export default function LipSyncsPage() {
             );
           })}
           {edgeRenders.map((e) => {
-            const lit = !matchedIds || matchedIds.has(e.sId) || matchedIds.has(e.tId);
+            const lit = isEdgeLit(e.sId, e.tId);
             const baseOp = e.isBackward ? 0.85 : 0.7;
             const op = lit ? baseOp : baseOp * 0.3;
             return (
@@ -669,11 +725,11 @@ export default function LipSyncsPage() {
           {nodeRenders.map(({ n, p }) => {
             const color = seasonColor(n.seasonId);
             const isHover = hovered?.id === n.id;
-            const highlighted = matchedIds !== null && matchedIds.has(n.id);
-            const baseR = isHover ? 9 : highlighted ? 8 : 6;
+            const highlighted = isHighlighted(n.id);
+            // Radii bumped 50% from prior (6/8/9 → 9/12/13.5).
+            const baseR = isHover ? 13.5 : highlighted ? 12 : 9;
             const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
-            const lit = !matchedIds || matchedIds.has(n.id);
-            const op = lit ? 1 : 0.4;
+            const op = isNodeLit(n.id) ? 1 : 0.4;
             const strokeColor = isHover || highlighted ? '#fff' : '#0a0a10';
             const strokeW = isHover || highlighted ? 1.5 : 1;
             return (
@@ -686,16 +742,21 @@ export default function LipSyncsPage() {
                   style={{ cursor: 'pointer' }}
                   onPointerEnter={() => setHovered(n)}
                   onPointerLeave={() => setHovered((h) => (h?.id === n.id ? null : h))}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    setSelectedId((cur) => (cur === n.id ? null : n.id));
+                  }}
                 />
               </g>
             );
           })}
-          {/* Filter-match labels — drawn as a separate top layer so later
-              (closer) node circles don't overdraw earlier labels. */}
-          {matchedIds !== null && nodeRenders.map(({ n, p }) => {
-            if (!matchedIds.has(n.id)) return null;
+          {/* Highlight labels (selected + filter matches) — drawn as a
+              separate top layer so later (closer) node circles don't
+              overdraw earlier labels. */}
+          {nodeRenders.map(({ n, p }) => {
+            if (!isHighlighted(n.id)) return null;
             const isHover = hovered?.id === n.id;
-            const baseR = isHover ? 9 : 8;
+            const baseR = isHover ? 13.5 : 12;
             const r = baseR * Math.min(1.5, Math.max(0.5, p.scale * 1.2));
             return (
               <g key={`lbl-${n.id}`} transform={`translate(${p.sx},${p.sy}) scale(2)`} pointerEvents="none">
