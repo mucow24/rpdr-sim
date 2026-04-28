@@ -83,6 +83,7 @@ export interface RegularEpisode {
   eliminated: string[];                    // queenIds (empty = non-elim)
   splitPremiere?: boolean;                 // true if part of a split premiere format
   weights?: Record<BaseStat, number>;      // per-episode override; falls back to archetype weights
+  grantsImmunity?: boolean;                // pre-S6 rule: this episode's winner is protected from LOW/BTM2 in ep N+1
 }
 
 /** A pass-through episode (reunion, recap, lip-sync smackdown). No maxi

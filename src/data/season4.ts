@@ -103,6 +103,7 @@ const season4: SeasonData = {
       challengeName: 'RuPocalypse Now!',
       placements: { sharon: 'WIN', alisa: 'BTM2', jiggly: 'BTM2' },
       eliminated: ['alisa'],
+      grantsImmunity: true,
     },
     {
       number: 2,
@@ -117,6 +118,7 @@ const season4: SeasonData = {
       challengeName: 'Glamazons vs. Champions',
       placements: { sharon: 'WIN', dida: 'BTM2', the_princess: 'BTM2' },
       eliminated: ['the_princess'],
+      grantsImmunity: true,
     },
     {
       number: 4,
@@ -124,6 +126,7 @@ const season4: SeasonData = {
       challengeName: 'Queens Behind Bars',
       placements: { latrice: 'WIN', madame: 'BTM2', milan: 'BTM2' },
       eliminated: ['madame'],
+      grantsImmunity: true,
     },
     {
       number: 5,
@@ -131,6 +134,7 @@ const season4: SeasonData = {
       challengeName: 'Snatch Game',
       placements: { chad: 'WIN', kenya: 'BTM2', milan: 'BTM2' },
       eliminated: ['kenya'],
+      grantsImmunity: true,
     },
     {
       number: 6,

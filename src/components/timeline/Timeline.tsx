@@ -44,7 +44,7 @@ const BOX_PX = 48;
 
 export default function Timeline({ carrierWidth, debug = false }: { carrierWidth: number; debug?: boolean }) {
   const season = useStore(selectCurrentSeason);
-  const { conditions, updateEpisodeArchetype, updateEpisodeWeights } =
+  const { conditions, updateEpisodeArchetype, updateEpisodeWeights, updateEpisodeImmunity } =
     useStore();
 
   const [dimExp, setDimExp] = useState(2.45);
@@ -145,6 +145,13 @@ export default function Timeline({ carrierWidth, debug = false }: { carrierWidth
                     {hasCondition && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />
                     )}
+                    {isRegular(episode) && episode.grantsImmunity && (
+                      <span
+                        className="absolute top-0 left-0 w-2.5 h-2.5 bg-amber-300"
+                        style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+                        title="Winner is immune next episode"
+                      />
+                    )}
                   </button>
                 )}
               >
@@ -154,11 +161,13 @@ export default function Timeline({ carrierWidth, debug = false }: { carrierWidth
                   finale={finale}
                   archetype={isRegular(episode) ? episode.archetype : null}
                   weights={effectiveWeights}
+                  grantsImmunity={isRegular(episode) ? !!episode.grantsImmunity : false}
                   dimExp={dimExp}
                   dimCutoff={dimCutoff}
                   dimFloor={dimFloor}
                   onArchetypeChange={(a) => updateEpisodeArchetype(idx, a)}
                   onWeightsChange={(w) => updateEpisodeWeights(idx, w)}
+                  onImmunityChange={(v) => updateEpisodeImmunity(idx, v)}
                 />
               </PopoverBox>
             </div>
@@ -175,22 +184,26 @@ function EpisodePopoverContent({
   finale,
   archetype,
   weights,
+  grantsImmunity,
   dimExp,
   dimCutoff,
   dimFloor,
   onArchetypeChange,
   onWeightsChange,
+  onImmunityChange,
 }: {
   episodeIndex: number;
   title: string;
   finale: boolean;
   archetype: ArchetypeId | null;
   weights: Record<BaseStat, number>;
+  grantsImmunity: boolean;
   dimExp: number;
   dimCutoff: number;
   dimFloor: number;
   onArchetypeChange: (a: ArchetypeId) => void;
   onWeightsChange: (w: Record<BaseStat, number>) => void;
+  onImmunityChange: (v: boolean) => void;
 }) {
   return (
     <>
@@ -271,6 +284,16 @@ function EpisodePopoverContent({
               });
             })()}
           </div>
+
+          <label className="flex items-center gap-2 mt-3 text-[11px] text-[#999] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={grantsImmunity}
+              onChange={(e) => onImmunityChange(e.target.checked)}
+              className="accent-amber-400"
+            />
+            Winner gets immunity next episode
+          </label>
         </>
       )}
     </>

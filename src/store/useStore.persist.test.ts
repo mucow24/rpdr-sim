@@ -24,7 +24,7 @@ describe('persist partialize', () => {
     const raw = localStorage.getItem('rpdr-sim-store');
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
-    expect(parsed.version).toBe(2);
+    expect(parsed.version).toBe(3);
 
     const allowedKeys = new Set([
       'seasonsById',

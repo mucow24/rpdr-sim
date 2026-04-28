@@ -7,7 +7,7 @@ import type {
 import { isFinale, isPass } from '../engine/types';
 import { type ArchetypeId } from '../data/archetypes';
 import { SEASON_PRESETS } from '../data/presets';
-import { migrateToV2 } from './migrate';
+import { migrateToV2, migrateToV3 } from './migrate';
 
 export interface EpisodeOverride {
   placements: Record<string, Placement>;
@@ -46,6 +46,7 @@ export interface AppState {
   updateQueenLipSync: (seasonId: string, queenId: string, value: number) => void;
   updateEpisodeArchetype: (epIdx: number, archetype: ArchetypeId) => void;
   updateEpisodeWeights: (epIdx: number, weights: Record<BaseStat, number>) => void;
+  updateEpisodeImmunity: (epIdx: number, value: boolean) => void;
   updateEpisodeOutcome: (epIdx: number, outcome: EpisodeOverride) => void;
   resetEpisode: (epIdx: number) => void;
   resetAllEpisodes: () => void;
@@ -123,7 +124,7 @@ export const useStore = create<AppState>()(persist((set, get) => ({
 
   numSimulations: 100_000,
 
-  appMode: 'lip-syncs',
+  appMode: 'simulation',
   enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
 
   loadSeason: (seasonId) =>
@@ -206,6 +207,26 @@ export const useStore = create<AppState>()(persist((set, get) => ({
       const episodes = season.episodes.map((ep, i) =>
         i === epIdx && !isFinale(ep) && !isPass(ep)
           ? { ...ep, weights: { ...weights } }
+          : ep,
+      );
+      return {
+        seasonsById: { ...s.seasonsById, [s.activeSeasonId]: { ...season, episodes } },
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+      };
+    }),
+
+  updateEpisodeImmunity: (epIdx, value) =>
+    set((s) => {
+      const season = s.seasonsById[s.activeSeasonId];
+      if (!season) return {};
+      const target = season.episodes[epIdx];
+      if (isFinale(target) || isPass(target)) return {};
+      const episodes = season.episodes.map((ep, i) =>
+        i === epIdx && !isFinale(ep) && !isPass(ep)
+          ? { ...ep, grantsImmunity: value }
           : ep,
       );
       return {
@@ -443,9 +464,15 @@ export const useStore = create<AppState>()(persist((set, get) => ({
     set({ conditions: [], filteredResults: null, filterMatchCount: null, filterTotalRuns: null }),
 }), {
   name: 'rpdr-sim-store',
-  version: 2,
+  version: 3,
   storage: createJSONStorage(() => localStorage),
-  migrate: migrateToV2,
+  migrate: (persisted, version) => {
+    // v1 was destructive — drop it. v2→v3 is additive (immunity backfill).
+    let p: unknown = persisted;
+    if (version < 2) p = migrateToV2(p, version);
+    if (p && version < 3) p = migrateToV3(p);
+    return p;
+  },
   partialize: (s) => ({
     seasonsById: s.seasonsById,
     activeSeasonId: s.activeSeasonId,

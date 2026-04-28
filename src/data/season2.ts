@@ -96,6 +96,7 @@ const season2: SeasonData = {
       challengeName: 'Gone with the Window',
       placements: { morgan: 'WIN', sahara: 'BTM2', shangela: 'BTM2' },
       eliminated: ['shangela'],
+      grantsImmunity: true,
     },
     {
       number: 2,
@@ -103,6 +104,7 @@ const season2: SeasonData = {
       challengeName: 'Starrbootylicious',
       placements: { sahara: 'WIN', nicole: 'BTM2', raven: 'BTM2' },
       eliminated: ['nicole'],
+      grantsImmunity: true,
     },
     {
       number: 3,
@@ -110,6 +112,7 @@ const season2: SeasonData = {
       challengeName: 'Country Queens',
       placements: { tyra: 'WIN', mystique: 'BTM2', raven: 'BTM2' },
       eliminated: ['mystique'],
+      grantsImmunity: true,
     },
     {
       number: 4,
@@ -117,6 +120,7 @@ const season2: SeasonData = {
       challengeName: 'Snatch Game',
       placements: { tatianna: 'WIN', morgan: 'BTM2', sonique: 'BTM2' },
       eliminated: ['sonique'],
+      grantsImmunity: true,
     },
     {
       number: 5,
@@ -124,6 +128,7 @@ const season2: SeasonData = {
       challengeName: 'Here Comes the Bride',
       placements: { tyra: 'WIN', morgan: 'BTM2', sahara: 'BTM2' },
       eliminated: ['morgan'],
+      grantsImmunity: true,
     },
     {
       number: 6,

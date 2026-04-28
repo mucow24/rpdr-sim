@@ -75,6 +75,7 @@ const season1: SeasonData = {
       challengeName: 'Drag on a Dime',
       placements: { nina_flowers: 'WIN', akashia: 'BTM2', porkchop: 'BTM2' },
       eliminated: ['porkchop'],
+      grantsImmunity: true,
     },
     {
       number: 2,
@@ -82,6 +83,7 @@ const season1: SeasonData = {
       challengeName: 'Girl Groups',
       placements: { ongina: 'WIN', akashia: 'BTM2', tammie: 'BTM2' },
       eliminated: ['tammie'],
+      grantsImmunity: true,
     },
     {
       number: 3,
@@ -89,6 +91,7 @@ const season1: SeasonData = {
       challengeName: 'Queens of All Media',
       placements: { bebe: 'WIN', akashia: 'BTM2', shannel: 'BTM2' },
       eliminated: ['akashia'],
+      grantsImmunity: true,
     },
     {
       number: 4,

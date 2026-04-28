@@ -117,6 +117,7 @@ const season5: SeasonData = {
         serena: 'BTM2',
       },
       eliminated: ['penny'],
+      grantsImmunity: true,
     },
     {
       number: 2,
@@ -124,6 +125,7 @@ const season5: SeasonData = {
       challengeName: 'Lip Synch Extravaganza Eleganza',
       placements: { lineysha: 'WIN', monica: 'BTM2', serena: 'BTM2' },
       eliminated: ['serena'],
+      grantsImmunity: true,
     },
     {
       number: 3,
@@ -137,6 +139,7 @@ const season5: SeasonData = {
         monica: 'BTM2',
       },
       eliminated: ['monica'],
+      grantsImmunity: true,
     },
     {
       number: 4,
@@ -150,6 +153,7 @@ const season5: SeasonData = {
         vivienne: 'BTM2',
       },
       eliminated: ['honey', 'vivienne'],
+      grantsImmunity: true,
     },
     {
       number: 5,

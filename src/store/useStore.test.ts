@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
 import { selectBaselineSeason, selectCurrentSeason } from './selectors';
-import { migrateToV2 } from './migrate';
+import { migrateToV2, migrateToV3 } from './migrate';
 import { SEASON_PRESETS } from '../data/presets';
 import { isRegular } from '../engine/types';
 import type { FilterCondition } from '../engine/types';
@@ -446,6 +446,91 @@ describe('migrateToV2', () => {
   test('returns the payload unchanged at v2', () => {
     const payload = { seasonsById: { season5: {} } };
     expect(migrateToV2(payload, 2)).toBe(payload);
+  });
+});
+
+describe('migrateToV3 (pre-S6 immunity backfill)', () => {
+  test('passes through non-object payloads', () => {
+    expect(migrateToV3(null)).toBeNull();
+    expect(migrateToV3(undefined)).toBeUndefined();
+  });
+
+  test('backfills grantsImmunity on canonical S2 episodes 1-5', () => {
+    const payload = {
+      seasonsById: {
+        season2: {
+          episodes: [
+            { number: 1, kind: undefined },
+            { number: 2 },
+            { number: 3 },
+            { number: 4 },
+            { number: 5 },
+            { number: 6 },
+            { kind: 'finale', number: 12 },
+          ],
+        },
+      },
+    };
+    const out = migrateToV3(payload) as typeof payload;
+    const eps = out.seasonsById.season2.episodes as Array<{ number?: number; grantsImmunity?: boolean }>;
+    expect(eps[0].grantsImmunity).toBe(true);
+    expect(eps[1].grantsImmunity).toBe(true);
+    expect(eps[2].grantsImmunity).toBe(true);
+    expect(eps[3].grantsImmunity).toBe(true);
+    expect(eps[4].grantsImmunity).toBe(true);
+    expect(eps[5].grantsImmunity).toBeUndefined();
+    expect(eps[6].grantsImmunity).toBeUndefined(); // finale untouched
+  });
+
+  test('skips finale and pass episodes even if they fall on a target episode number', () => {
+    const payload = {
+      seasonsById: {
+        season1: {
+          episodes: [
+            { number: 1, kind: 'pass' },     // would target ep 1, but kind=pass → skip
+            { number: 2 },                    // regular → backfill
+          ],
+        },
+      },
+    };
+    const out = migrateToV3(payload) as typeof payload;
+    const eps = out.seasonsById.season1.episodes as Array<{ kind?: string; grantsImmunity?: boolean }>;
+    expect(eps[0].grantsImmunity).toBeUndefined();
+    expect(eps[1].grantsImmunity).toBe(true);
+  });
+
+  test('does not touch S6+ seasons', () => {
+    const payload = {
+      seasonsById: {
+        season6: { episodes: [{ number: 1 }, { number: 2 }] },
+        season13: { episodes: [{ number: 1 }] },
+      },
+    };
+    const out = migrateToV3(payload) as typeof payload;
+    const s6 = out.seasonsById.season6.episodes as Array<{ grantsImmunity?: boolean }>;
+    const s13 = out.seasonsById.season13.episodes as Array<{ grantsImmunity?: boolean }>;
+    expect(s6[0].grantsImmunity).toBeUndefined();
+    expect(s6[1].grantsImmunity).toBeUndefined();
+    expect(s13[0].grantsImmunity).toBeUndefined();
+  });
+
+  test('preserves non-immunity episode fields and seasonsById structure', () => {
+    const payload = {
+      seasonsById: {
+        season1: {
+          id: 'season1',
+          name: 'Season 1',
+          episodes: [{ number: 1, archetype: 'designChallenge', challengeName: 'Drag on a Dime' }],
+        },
+      },
+      otherKey: 'preserved',
+    };
+    const out = migrateToV3(payload) as typeof payload & { otherKey: string };
+    expect(out.otherKey).toBe('preserved');
+    const ep = out.seasonsById.season1.episodes[0] as { archetype?: string; challengeName?: string; grantsImmunity?: boolean };
+    expect(ep.archetype).toBe('designChallenge');
+    expect(ep.challengeName).toBe('Drag on a Dime');
+    expect(ep.grantsImmunity).toBe(true);
   });
 });
 
