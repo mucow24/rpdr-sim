@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
-import type { Queen } from '../engine/types';
+import type { BaseStat, Queen } from '../engine/types';
 
 interface Props {
   onClose: () => void;
@@ -11,6 +11,53 @@ interface GlobalEntry {
   seasonId: string;
   seasonName: string;
   queen: Queen;
+}
+
+const STAT_COLUMNS: { key: BaseStat | 'lipSync'; label: string }[] = [
+  { key: 'comedy', label: 'CO' },
+  { key: 'improv', label: 'IM' },
+  { key: 'acting', label: 'AC' },
+  { key: 'dance', label: 'DA' },
+  { key: 'music', label: 'MU' },
+  { key: 'design', label: 'DE' },
+  { key: 'runway', label: 'RN' },
+  { key: 'charisma', label: 'CH' },
+  { key: 'lipSync', label: 'LS' },
+];
+
+function statValue(q: Queen, key: BaseStat | 'lipSync'): number {
+  return key === 'lipSync' ? q.lipSync : q.skills[key];
+}
+
+// Mirrors StatInput's `colorScale="skill"` palette — pure value → color.
+function statColorClass(value: number): string {
+  if (value >= 9) return 'text-sky-300';
+  if (value >= 7) return 'text-green-400';
+  if (value >= 5) return 'text-[#ddd]';
+  if (value >= 3) return 'text-orange-400';
+  return 'text-red-400';
+}
+
+// Shared stats column block. The grid + fixed width guarantees the header
+// labels land in the same x-positions as the values below them.
+const STATS_GRID_CLS = 'grid grid-cols-9 w-36 font-mono text-[10px] flex-shrink-0';
+
+// Sticky inside the scrollable list so it shares the same content width as the
+// rows (otherwise the scrollbar inside the ul shifts row columns left vs the
+// header). Height is fixed so callers can offset other sticky headers by it.
+function ColumnHeader() {
+  return (
+    <div className="sticky top-0 z-30 flex items-center gap-2 px-3 h-7 bg-[#0a0a10] border-b border-[#15151c]">
+      <span className="w-2 flex-shrink-0" />
+      <span className="flex-1 min-w-0" />
+      <div className={`${STATS_GRID_CLS} text-[#666]`}>
+        {STAT_COLUMNS.map(({ key, label }) => (
+          <div key={key} className="text-center">{label}</div>
+        ))}
+      </div>
+      <span className="w-6 flex-shrink-0" />
+    </div>
+  );
 }
 
 function buildGlobalList(): GlobalEntry[] {
@@ -144,30 +191,45 @@ export default function CastEditorPanel({ onClose }: Props) {
         {/* Left: current staged cast */}
         <div className="flex flex-col">
           <div className="text-xs uppercase tracking-wide text-[#bbb] mb-1.5">Cast</div>
-          <ul className="h-[427px] overflow-y-auto bg-[#0a0a10] border border-[#1a1a24] rounded">
-            {stagedCast.length === 0 && (
-              <li className="px-3 py-2 text-sm text-[#555] italic">Empty</li>
-            )}
-            {stagedCast.map((q) => (
-              <li
-                key={q.id}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c] last:border-b-0"
-              >
-                <span
-                  className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: q.color }}
-                />
-                <span className="flex-1 truncate">{q.name}</span>
-                <button
-                  onClick={() => removeQueen(q.id)}
-                  className="text-[#888] hover:text-red-400 transition-colors px-1 text-lg font-bold leading-none"
-                  title="Remove from cast"
+          <div className="bg-[#0a0a10] border border-[#1a1a24] rounded h-[455px] overflow-y-scroll">
+            <ColumnHeader />
+            <ul>
+              {stagedCast.length === 0 && (
+                <li className="px-3 py-2 text-sm text-[#555] italic">Empty</li>
+              )}
+              {stagedCast.map((q) => (
+                <li
+                  key={q.id}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c] last:border-b-0"
                 >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <span
+                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: q.color }}
+                  />
+                  <span className="flex-1 truncate min-w-0">{q.name}</span>
+                  <div className={STATS_GRID_CLS}>
+                    {STAT_COLUMNS.map(({ key }) => {
+                      const v = statValue(q, key);
+                      return (
+                        <div key={key} className={`text-center ${statColorClass(v)}`}>
+                          {v}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="w-6 flex-shrink-0 flex items-center justify-center">
+                    <button
+                      onClick={() => removeQueen(q.id)}
+                      className="text-[#888] hover:text-red-400 transition-colors text-lg font-bold leading-none"
+                      title="Remove from cast"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div className="grid grid-cols-3 items-center mt-2 gap-2">
             <div className="justify-self-start">
               <button
@@ -219,44 +281,59 @@ export default function CastEditorPanel({ onClose }: Props) {
               )}
             </div>
           </div>
-          <ul className="h-[427px] overflow-y-auto bg-[#0a0a10] border border-[#1a1a24] rounded">
-            {groupedGlobal.map((group) => (
-              <li key={group.seasonId}>
-                <div className="px-3 py-1 text-[11px] uppercase tracking-wider font-medium text-amber-300 bg-amber-700/40 border-b border-amber-500/40 sticky top-0">
-                  {group.seasonName}
-                </div>
-                <ul>
-                  {group.queens.map((q) => {
-                    const inCast = stagedIds.has(q.id);
-                    return (
-                      <li
-                        key={`${group.seasonId}:${q.id}`}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c]"
-                      >
-                        <span
-                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: q.color }}
-                        />
-                        <span
-                          className={`flex-1 truncate ${inCast ? 'text-[#555]' : ''}`}
+          <div className="bg-[#0a0a10] border border-[#1a1a24] rounded h-[455px] overflow-y-auto">
+            <ColumnHeader />
+            <ul>
+              {groupedGlobal.map((group) => (
+                <li key={group.seasonId}>
+                  <div className="px-3 py-1 text-[11px] uppercase tracking-wider font-medium text-amber-300 bg-amber-700/40 border-b border-amber-500/40 sticky top-7 z-10">
+                    {group.seasonName}
+                  </div>
+                  <ul>
+                    {group.queens.map((q) => {
+                      const inCast = stagedIds.has(q.id);
+                      return (
+                        <li
+                          key={`${group.seasonId}:${q.id}`}
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c]"
                         >
-                          {q.name}
-                        </span>
-                        <button
-                          onClick={() => addQueen(q)}
-                          disabled={inCast || sizeOk}
-                          className="text-[#888] hover:text-emerald-400 transition-colors px-1 text-lg font-bold leading-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[#888]"
-                          title={inCast ? 'Already in cast' : sizeOk ? 'Cast is full' : 'Add to cast'}
-                        >
-                          +
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            ))}
-          </ul>
+                          <span
+                            className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: q.color }}
+                          />
+                          <span
+                            className={`flex-1 truncate min-w-0 ${inCast ? 'text-[#555]' : ''}`}
+                          >
+                            {q.name}
+                          </span>
+                          <div className={`${STATS_GRID_CLS} ${inCast ? 'opacity-40' : ''}`}>
+                            {STAT_COLUMNS.map(({ key }) => {
+                              const v = statValue(q, key);
+                              return (
+                                <div key={key} className={`text-center ${statColorClass(v)}`}>
+                                  {v}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <span className="w-6 flex-shrink-0 flex items-center justify-center">
+                            <button
+                              onClick={() => addQueen(q)}
+                              disabled={inCast || sizeOk}
+                              className="text-[#888] hover:text-emerald-400 transition-colors text-lg font-bold leading-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[#888]"
+                              title={inCast ? 'Already in cast' : sizeOk ? 'Cast is full' : 'Add to cast'}
+                            >
+                              +
+                            </button>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 
