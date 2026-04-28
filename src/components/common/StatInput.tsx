@@ -68,9 +68,11 @@ export default function StatInput({
       : effectiveMedal === 'pewter'
       ? 'text-[#ddd]'
       : isSkill
-      ? effective >= 9
+      ? effective >= 10
+        ? 'text-amber-300 font-semibold drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]'
+        : effective >= 8
         ? 'text-sky-300'
-        : effective >= 7
+        : effective >= 6
         ? 'text-green-400'
         : effective >= 5
         ? 'text-[#ddd]'

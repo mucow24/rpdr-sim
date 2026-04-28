@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
-import type { BaseStat, Queen } from '../engine/types';
+import { BASE_STATS, type Queen } from '../engine/types';
+
+type StatTooltip = {
+  rows: { label: string; value: number }[];
+  cellLeft: number;
+  cellTop: number;
+  cellBottom: number;
+  cellWidth: number;
+};
 
 interface Props {
   onClose: () => void;
@@ -13,34 +22,97 @@ interface GlobalEntry {
   queen: Queen;
 }
 
-const STAT_COLUMNS: { key: BaseStat | 'lipSync'; label: string }[] = [
-  { key: 'comedy', label: 'CO' },
-  { key: 'improv', label: 'IM' },
-  { key: 'acting', label: 'AC' },
-  { key: 'dance', label: 'DA' },
-  { key: 'music', label: 'MU' },
-  { key: 'design', label: 'DE' },
-  { key: 'runway', label: 'RN' },
+// List view shows aggregated buckets (HUM/PERF/LOOK) plus the two standalone
+// stats — derived values are always rendered with one decimal place to make it
+// obvious they aren't base stats.
+type StatKey = 'humor' | 'performance' | 'look' | 'charisma' | 'lipSync';
+
+const STAT_COLUMNS: { key: StatKey; label: string }[] = [
+  { key: 'humor', label: 'HUM' },
+  { key: 'performance', label: 'PERF' },
+  { key: 'look', label: 'LOOK' },
   { key: 'charisma', label: 'CH' },
   { key: 'lipSync', label: 'LS' },
 ];
 
-function statValue(q: Queen, key: BaseStat | 'lipSync'): number {
-  return key === 'lipSync' ? q.lipSync : q.skills[key];
+function statValue(q: Queen, key: StatKey): number {
+  switch (key) {
+    case 'humor':
+      return (q.skills.comedy + q.skills.improv) / 2;
+    case 'performance':
+      return (q.skills.acting + q.skills.dance + q.skills.music) / 3;
+    case 'look':
+      return (q.skills.design + q.skills.runway) / 2;
+    case 'charisma':
+      return q.skills.charisma;
+    case 'lipSync':
+      return q.lipSync;
+  }
 }
 
-// Mirrors StatInput's `colorScale="skill"` palette — pure value → color.
+// Mirrors QueenStatsPanel: arithmetic mean of all 8 base skills + lipSync.
+function queenStrength(q: Queen): number {
+  const base = BASE_STATS.reduce((a, s) => a + (q.skills[s] ?? 0), 0);
+  return (base + (q.lipSync ?? 0)) / (BASE_STATS.length + 1);
+}
+
+const STAT_LABEL: Record<StatKey, string> = {
+  humor: 'HUM',
+  performance: 'PERF',
+  look: 'LOOK',
+  charisma: 'Charisma',
+  lipSync: 'Lip Sync',
+};
+
+// Always returns at least the stat itself; derived stats also include their
+// component base stats so the tooltip exposes every number behind the dot.
+function tooltipRows(q: Queen, key: StatKey): { label: string; value: number }[] {
+  const top = { label: STAT_LABEL[key], value: statValue(q, key) };
+  switch (key) {
+    case 'humor':
+      return [
+        top,
+        { label: 'Comedy', value: q.skills.comedy },
+        { label: 'Improv', value: q.skills.improv },
+      ];
+    case 'performance':
+      return [
+        top,
+        { label: 'Acting', value: q.skills.acting },
+        { label: 'Dance', value: q.skills.dance },
+        { label: 'Music', value: q.skills.music },
+      ];
+    case 'look':
+      return [
+        top,
+        { label: 'Design', value: q.skills.design },
+        { label: 'Runway', value: q.skills.runway },
+      ];
+    case 'charisma':
+    case 'lipSync':
+      return [top];
+  }
+}
+
+function formatTooltipNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+// Color palette for stat values. Bands are inclusive on the lower bound, so
+// e.g. 5.99 is still neutral and only a true 6 reads as green. Glow on 10.
 function statColorClass(value: number): string {
-  if (value >= 9) return 'text-sky-300';
-  if (value >= 7) return 'text-green-400';
+  if (value >= 10) return 'text-amber-300 font-semibold drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]';
+  if (value >= 8) return 'text-sky-300';
+  if (value >= 6) return 'text-green-400';
   if (value >= 5) return 'text-[#ddd]';
   if (value >= 3) return 'text-orange-400';
   return 'text-red-400';
 }
 
 // Shared stats column block. The grid + fixed width guarantees the header
-// labels land in the same x-positions as the values below them.
-const STATS_GRID_CLS = 'grid grid-cols-9 w-36 font-mono text-[10px] flex-shrink-0';
+// labels land in the same x-positions as the dots below them.
+const STATS_GRID_CLS = 'grid grid-cols-5 w-[140px] flex-shrink-0';
+const STRENGTH_COL_CLS = 'w-6 flex-shrink-0';
 
 // Sticky inside the scrollable list so it shares the same content width as the
 // rows (otherwise the scrollbar inside the ul shifts row columns left vs the
@@ -50,7 +122,8 @@ function ColumnHeader() {
     <div className="sticky top-0 z-30 flex items-center gap-2 px-3 h-7 bg-[#0a0a10] border-b border-[#15151c]">
       <span className="w-2 flex-shrink-0" />
       <span className="flex-1 min-w-0" />
-      <div className={`${STATS_GRID_CLS} text-[#666]`}>
+      <div className={`${STRENGTH_COL_CLS} text-center text-base leading-none`}>💪</div>
+      <div className={`${STATS_GRID_CLS} font-mono text-[10px] text-[#666]`}>
         {STAT_COLUMNS.map(({ key, label }) => (
           <div key={key} className="text-center">{label}</div>
         ))}
@@ -78,6 +151,25 @@ export default function CastEditorPanel({ onClose }: Props) {
   const seasonsById = useStore((s) => s.seasonsById);
   const loadSeason = useStore((s) => s.loadSeason);
   const setSeasonCast = useStore((s) => s.setSeasonCast);
+
+  // One shared tooltip rendered via portal at <body>. Each stat dot wires
+  // mouseenter/leave to populate it; this avoids per-row absolute popovers
+  // getting clipped by the surrounding scroll container.
+  const [tooltip, setTooltip] = useState<StatTooltip | null>(null);
+  const showTooltip = (
+    e: ReactMouseEvent<HTMLDivElement>,
+    rows: { label: string; value: number }[],
+  ) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setTooltip({
+      rows,
+      cellLeft: r.left,
+      cellTop: r.top,
+      cellBottom: r.bottom,
+      cellWidth: r.width,
+    });
+  };
+  const hideTooltip = () => setTooltip(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -207,12 +299,23 @@ export default function CastEditorPanel({ onClose }: Props) {
                     style={{ background: q.color }}
                   />
                   <span className="flex-1 truncate min-w-0">{q.name}</span>
+                  <div
+                    className={`${STRENGTH_COL_CLS} h-4 flex items-center justify-center font-mono text-xs leading-none ${statColorClass(queenStrength(q))}`}
+                  >
+                    {queenStrength(q).toFixed(1)}
+                  </div>
                   <div className={STATS_GRID_CLS}>
                     {STAT_COLUMNS.map(({ key }) => {
                       const v = statValue(q, key);
+                      const rows = tooltipRows(q, key);
                       return (
-                        <div key={key} className={`text-center ${statColorClass(v)}`}>
-                          {v}
+                        <div
+                          key={key}
+                          className={`cursor-help flex items-center justify-center text-base leading-none ${statColorClass(v)}`}
+                          onMouseEnter={(e) => showTooltip(e, rows)}
+                          onMouseLeave={hideTooltip}
+                        >
+                          ●
                         </div>
                       );
                     })}
@@ -306,12 +409,23 @@ export default function CastEditorPanel({ onClose }: Props) {
                           >
                             {q.name}
                           </span>
+                          <div
+                            className={`${STRENGTH_COL_CLS} h-4 flex items-center justify-center font-mono text-xs leading-none ${statColorClass(queenStrength(q))} ${inCast ? 'opacity-40' : ''}`}
+                          >
+                            {queenStrength(q).toFixed(1)}
+                          </div>
                           <div className={`${STATS_GRID_CLS} ${inCast ? 'opacity-40' : ''}`}>
                             {STAT_COLUMNS.map(({ key }) => {
                               const v = statValue(q, key);
+                              const rows = tooltipRows(q, key);
                               return (
-                                <div key={key} className={`text-center ${statColorClass(v)}`}>
-                                  {v}
+                                <div
+                                  key={key}
+                                  className={`cursor-help flex items-center justify-center text-base leading-none ${statColorClass(v)}`}
+                                  onMouseEnter={(e) => showTooltip(e, rows)}
+                                  onMouseLeave={hideTooltip}
+                                >
+                                  ●
                                 </div>
                               );
                             })}
@@ -353,6 +467,25 @@ export default function CastEditorPanel({ onClose }: Props) {
           </button>
         </div>
       </div>
+      {tooltip &&
+        createPortal(
+          <div
+            className="fixed z-[100] bg-[#0a0a10] border border-[#3a3a4a] rounded px-2 py-1 shadow-lg pointer-events-none whitespace-nowrap text-left"
+            style={{
+              left: tooltip.cellLeft + tooltip.cellWidth / 2,
+              top: tooltip.cellTop - 4,
+              transform: 'translate(-50%, -100%)',
+            }}
+          >
+            {tooltip.rows.map(({ label, value }) => (
+              <div key={label} className="font-mono text-[11px]">
+                <span className="text-[#aaa]">{label}:</span>
+                <span className={`ml-1 ${statColorClass(value)}`}>{formatTooltipNumber(value)}</span>
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
