@@ -163,19 +163,19 @@ export default function DataPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleReloadQueens}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Reload queens from source
           </button>
           <button
             onClick={resetQueenColors}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Reset queen colors
           </button>
           <button
             onClick={() => queensInputRef.current?.click()}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Import queens JSON
           </button>
@@ -188,7 +188,7 @@ export default function DataPage() {
           />
           <button
             onClick={handleExportQueens}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Export queens JSON
           </button>
@@ -216,13 +216,13 @@ export default function DataPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleReloadSeasons}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Reload seasons from source
           </button>
           <button
             onClick={() => seasonsInputRef.current?.click()}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Import seasons JSON
           </button>
@@ -235,7 +235,7 @@ export default function DataPage() {
           />
           <button
             onClick={handleExportSeasons}
-            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-[#888] hover:text-[#ccc] bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] px-3 py-1.5 rounded transition-colors"
           >
             Export seasons JSON
           </button>

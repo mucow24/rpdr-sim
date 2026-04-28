@@ -90,7 +90,7 @@ export default function StatInput({
       ? 'border border-amber-700/40 shadow-[0_0_4px_rgba(180,83,9,0.30)]'
       : effectiveMedal === 'pewter'
       ? 'border border-slate-500/40 shadow-[0_0_4px_rgba(148,163,184,0.28)]'
-      : 'border border-[#2a2a3a] focus:border-amber-500/50';
+      : 'border border-[#3a3a4a] focus:border-amber-500/50';
 
   if (disabled) {
     return (
@@ -98,7 +98,7 @@ export default function StatInput({
         type="text"
         value="--"
         disabled
-        className="w-full px-1 py-0.5 bg-[#121218] border border-[#2a2a3a] rounded text-xs text-[#444] text-center focus:outline-none cursor-not-allowed"
+        className="w-full px-1 py-0.5 bg-[#121218] border border-[#3a3a4a] rounded text-xs text-[#444] text-center focus:outline-none cursor-not-allowed"
       />
     );
   }

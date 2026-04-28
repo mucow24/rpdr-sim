@@ -83,7 +83,7 @@ function Popover({
   return (
     <div
       ref={ref}
-      className="absolute left-1/2 top-full mt-2 z-50 bg-[#121218] border border-[#2a2a3a] rounded-lg shadow-xl p-4"
+      className="absolute left-1/2 top-full mt-2 z-50 bg-[#121218] border border-[#3a3a4a] rounded-lg shadow-xl p-4"
       style={{ width, transform: 'translateX(-50%)' }}
     >
       <button

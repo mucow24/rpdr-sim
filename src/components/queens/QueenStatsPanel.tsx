@@ -114,7 +114,7 @@ export default function QueenStatsPanel() {
         {BASE_STATS.map((stat) => (
           <div
             key={stat}
-            className="flex flex-col items-center gap-1 p-1.5 bg-[#0a0a10] border border-[#2a2a3a] rounded"
+            className="flex flex-col items-center gap-1 p-1.5 bg-[#0a0a10] border border-[#3a3a4a] rounded"
           >
             <span className="text-[10px] font-mono text-[#888]">
               {STAT_CODE[stat]}
@@ -134,7 +134,7 @@ export default function QueenStatsPanel() {
             />
           </div>
         ))}
-        <div className="flex flex-col items-center gap-1 p-1.5 bg-[#0a0a10] border border-[#2a2a3a] rounded">
+        <div className="flex flex-col items-center gap-1 p-1.5 bg-[#0a0a10] border border-[#3a3a4a] rounded">
           <span className="text-[10px] font-mono text-[#888]">LS</span>
           <StatInput
             value={queen?.lipSync ?? 0}

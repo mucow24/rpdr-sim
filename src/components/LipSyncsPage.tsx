@@ -998,7 +998,7 @@ export default function LipSyncsPage() {
         </button>
       </div>
       {showPhysics && (
-      <div className="mb-3 ml-4 pl-4 border-l border-[#2a2a3a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
+      <div className="mb-3 ml-4 pl-4 border-l border-[#3a3a4a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
         <label className="flex items-center gap-2">
           <span className="text-[#aaa] w-20">Link str</span>
           <input type="range" min={0} max={5} step={0.01} value={linkStrength} onChange={(e) => setLinkStrength(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
@@ -1065,7 +1065,7 @@ export default function LipSyncsPage() {
         </button>
       </div>
       {showEdgeOpts && (
-      <div className="mb-3 ml-4 pl-4 border-l border-[#2a2a3a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
+      <div className="mb-3 ml-4 pl-4 border-l border-[#3a3a4a] flex items-center gap-x-6 gap-y-2 text-sm text-[#888] flex-wrap">
         <label className="flex items-center gap-2">
           <span className="text-[#aaa] w-20">Thick min</span>
           <input type="range" min={0} max={20} step={0.1} value={thickMin} onChange={(e) => setThickMin(parseFloat(e.target.value))} className="w-40 accent-amber-500" />
@@ -1121,8 +1121,8 @@ export default function LipSyncsPage() {
             </button>
           );
         })}
-        <button type="button" onClick={() => setDisabledSeasons(new Set())} className="ml-2 px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]">All</button>
-        <button type="button" onClick={() => setDisabledSeasons(new Set(SEASON_ORDER))} className="px-2 py-0.5 rounded border border-[#2a2a3a] text-[#888] hover:text-[#ccc] hover:border-[#555]">None</button>
+        <button type="button" onClick={() => setDisabledSeasons(new Set())} className="ml-2 px-2 py-0.5 rounded border border-[#3a3a4a] text-[#888] hover:text-[#ccc] hover:border-[#555]">All</button>
+        <button type="button" onClick={() => setDisabledSeasons(new Set(SEASON_ORDER))} className="px-2 py-0.5 rounded border border-[#3a3a4a] text-[#888] hover:text-[#ccc] hover:border-[#555]">None</button>
       </div>
       <div className="mb-3 flex items-center gap-2 text-sm text-[#888]">
         <span className="text-[#aaa] mr-1">Filter:</span>
@@ -1132,14 +1132,14 @@ export default function LipSyncsPage() {
             value={nameFilter}
             onChange={(e) => setNameFilter(e.target.value)}
             placeholder="queen name…"
-            className="bg-[#0a0a10] border border-[#2a2a3a] rounded px-2 py-0.5 pr-6 text-[#ccc] placeholder:text-[#555] focus:outline-none focus:border-amber-500 w-64"
+            className="bg-[#0a0a10] border border-[#3a3a4a] rounded px-2 py-0.5 pr-6 text-[#ccc] placeholder:text-[#555] focus:outline-none focus:border-amber-500 w-64"
           />
           {nameFilter && (
             <button
               type="button"
               onClick={() => setNameFilter('')}
               aria-label="Clear filter"
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded text-[#888] hover:text-[#ccc] hover:bg-[#2a2a3a] text-xs leading-none"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded text-[#888] hover:text-[#ccc] hover:bg-[#3a3a4a] text-xs leading-none"
             >
               ×
             </button>

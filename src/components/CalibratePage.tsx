@@ -398,7 +398,7 @@ export default function CalibratePage() {
         <select
           value={selectedStat}
           onChange={(e) => setSelectedStat(e.target.value as StatKey)}
-          className="bg-[#1a1a24] border border-[#2a2a3a] text-[#ccc] text-sm rounded px-3 py-1.5 focus:outline-none focus:border-amber-500/50"
+          className="bg-[#1a1a24] border border-[#3a3a4a] text-[#ccc] text-sm rounded px-3 py-1.5 focus:outline-none focus:border-amber-500/50"
         >
           {STAT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -411,7 +411,7 @@ export default function CalibratePage() {
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="bg-[#1a1a24] border border-[#2a2a3a] text-[#ccc] text-sm rounded px-3 py-1.5 focus:outline-none focus:border-amber-500/50"
+            className="bg-[#1a1a24] border border-[#3a3a4a] text-[#ccc] text-sm rounded px-3 py-1.5 focus:outline-none focus:border-amber-500/50"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -426,7 +426,7 @@ export default function CalibratePage() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 p-2 bg-[#111118] rounded">
         <button
           onClick={() => setAllSeasons(!allSeasonsEnabled)}
-          className="text-[10px] uppercase tracking-wide text-[#888] hover:text-[#ccc] px-2 py-0.5 border border-[#2a2a3a] hover:border-[#3a3a4a] rounded transition-colors"
+          className="text-[10px] uppercase tracking-wide text-[#888] hover:text-[#ccc] px-2 py-0.5 border border-[#3a3a4a] hover:border-[#4a4a5a] rounded transition-colors"
         >
           {allSeasonsEnabled ? 'None' : 'All'}
         </button>
@@ -509,7 +509,7 @@ export default function CalibratePage() {
                       <div
                         draggable
                         onDragStart={(e) => handleDragStart(e, entry)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a] cursor-grab active:cursor-grabbing transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs select-none bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a] cursor-grab active:cursor-grabbing transition-colors"
                       >
                         <span
                           className="w-2 h-2 rounded-full flex-shrink-0"

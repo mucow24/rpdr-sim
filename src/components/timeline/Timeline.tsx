@@ -131,7 +131,7 @@ export default function Timeline({ carrierWidth, debug = false }: { carrierWidth
                       ${
                         hasCondition
                           ? 'bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50'
-                          : 'bg-[#1a1a24] border border-[#2a2a3a] hover:border-[#3a3a4a]'
+                          : 'bg-[#1a1a24] border border-[#3a3a4a] hover:border-[#4a4a5a]'
                       }
                       ${isOpen ? 'z-10 ring-1 ring-white/20' : ''}
                     `}
@@ -230,7 +230,7 @@ function EpisodePopoverContent({
           <select
             value={archetype}
             onChange={(e) => onArchetypeChange(e.target.value as ArchetypeId)}
-            className="w-full mb-4 px-2 py-1.5 bg-[#0a0a10] border border-[#2a2a3a] rounded text-xs text-[#ddd] focus:outline-none focus:border-amber-500/50"
+            className="w-full mb-4 px-2 py-1.5 bg-[#0a0a10] border border-[#3a3a4a] rounded text-xs text-[#ddd] focus:outline-none focus:border-amber-500/50"
           >
             {ARCHETYPE_IDS.map((id) => (
               <option key={id} value={id}>
@@ -261,7 +261,7 @@ function EpisodePopoverContent({
                 return (
                   <div
                     key={stat}
-                    className="flex flex-col items-center gap-1 p-2 bg-[#0a0a10] border border-[#2a2a3a] rounded"
+                    className="flex flex-col items-center gap-1 p-2 bg-[#0a0a10] border border-[#3a3a4a] rounded"
                   >
                     <span className="text-[10px] font-mono text-[#888]">
                       {STAT_CODE[stat]}
@@ -394,7 +394,7 @@ function PlacementProbGrid({
             return (
               <div
                 key={q.id}
-                className="bg-[#0a0a10] border border-[#2a2a3a]"
+                className="bg-[#0a0a10] border border-[#3a3a4a]"
                 style={{ width: CELL, height: CELL, borderRadius: 2 }}
                 onMouseEnter={() =>
                   setHover({ queenName: q.name, color: q.color, label: row.label, prob: p })
