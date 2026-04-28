@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Reserve space for the vertical scrollbar even when the page doesn't
+ * currently overflow — without this, content height transitions (e.g.,
+ * adding a what-if pin and the divergence panel growing) make the
+ * scrollbar appear/disappear, shifting the page horizontally and
+ * jerking the user's view vertically. */
+html {
+  scrollbar-gutter: stable;
+}
+
 @keyframes fadeOut {
   0% { opacity: 1; }
   66% { opacity: 1; }
@@ -17,4 +26,17 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+/* Charts: SVG content (axes, labels, queen names, tooltips) shouldn't
+ * highlight on drag — selection accidentally fires when panning the
+ * trajectory chart or hovering over the flow ribbons. */
+svg, svg text {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.placement-tooltip,
+.placement-grid-tooltip {
+  user-select: none;
+  -webkit-user-select: none;
 }

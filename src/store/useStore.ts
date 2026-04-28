@@ -76,7 +76,7 @@ export interface AppState {
 
   // Filters
   addCondition: (c: FilterCondition) => void;
-  removeCondition: (episodeIndex: number, queenIndex: number) => void;
+  removeCondition: (episodeIndex: number, queenIndex: number, placement?: number) => void;
   clearConditions: () => void;
 }
 
@@ -446,17 +446,30 @@ export const useStore = create<AppState>()(persist((set, get) => ({
 
   addCondition: (c) =>
     set((s) => {
-      const filtered = s.conditions.filter(
-        (existing) =>
-          !(existing.episodeIndex === c.episodeIndex && existing.queenIndex === c.queenIndex),
-      );
+      const newMode = c.mode ?? 'include';
+      const filtered = s.conditions.filter((e) => {
+        if (e.episodeIndex !== c.episodeIndex || e.queenIndex !== c.queenIndex) return true;
+        // Includes and excludes never mix at the same (queen, episode).
+        // Adding an include clears every existing condition there; adding an
+        // exclude evicts any include and dedups against another exclude on
+        // the same exact placement.
+        if (newMode === 'include') return false;
+        const eMode = e.mode ?? 'include';
+        if (eMode === 'include') return false;
+        return e.placement !== c.placement;
+      });
       return { conditions: [...filtered, c] };
     }),
 
-  removeCondition: (episodeIndex, queenIndex) =>
+  removeCondition: (episodeIndex, queenIndex, placement) =>
     set((s) => ({
       conditions: s.conditions.filter(
-        (c) => !(c.episodeIndex === episodeIndex && c.queenIndex === queenIndex),
+        (c) =>
+          !(
+            c.episodeIndex === episodeIndex &&
+            c.queenIndex === queenIndex &&
+            (placement === undefined || c.placement === placement)
+          ),
       ),
     })),
 

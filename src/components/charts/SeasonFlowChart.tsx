@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
 import { selectCurrentSeason } from '../../store/selectors';
-import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, type Placement } from '../../engine/types';
+import { PLACEMENTS, PLACEMENT_INDEX, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, isPass, type Placement, type EpisodeData } from '../../engine/types';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS, PLACEMENT_PALETTE_BRIGHT as PLACEMENT_FLOW_COLORS } from './common/palette';
 import { useContainerWidth } from './common/useContainerSize';
 import { computeFlowData } from './seasonFlow/flowData';
@@ -494,19 +494,19 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     // drop-shadows build up a bright, large glow. Filter region needs
     // huge horizontal padding — the node is only 8px wide so percentage
     // padding adds up slowly, and a wide blur gets clipped otherwise.
-    const pinGlow = defs.append('filter')
-      .attr('id', 'pin-glow')
-      .attr('x', '-3000%').attr('y', '-500%')
-      .attr('width', '6100%').attr('height', '1100%');
-    pinGlow.append('feDropShadow')
-      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 10)
-      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
-    pinGlow.append('feDropShadow')
-      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 25)
-      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
-    pinGlow.append('feDropShadow')
-      .attr('dx', 0).attr('dy', 0).attr('stdDeviation', 45)
-      .attr('flood-color', '#ffd700').attr('flood-opacity', 1);
+    const buildGlow = (id: string, color: string) => {
+      const f = defs.append('filter')
+        .attr('id', id)
+        .attr('x', '-3000%').attr('y', '-500%')
+        .attr('width', '6100%').attr('height', '1100%');
+      for (const sd of [10, 25, 45]) {
+        f.append('feDropShadow')
+          .attr('dx', 0).attr('dy', 0).attr('stdDeviation', sd)
+          .attr('flood-color', color).attr('flood-opacity', 1);
+      }
+    };
+    buildGlow('pin-glow', '#ffd700');
+    buildGlow('pin-glow-exclude', '#4fa3ff');
 
     // Queen name underlines (shown on select/hover) live BELOW the ribbons.
     const srcBarsGroup = g.append('g').attr('class', 'src-bars');
@@ -778,24 +778,42 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
 
     // -- Yellow pin dots (any queen with at least one pin) ------------------
     pinDotsGroup.selectAll('*').remove();
-    const queensWithPins = new Set<string>();
+    // Per-queen flags: any include pin, any exclude pin. A queen with both
+    // shows two stacked dots (gold above, blue below).
+    const pinFlagsByQueen = new Map<string, { include: boolean; exclude: boolean }>();
     for (const c of conditions) {
       const q = season.queens[c.queenIndex];
-      if (q) queensWithPins.add(q.id);
+      if (!q) continue;
+      const flags = pinFlagsByQueen.get(q.id) ?? { include: false, exclude: false };
+      if (c.mode === 'exclude') flags.exclude = true;
+      else flags.include = true;
+      pinFlagsByQueen.set(q.id, flags);
     }
     for (const queen of queenOrder) {
-      if (!queensWithPins.has(queen.id)) continue;
+      const flags = pinFlagsByQueen.get(queen.id);
+      if (!flags) continue;
       const nameText = svgSel.select<SVGTextElement>(`text.src-name[data-queen="${queen.id}"]`);
       const nameNode = nameText.node();
       if (!nameNode) continue;
       const bbox = nameNode.getBBox();
       const sb = srcBands[queen.id];
       const nameCenter = sb.y + sb.h / 2;
-      pinDotsGroup.append('circle')
-        .attr('cx', bbox.x - 20).attr('cy', nameCenter)
-        .attr('r', 2.5)
-        .attr('fill', '#ffd700')
-        .attr('opacity', 0.9);
+      const both = flags.include && flags.exclude;
+      const drawDot = (cy: number, fill: string) => {
+        pinDotsGroup.append('circle')
+          .attr('cx', bbox.x - 20).attr('cy', cy)
+          .attr('r', 2.5)
+          .attr('fill', fill)
+          .attr('opacity', 0.9);
+      };
+      if (both) {
+        drawDot(nameCenter - 3.5, '#ffd700');
+        drawDot(nameCenter + 3.5, '#4fa3ff');
+      } else if (flags.include) {
+        drawDot(nameCenter, '#ffd700');
+      } else {
+        drawDot(nameCenter, '#4fa3ff');
+      }
     }
 
     // -- Placement pin overlays (only for selected queen) -------------------
@@ -804,15 +822,26 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     if (!selectedQueen) return;
     const selectedQueenIdx = season.queens.findIndex((q) => q.id === selectedQueen.id);
 
-    const pinSet = new Set<string>();
+    // Map key = "episodeIndex:placement", value = 'include' | 'exclude'.
+    const pinModes = new Map<string, 'include' | 'exclude'>();
     for (const c of conditions) {
       if (c.queenIndex === selectedQueenIdx) {
-        pinSet.add(`${c.episodeIndex}:${c.placement}`);
+        pinModes.set(`${c.episodeIndex}:${c.placement}`, c.mode ?? 'include');
       }
     }
 
+    // ELIM is only meaningful at episodes that actually eliminate someone
+    // (real elim eps and the finale). For pass eps and non-elim regular eps
+    // (e.g. split-premiere parts), the cell is non-pinnable.
+    const epAllowsElim = (ep: EpisodeData): boolean => {
+      if (isPass(ep)) return false;
+      if (isFinale(ep)) return true;
+      return ep.eliminated.length > 0;
+    };
+
     for (let col = 0; col < numCols; col++) {
       const isFinaleCol = isFinale(season.episodes[col]);
+      const colAllowsElim = epAllowsElim(season.episodes[col]);
 
       for (let pi = 0; pi < CHART_PLACEMENTS.length; pi++) {
         const node = nodes[col][pi];
@@ -822,15 +851,19 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
           ? ELIM_PLACEMENT
           : PLACEMENT_INDEX[placementName as Placement];
         const condEpIdx = isFinaleCol && placementName === 'ELIM' ? OUTCOME_EPISODE_INDEX : col;
-        const isPinned = pinSet.has(`${condEpIdx}:${placementNum}`);
+        const pinMode = pinModes.get(`${condEpIdx}:${placementNum}`);
+        const isPinned = pinMode !== undefined;
+        const pinColor = pinMode === 'exclude' ? '#4fa3ff' : '#ffd700';
+        const pinFilterId = pinMode === 'exclude' ? 'pin-glow-exclude' : 'pin-glow';
+        const cellPinnable = !(placementName === 'ELIM' && !colAllowsElim);
 
         if (isPinned) {
           overlayGroup.append('rect')
             .attr('x', colX(col) - NODE_WIDTH / 2).attr('y', node.y)
             .attr('width', NODE_WIDTH).attr('height', node.h)
-            .attr('fill', '#ffd700').attr('opacity', 1)
+            .attr('fill', pinColor).attr('opacity', 1)
             .attr('rx', 1)
-            .attr('filter', 'url(#pin-glow)')
+            .attr('filter', `url(#${pinFilterId})`)
             .style('pointer-events', 'none');
         }
 
@@ -840,7 +873,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
           .attr('fill', 'transparent')
           .attr('opacity', 0)
           .attr('rx', 1)
-          .style('cursor', 'pointer');
+          .style('cursor', cellPinnable ? 'pointer' : 'default');
 
         overlay
           .on('mouseenter', function (event) {
@@ -941,13 +974,15 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
             }
 
             if (isPinned || noRoutes) {
+              const pinLabel = pinMode === 'exclude' ? 'EXCLUDED' : 'PINNED';
+              const pinFill = pinMode === 'exclude' ? '#4fa3ff' : '#e74c3c';
               tt.append('text')
                 .attr('x', ttW / 2).attr('y', 19 + statsH / 2)
                 .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-                .attr('fill', noRoutes ? '#ffd700' : '#e74c3c')
+                .attr('fill', noRoutes ? '#ffd700' : pinFill)
                 .attr('font-size', '11px').attr('font-weight', 'bold')
                 .attr('font-family', 'monospace')
-                .text(noRoutes ? 'NO SIM RESULTS' : 'PINNED');
+                .text(noRoutes ? 'NO SIM RESULTS' : pinLabel);
             }
           })
           .on('mousemove', function (event) {
@@ -968,22 +1003,83 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
             }
             g.select('.flow-tooltip').remove();
           })
-          .on('click', () => {
+          .on('click', (event) => {
+            // ELIM only makes sense at episodes that eliminate someone.
+            if (!cellPinnable) return;
+            const wantExclude = event.shiftKey;
+
             if (isPinned) {
-              removeCondition(condEpIdx, selectedQueenIdx);
-            } else {
+              // X-to-close: remove just this exact condition (multiple
+              // excludes can share an ep+queen, so we target by placement).
+              removeCondition(condEpIdx, selectedQueenIdx, placementNum);
+              return;
+            }
+
+            // Inventory existing conditions for this (queen, column).
+            // condEpIdx for ELIM in finale lives at OUTCOME; the others sit
+            // at `col`. The column's "pin namespace" is both indices.
+            let hasExistingAtCol = false;
+            const excludedKeys = new Set<string>();
+            for (const c of conditions) {
+              if (c.queenIndex !== selectedQueenIdx) continue;
+              const inCol = c.episodeIndex === col || (isFinaleCol && c.episodeIndex === OUTCOME_EPISODE_INDEX);
+              if (!inCol) continue;
+              hasExistingAtCol = true;
+              if ((c.mode ?? 'include') === 'exclude') {
+                excludedKeys.add(`${c.episodeIndex}:${c.placement}`);
+              }
+            }
+
+            if (wantExclude) {
+              // Includes and excludes never mix at the same (queen, episode):
+              // the store evicts any existing include when the exclude lands.
+              // The resulting state has only excludes here \u2014 verify they
+              // don't blanket every placement at this column.
+              excludedKeys.add(`${condEpIdx}:${placementNum}`);
+              let hasUnexcluded = false;
+              for (let pi2 = 0; pi2 < CHART_PLACEMENTS.length; pi2++) {
+                const pname = CHART_PLACEMENTS[pi2];
+                const pnum = pname === 'ELIM'
+                  ? ELIM_PLACEMENT
+                  : PLACEMENT_INDEX[pname as Placement];
+                // ELIM-impossible cells aren't options, so skip them when
+                // counting unexcluded placements.
+                if (pname === 'ELIM' && !colAllowsElim) continue;
+                const epIdx = isFinaleCol && pname === 'ELIM' ? OUTCOME_EPISODE_INDEX : col;
+                if (!excludedKeys.has(`${epIdx}:${pnum}`)) {
+                  hasUnexcluded = true;
+                  break;
+                }
+              }
+              if (!hasUnexcluded) return;
+              addCondition({
+                episodeIndex: condEpIdx,
+                queenIndex: selectedQueenIdx,
+                placement: placementNum,
+                mode: 'exclude',
+              });
+              return;
+            }
+
+            // Plain click \u2192 add or move the include pin.
+            // Skip the route-existence gate when a pin already filters this
+            // column: the displayed prob there is conditional on that pin
+            // (so every non-pinned cell shows 0%), and the user is making an
+            // explicit choice to move/replace it.
+            if (!hasExistingAtCol) {
               const qid = selectedQueen.id;
               const dist = results.episodePlacements[col]?.[qid] ?? {};
               const prob = placementName === 'ELIM'
                 ? (elimByEp[qid]?.[col] ?? 0)
                 : (dist[placementName] ?? 0);
               if (prob < 0.001) return;
-              addCondition({
-                episodeIndex: condEpIdx,
-                queenIndex: selectedQueenIdx,
-                placement: placementNum,
-              });
             }
+            addCondition({
+              episodeIndex: condEpIdx,
+              queenIndex: selectedQueenIdx,
+              placement: placementNum,
+              mode: 'include',
+            });
           });
 
         if (isPinned) {
@@ -991,7 +1087,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
             .attr('x', colX(col)).attr('y', node.y + node.h / 2)
             .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
             .attr('fill', '#000')
-            .attr('stroke', '#ffd700').attr('stroke-width', 1.5)
+            .attr('stroke', pinColor).attr('stroke-width', 1.5)
             .attr('paint-order', 'stroke')
             .attr('font-size', '22px').attr('font-weight', '900')
             .style('pointer-events', 'none')

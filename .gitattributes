@@ -1,0 +1,5 @@
+# Vitest writes snapshot files with LF; without this rule, Windows clones
+# with core.autocrlf=true would check them out as CRLF and then show them
+# as modified the moment a test run rewrites them back to LF. Pinning
+# snapshots to LF in both the repo and the working tree breaks the cycle.
+*.snap text eol=lf
