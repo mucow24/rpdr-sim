@@ -109,23 +109,102 @@ function statColorClass(value: number): string {
   return 'text-red-400';
 }
 
+type SortCol = 'name' | 'strength' | StatKey;
+type SortState = { col: SortCol; dir: 'asc' | 'desc' };
+
+function sortKey(q: Queen, col: SortCol): string | number {
+  if (col === 'name') return q.name.toLowerCase();
+  if (col === 'strength') return queenStrength(q);
+  return statValue(q, col);
+}
+
+function compareQueens(a: Queen, b: Queen, sort: SortState): number {
+  const va = sortKey(a, sort.col);
+  const vb = sortKey(b, sort.col);
+  const cmp =
+    typeof va === 'string' && typeof vb === 'string'
+      ? va.localeCompare(vb)
+      : (va as number) - (vb as number);
+  return sort.dir === 'asc' ? cmp : -cmp;
+}
+
 // Shared stats column block. The grid + fixed width guarantees the header
 // labels land in the same x-positions as the dots below them.
 const STATS_GRID_CLS = 'grid grid-cols-5 w-[140px] flex-shrink-0';
 const STRENGTH_COL_CLS = 'w-6 flex-shrink-0';
 
+function SortableLabel({
+  col,
+  sort,
+  onSort,
+  className = '',
+  children,
+}: {
+  col: SortCol;
+  sort: SortState | null;
+  onSort: (col: SortCol) => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const active = sort?.col === col;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col)}
+      className={`cursor-pointer transition-colors ${
+        active ? 'text-amber-300' : 'text-[#666] hover:text-[#999]'
+      } ${className}`}
+    >
+      {children}
+      {active && (
+        <span className="ml-0.5 text-[8px] align-middle">
+          {sort.dir === 'asc' ? '▲' : '▼'}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // Sticky inside the scrollable list so it shares the same content width as the
 // rows (otherwise the scrollbar inside the ul shifts row columns left vs the
 // header). Height is fixed so callers can offset other sticky headers by it.
-function ColumnHeader() {
+function ColumnHeader({
+  sort,
+  onSort,
+}: {
+  sort: SortState | null;
+  onSort: (col: SortCol) => void;
+}) {
   return (
     <div className="sticky top-0 z-30 flex items-center gap-2 px-3 h-7 bg-[#0a0a10] border-b border-[#15151c]">
       <span className="w-2 flex-shrink-0" />
-      <span className="flex-1 min-w-0" />
-      <div className={`${STRENGTH_COL_CLS} text-center text-base leading-none`}>💪</div>
-      <div className={`${STATS_GRID_CLS} font-mono text-[10px] text-[#666]`}>
+      <SortableLabel
+        col="name"
+        sort={sort}
+        onSort={onSort}
+        className="flex-1 min-w-0 text-left font-mono text-[10px] uppercase tracking-wide truncate"
+      >
+        Name
+      </SortableLabel>
+      <SortableLabel
+        col="strength"
+        sort={sort}
+        onSort={onSort}
+        className={`${STRENGTH_COL_CLS} text-center text-base leading-none`}
+      >
+        💪
+      </SortableLabel>
+      <div className={STATS_GRID_CLS}>
         {STAT_COLUMNS.map(({ key, label }) => (
-          <div key={key} className="text-center">{label}</div>
+          <SortableLabel
+            key={key}
+            col={key}
+            sort={sort}
+            onSort={onSort}
+            className="font-mono text-[10px] text-center"
+          >
+            {label}
+          </SortableLabel>
         ))}
       </div>
       <span className="w-6 flex-shrink-0" />
@@ -202,13 +281,50 @@ export default function CastEditorPanel({ onClose }: Props) {
 
   const [filter, setFilter] = useState('');
 
+  // Per-list sort state. null = no sort (cast list shows insertion order;
+  // global list shows season-grouped). Click a column → sort asc; click the
+  // same column → flip dir. Switching to a different column resets to asc.
+  const [castSort, setCastSort] = useState<SortState | null>(null);
+  const [globalSort, setGlobalSort] = useState<SortState | null>(null);
+  const cycleSort = (
+    current: SortState | null,
+    set: (s: SortState | null) => void,
+    col: SortCol,
+  ) => {
+    // unsorted -> asc -> desc -> unsorted (third click on the active column
+    // clears the sort, so the right list returns to its season-grouped view).
+    if (!current || current.col !== col) set({ col, dir: 'asc' });
+    else if (current.dir === 'asc') set({ col, dir: 'desc' });
+    else set(null);
+  };
+  const onCastSort = (col: SortCol) => cycleSort(castSort, setCastSort, col);
+  const onGlobalSort = (col: SortCol) => cycleSort(globalSort, setGlobalSort, col);
+
+  const sortedStagedCast = useMemo(() => {
+    if (!castSort) return stagedCast;
+    return [...stagedCast].sort((a, b) => compareQueens(a, b, castSort));
+  }, [stagedCast, castSort]);
+
   const globalList = useMemo(() => buildGlobalList(), []);
 
-  const groupedGlobal = useMemo(() => {
+  const filteredEntries = useMemo(() => {
     const needle = filter.trim().toLowerCase();
+    if (!needle) return globalList;
+    return globalList.filter((e) => e.queen.name.toLowerCase().includes(needle));
+  }, [globalList, filter]);
+
+  // When sorted, the right list goes flat; when not, it groups by season.
+  const sortedGlobal = useMemo(() => {
+    if (!globalSort) return null;
+    return [...filteredEntries].sort((a, b) =>
+      compareQueens(a.queen, b.queen, globalSort),
+    );
+  }, [filteredEntries, globalSort]);
+
+  const groupedGlobal = useMemo(() => {
+    if (globalSort) return null;
     const groups: { seasonId: string; seasonName: string; queens: Queen[] }[] = [];
-    for (const entry of globalList) {
-      if (needle && !entry.queen.name.toLowerCase().includes(needle)) continue;
+    for (const entry of filteredEntries) {
       let g = groups.find((x) => x.seasonId === entry.seasonId);
       if (!g) {
         g = { seasonId: entry.seasonId, seasonName: entry.seasonName, queens: [] };
@@ -217,7 +333,7 @@ export default function CastEditorPanel({ onClose }: Props) {
       g.queens.push(entry.queen);
     }
     return groups;
-  }, [globalList, filter]);
+  }, [filteredEntries, globalSort]);
 
   const handleSeasonChange = (newId: string) => {
     setStagedSeasonId(newId);
@@ -284,12 +400,12 @@ export default function CastEditorPanel({ onClose }: Props) {
         <div className="flex flex-col">
           <div className="text-xs uppercase tracking-wide text-[#bbb] mb-1.5">Cast</div>
           <div className="bg-[#0a0a10] border border-[#1a1a24] rounded h-[455px] overflow-y-scroll">
-            <ColumnHeader />
+            <ColumnHeader sort={castSort} onSort={onCastSort} />
             <ul>
-              {stagedCast.length === 0 && (
+              {sortedStagedCast.length === 0 && (
                 <li className="px-3 py-2 text-sm text-[#555] italic">Empty</li>
               )}
-              {stagedCast.map((q) => (
+              {sortedStagedCast.map((q) => (
                 <li
                   key={q.id}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c] last:border-b-0"
@@ -385,68 +501,73 @@ export default function CastEditorPanel({ onClose }: Props) {
             </div>
           </div>
           <div className="bg-[#0a0a10] border border-[#1a1a24] rounded h-[455px] overflow-y-auto">
-            <ColumnHeader />
-            <ul>
-              {groupedGlobal.map((group) => (
-                <li key={group.seasonId}>
-                  <div className="px-3 py-1 text-[11px] uppercase tracking-wider font-medium text-amber-300 bg-amber-700/40 border-b border-amber-500/40 sticky top-7 z-10">
-                    {group.seasonName}
-                  </div>
-                  <ul>
-                    {group.queens.map((q) => {
-                      const inCast = stagedIds.has(q.id);
-                      return (
-                        <li
-                          key={`${group.seasonId}:${q.id}`}
-                          className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c]"
-                        >
-                          <span
-                            className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ background: q.color }}
-                          />
-                          <span
-                            className={`flex-1 truncate min-w-0 ${inCast ? 'text-[#555]' : ''}`}
-                          >
-                            {q.name}
-                          </span>
+            <ColumnHeader sort={globalSort} onSort={onGlobalSort} />
+            {(() => {
+              const renderGlobalRow = (q: Queen, seasonId: string) => {
+                const inCast = stagedIds.has(q.id);
+                return (
+                  <li
+                    key={`${seasonId}:${q.id}`}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c]"
+                  >
+                    <span
+                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: q.color }}
+                    />
+                    <span
+                      className={`flex-1 truncate min-w-0 ${inCast ? 'text-[#555]' : ''}`}
+                    >
+                      {q.name}
+                    </span>
+                    <div
+                      className={`${STRENGTH_COL_CLS} h-4 flex items-center justify-center font-mono text-xs leading-none ${statColorClass(queenStrength(q))} ${inCast ? 'opacity-40' : ''}`}
+                    >
+                      {queenStrength(q).toFixed(1)}
+                    </div>
+                    <div className={`${STATS_GRID_CLS} ${inCast ? 'opacity-40' : ''}`}>
+                      {STAT_COLUMNS.map(({ key }) => {
+                        const v = statValue(q, key);
+                        const rows = tooltipRows(q, key);
+                        return (
                           <div
-                            className={`${STRENGTH_COL_CLS} h-4 flex items-center justify-center font-mono text-xs leading-none ${statColorClass(queenStrength(q))} ${inCast ? 'opacity-40' : ''}`}
+                            key={key}
+                            className={`cursor-help flex items-center justify-center text-base leading-none ${statColorClass(v)}`}
+                            onMouseEnter={(e) => showTooltip(e, rows)}
+                            onMouseLeave={hideTooltip}
                           >
-                            {queenStrength(q).toFixed(1)}
+                            ●
                           </div>
-                          <div className={`${STATS_GRID_CLS} ${inCast ? 'opacity-40' : ''}`}>
-                            {STAT_COLUMNS.map(({ key }) => {
-                              const v = statValue(q, key);
-                              const rows = tooltipRows(q, key);
-                              return (
-                                <div
-                                  key={key}
-                                  className={`cursor-help flex items-center justify-center text-base leading-none ${statColorClass(v)}`}
-                                  onMouseEnter={(e) => showTooltip(e, rows)}
-                                  onMouseLeave={hideTooltip}
-                                >
-                                  ●
-                                </div>
-                              );
-                            })}
+                        );
+                      })}
+                    </div>
+                    <span className="w-6 flex-shrink-0 flex items-center justify-center">
+                      <button
+                        onClick={() => addQueen(q)}
+                        disabled={inCast || sizeOk}
+                        className="text-[#888] hover:text-emerald-400 transition-colors text-lg font-bold leading-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[#888]"
+                        title={inCast ? 'Already in cast' : sizeOk ? 'Cast is full' : 'Add to cast'}
+                      >
+                        +
+                      </button>
+                    </span>
+                  </li>
+                );
+              };
+              return (
+                <ul>
+                  {sortedGlobal
+                    ? sortedGlobal.map((e) => renderGlobalRow(e.queen, e.seasonId))
+                    : groupedGlobal!.map((group) => (
+                        <li key={group.seasonId}>
+                          <div className="px-3 py-1 text-[11px] uppercase tracking-wider font-medium text-amber-300 bg-amber-700/40 border-b border-amber-500/40 sticky top-7 z-10">
+                            {group.seasonName}
                           </div>
-                          <span className="w-6 flex-shrink-0 flex items-center justify-center">
-                            <button
-                              onClick={() => addQueen(q)}
-                              disabled={inCast || sizeOk}
-                              className="text-[#888] hover:text-emerald-400 transition-colors text-lg font-bold leading-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[#888]"
-                              title={inCast ? 'Already in cast' : sizeOk ? 'Cast is full' : 'Add to cast'}
-                            >
-                              +
-                            </button>
-                          </span>
+                          <ul>{group.queens.map((q) => renderGlobalRow(q, group.seasonId))}</ul>
                         </li>
-                      );
-                    })}
-                  </ul>
-                </li>
-              ))}
-            </ul>
+                      ))}
+                </ul>
+              );
+            })()}
           </div>
         </div>
       </div>
