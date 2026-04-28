@@ -16,7 +16,7 @@ import type {
   SeasonData,
   RunFromStateOptions,
 } from './types';
-import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, isPass } from './types';
+import { BASE_STATS, PLACEMENT_INDEX, INDEX_PLACEMENT, ELIM_PLACEMENT, OUTCOME_EPISODE_INDEX, isFinale, isPass, isRegular } from './types';
 import { ARCHETYPES } from '../data/archetypes';
 import { resolveRng, type Rng } from './rng';
 export type { RunFromStateOptions } from './types';
@@ -98,6 +98,51 @@ function resolveLipSync(queenA: Queen, queenB: Queen, rng: Rng): string {
   return rng() < pA ? queenA.id : queenB.id;
 }
 
+/** Pre-S6 winner immunity: if the previous regular episode granted immunity,
+ *  its winner is protected from LOW/BTM2 this episode. The lowest-ranked SAFE
+ *  queen takes her vacated slot, preserving placement-band counts. No-op when
+ *  prev ep didn't grant, prev winner isn't in this ep's field, or current
+ *  placement is SAFE/HIGH/WIN. Mutates `placements` in place.
+ *  @internal — exported for direct testing */
+export function applyPriorWinnerImmunity(
+  placements: Map<string, EpisodeOutcome>,
+  rankedScores: { queenId: string; score: number }[],
+  episodes: readonly EpisodeData[],
+  priorResults: EpisodeResult[],
+  remaining: Map<string, Queen>,
+): void {
+  // Handler is called with episodeResults.length === current epIdx (push happens
+  // after handler returns), so the previous episode is at length - 1.
+  const epIdx = priorResults.length;
+  const prevEp = episodes[epIdx - 1];
+  if (!prevEp || !isRegular(prevEp) || !prevEp.grantsImmunity) return;
+  const prevResult = priorResults[priorResults.length - 1];
+  if (!prevResult) return;
+  let prevWinnerId: string | undefined;
+  for (const [qid, p] of prevResult.placements) {
+    if (p === 'WIN') { prevWinnerId = qid; break; }
+  }
+  if (!prevWinnerId || !remaining.has(prevWinnerId)) return;
+  const current = placements.get(prevWinnerId);
+  if (current !== 'LOW' && current !== 'BTM2') return;
+
+  // Find the lowest-ranked SAFE queen (largest rank index whose placement is
+  // SAFE) — she gets demoted into the immune queen's vacated slot. Tiny field
+  // edge case: if no SAFE queen exists, leave as-is (graceful degradation).
+  // Walk the ranking sorted desc by score so the largest index is the worst.
+  const sortedDesc = [...rankedScores].sort((a, b) => b.score - a.score);
+  let demoteId: string | undefined;
+  for (let i = sortedDesc.length - 1; i >= 0; i--) {
+    const qid = sortedDesc[i].queenId;
+    if (qid === prevWinnerId) continue;
+    if (placements.get(qid) === 'SAFE') { demoteId = qid; break; }
+  }
+  if (!demoteId) return;
+
+  placements.set(demoteId, current);
+  placements.set(prevWinnerId, 'SAFE');
+}
+
 // ── Episode handler dispatch ──────────────────────────────
 //
 // Each episode kind owns its own handler. Adding a new kind (custom finale
@@ -124,6 +169,10 @@ interface SimCtx {
   finalRanks: Map<string, number>;
   /** Append-only: one entry per episode this run. */
   episodeResults: EpisodeResult[];
+  /** Read-only reference to the season's episode array. Handlers use this to
+   *  inspect prior-episode metadata (e.g. pre-S6 immunity) without re-deriving
+   *  it from EpisodeResult. */
+  episodes: readonly EpisodeData[];
 }
 
 interface EpisodeHandler<E extends EpisodeData> {
@@ -139,6 +188,7 @@ const regularHandler: EpisodeHandler<RegularEpisode> = {
       score: scoreQueen(q, weights, ctx.noise, ctx.rng),
     }));
     const placements = assignPlacements(scores);
+    applyPriorWinnerImmunity(placements, scores, ctx.episodes, ctx.episodeResults, ctx.remaining);
 
     // Non-elim episode: record placements, no lip sync, no removals.
     if (episode.eliminated.length === 0) {
@@ -298,6 +348,7 @@ function simulateOneSeason(
     eliminationOrder,
     finalRanks: new Map(),
     episodeResults,
+    episodes,
   };
 
   const startIdx = midSeason?.startEpisodeIndex ?? 0;

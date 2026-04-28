@@ -103,6 +103,7 @@ const season3: SeasonData = {
       challengeName: 'The Queen Who Mopped Xmas',
       placements: { raja: 'WIN', shangela: 'BTM2', venus: 'BTM2' },
       eliminated: ['venus'],
+      grantsImmunity: true,
     },
     {
       number: 3,
@@ -117,6 +118,7 @@ const season3: SeasonData = {
       challengeName: 'Totally Leotarded',
       placements: { alexis_mateo: 'WIN', india: 'BTM2', mimi: 'BTM2' },
       eliminated: ['mimi'],
+      grantsImmunity: true,
     },
     {
       number: 5,
@@ -124,6 +126,7 @@ const season3: SeasonData = {
       challengeName: 'QNN News',
       placements: { manila: 'WIN', india: 'BTM2', stacy: 'BTM2' },
       eliminated: ['india'],
+      grantsImmunity: true,
     },
     {
       number: 6,

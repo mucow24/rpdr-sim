@@ -175,6 +175,209 @@ describe('[simulator] finale edge cases', () => {
   });
 });
 
+// ── [simulator] pre-S6 winner immunity ─────────────────────
+//
+// The pre-S6 rule: an episode that grants immunity protects its winner from
+// LOW/BTM2 in the following episode. The immune queen can still WIN/HIGH/SAFE
+// based on her score; the lowest-ranked SAFE queen takes her vacated slot so
+// placement-band counts are preserved.
+
+describe('[simulator] pre-S6 immunity blocks LOW/BTM2 only', () => {
+  test('BTM2 → SAFE: immune queen who would have landed in BTM2 is protected', () => {
+    // n=6 at ep 2: positions 0..5 = WIN, HIGH, SAFE, LOW, BTM2, BTM2.
+    // Sorted desc by skill: f, e, d, c, b, a → so absent immunity: a → BTM2.
+    // With immunity (a won ep 1): a → SAFE, lowest-ranked SAFE (d at pos 2) → BTM2.
+    const season: SeasonData = {
+      id: 't', name: 'T',
+      queens: [
+        mkQueen('a', 1), mkQueen('b', 3), mkQueen('c', 5),
+        mkQueen('d', 7), mkQueen('e', 9), mkQueen('f', 10),
+      ],
+      episodes: [
+        {
+          number: 1, archetype: 'ball', challengeName: 'ep1',
+          placements: { a: 'WIN', e: 'BTM2', b: 'BTM2' } as Record<string, Placement>,
+          eliminated: [],
+          grantsImmunity: true,
+        },
+        ballEp(2, {}, []),
+        finaleEp(3),
+      ],
+    };
+    const { results } = runFromState({ season, fromEpisode: 1, numSimulations: 50, noise: 0, seed: 42 });
+    expect(results.episodePlacements[1].a.SAFE, 'a (immune) is SAFE').toBe(1);
+    expect(results.episodePlacements[1].a.BTM2, 'a is not BTM2').toBe(0);
+    expect(results.episodePlacements[1].a.LOW, 'a is not LOW').toBe(0);
+    expect(results.episodePlacements[1].d.BTM2, 'd backfilled to BTM2').toBe(1);
+    expect(results.episodePlacements[1].d.SAFE, 'd is not SAFE').toBe(0);
+    // Other queens unchanged.
+    expect(results.episodePlacements[1].f.WIN).toBe(1);
+    expect(results.episodePlacements[1].e.HIGH).toBe(1);
+    expect(results.episodePlacements[1].c.LOW).toBe(1);
+    expect(results.episodePlacements[1].b.BTM2).toBe(1);
+  });
+
+  test('counterfactual: without grantsImmunity, prior winner lands in BTM2', () => {
+    const season: SeasonData = {
+      id: 't', name: 'T',
+      queens: [
+        mkQueen('a', 1), mkQueen('b', 3), mkQueen('c', 5),
+        mkQueen('d', 7), mkQueen('e', 9), mkQueen('f', 10),
+      ],
+      episodes: [
+        {
+          number: 1, archetype: 'ball', challengeName: 'ep1',
+          placements: { a: 'WIN', e: 'BTM2', b: 'BTM2' } as Record<string, Placement>,
+          eliminated: [],
+          // grantsImmunity intentionally omitted
+        },
+        ballEp(2, {}, []),
+        finaleEp(3),
+      ],
+    };
+    const { results } = runFromState({ season, fromEpisode: 1, numSimulations: 50, noise: 0, seed: 42 });
+    expect(results.episodePlacements[1].a.BTM2, 'a is BTM2 absent immunity').toBe(1);
+    expect(results.episodePlacements[1].a.SAFE).toBe(0);
+    expect(results.episodePlacements[1].d.SAFE, 'd remains SAFE absent immunity').toBe(1);
+  });
+
+  test('LOW → SAFE with backfill: 12-queen field with immune queen at LOW position', () => {
+    // n=12: positions WIN, HIGH, HIGH, SAFE×5, LOW, LOW, BTM2, BTM2.
+    // Skills monotonically decreasing 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1.
+    // Order desc: q12, q11, q10, q9, q8, q7, q6, q5, q4, q3, q2, q1.
+    // q3 sits at position 9 (LOW). Make q3 the prior winner — assert immunity.
+    const queens: Queen[] = [];
+    for (let i = 1; i <= 12; i++) queens.push(mkQueen(`q${i}`, i));
+    const season: SeasonData = {
+      id: 't', name: 'T', queens,
+      episodes: [
+        {
+          number: 1, archetype: 'ball', challengeName: 'ep1',
+          placements: { q3: 'WIN', q11: 'BTM2', q10: 'BTM2' } as Record<string, Placement>,
+          eliminated: [],
+          grantsImmunity: true,
+        },
+        ballEp(2, {}, []),
+        finaleEp(3),
+      ],
+    };
+    const { results } = runFromState({ season, fromEpisode: 1, numSimulations: 50, noise: 0, seed: 1 });
+    // q3 is at sorted position 9 → originally LOW. With immunity, q3→SAFE,
+    // and the lowest-ranked SAFE queen (position 7 in sorted order, which is
+    // q5) is demoted to LOW.
+    expect(results.episodePlacements[1].q3.SAFE, 'q3 (immune at LOW) is SAFE').toBe(1);
+    expect(results.episodePlacements[1].q3.LOW, 'q3 is not LOW').toBe(0);
+    expect(results.episodePlacements[1].q5.LOW, 'q5 backfilled to LOW').toBe(1);
+    expect(results.episodePlacements[1].q5.SAFE, 'q5 is not SAFE').toBe(0);
+    // Bands preserved: BTM2 is still {q1, q2}, other LOW slot is still q4.
+    expect(results.episodePlacements[1].q1.BTM2).toBe(1);
+    expect(results.episodePlacements[1].q2.BTM2).toBe(1);
+    expect(results.episodePlacements[1].q4.LOW).toBe(1);
+  });
+
+  test('no-op when immune queen scores into WIN/HIGH/SAFE', () => {
+    // Queen A is the highest-skill — she scores WIN regardless of immunity.
+    const season: SeasonData = {
+      id: 't', name: 'T',
+      queens: [
+        mkQueen('a', 10), mkQueen('b', 8), mkQueen('c', 6),
+        mkQueen('d', 4), mkQueen('e', 3), mkQueen('f', 1),
+      ],
+      episodes: [
+        {
+          number: 1, archetype: 'ball', challengeName: 'ep1',
+          placements: { a: 'WIN', f: 'BTM2', e: 'BTM2' } as Record<string, Placement>,
+          eliminated: [],
+          grantsImmunity: true,
+        },
+        ballEp(2, {}, []),
+        finaleEp(3),
+      ],
+    };
+    const { results } = runFromState({ season, fromEpisode: 1, numSimulations: 50, noise: 0, seed: 1 });
+    expect(results.episodePlacements[1].a.WIN, 'a scored top, gets WIN').toBe(1);
+    expect(results.episodePlacements[1].b.HIGH).toBe(1);
+    expect(results.episodePlacements[1].c.SAFE).toBe(1);
+    expect(results.episodePlacements[1].d.LOW).toBe(1);
+    expect(results.episodePlacements[1].e.BTM2).toBe(1);
+    expect(results.episodePlacements[1].f.BTM2).toBe(1);
+  });
+
+  test('pass episode breaks the immunity chain', () => {
+    // ep 1 grants immunity; ep 2 is a pass episode (no winner). ep 3 should
+    // see ep 2 as prior result (empty placements) — no carry-forward.
+    const season: SeasonData = {
+      id: 't', name: 'T',
+      queens: [
+        mkQueen('a', 1), mkQueen('b', 3), mkQueen('c', 5),
+        mkQueen('d', 7), mkQueen('e', 9), mkQueen('f', 10),
+      ],
+      episodes: [
+        {
+          number: 1, archetype: 'ball', challengeName: 'ep1',
+          placements: { a: 'WIN', e: 'BTM2', b: 'BTM2' } as Record<string, Placement>,
+          eliminated: [],
+          grantsImmunity: true,
+        },
+        passEp(2),
+        ballEp(3, {}, []),
+        finaleEp(4),
+      ],
+    };
+    const { results } = runFromState({ season, fromEpisode: 1, numSimulations: 50, noise: 0, seed: 1 });
+    // At ep 3 (index 2), the prior result is the pass ep with no WIN.
+    // a should land in BTM2 (her natural position) — no immunity carry-forward.
+    expect(results.episodePlacements[2].a.BTM2, 'a not protected (pass broke chain)').toBe(1);
+    expect(results.episodePlacements[2].d.SAFE, 'd remains SAFE (no backfill triggered)').toBe(1);
+  });
+
+  test('first episode of season: no prior result, no override, no crash', () => {
+    // grantsImmunity on ep 1 with no ep 0 should be a clean no-op for ep 1.
+    const season: SeasonData = {
+      id: 't', name: 'T',
+      queens: [
+        mkQueen('a', 1), mkQueen('b', 3), mkQueen('c', 5),
+        mkQueen('d', 7), mkQueen('e', 9), mkQueen('f', 10),
+      ],
+      episodes: [
+        {
+          number: 1, archetype: 'ball', challengeName: 'ep1',
+          placements: {}, eliminated: [],
+          grantsImmunity: true,
+        },
+        finaleEp(2),
+      ],
+    };
+    const { results } = runBaseline({ season, numSimulations: 10, noise: 0, seed: 1 });
+    // ep 1 should be a normal n=6 placement: WIN=f, HIGH=e, SAFE=d, LOW=c, BTM2=b,a.
+    expect(results.episodePlacements[0].f.WIN).toBe(1);
+    expect(results.episodePlacements[0].a.BTM2).toBe(1);
+  });
+
+  test('mid-season lock: real-data integration — S2 ep 1 winner cannot land in BTM2/LOW in ep 2', async () => {
+    // Use the canonical S2 data through the SEASON_PRESETS path.
+    const { SEASON_PRESETS } = await import('../data/presets');
+    const preset = SEASON_PRESETS.find((s) => s.id === 'season2');
+    expect(preset, 'season2 preset present').toBeDefined();
+    if (!preset) return;
+    const s2 = preset.season;
+    // Confirm ep 1 has grantsImmunity in the canonical data.
+    const ep1 = s2.episodes[0];
+    expect(ep1.kind === undefined || ep1.kind === 'regular', 'ep1 is regular').toBe(true);
+    if (ep1.kind === 'pass' || ep1.kind === 'finale') return;
+    expect(ep1.grantsImmunity, 'S2 ep1 grants immunity by default').toBe(true);
+    const ep1WinnerId = Object.entries(ep1.placements).find(([, p]) => p === 'WIN')?.[0];
+    expect(ep1WinnerId, 'S2 ep1 has an authored winner').toBeDefined();
+    if (!ep1WinnerId) return;
+
+    const { results } = runFromState({ season: s2, fromEpisode: 1, numSimulations: 1000, noise: 1.8, seed: 99 });
+    // Across all 1000 sims with noise, the ep1 winner must never land in
+    // BTM2 or LOW in ep 2. Statistical assertion — exact zero given immunity.
+    expect(results.episodePlacements[1][ep1WinnerId].BTM2).toBe(0);
+    expect(results.episodePlacements[1][ep1WinnerId].LOW).toBe(0);
+  });
+});
+
 describe('[simulator] pass episode alive-set stability', () => {
   test('pass ep does not shrink the alive set for any queen', () => {
     const season: SeasonData = {
