@@ -42,6 +42,7 @@ export interface AppState {
 
   // Season / queen data actions
   loadSeason: (seasonId: string) => void;
+  setSeasonCast: (seasonId: string, queens: Queen[]) => void;
   updateQueenSkill: (seasonId: string, queenId: string, stat: BaseStat, value: number) => void;
   updateQueenLipSync: (seasonId: string, queenId: string, value: number) => void;
   updateEpisodeArchetype: (epIdx: number, archetype: ArchetypeId) => void;
@@ -132,6 +133,28 @@ export const useStore = create<AppState>()(persist((set, get) => ({
       if (!s.seasonsById[seasonId]) return {};
       return {
         activeSeasonId: seasonId,
+        currentEpisodeOverrides: {},
+        selectedQueenId: null,
+        conditions: [],
+        baselineResults: null,
+        filteredResults: null,
+        filterMatchCount: null,
+        filterTotalRuns: null,
+        trajectoryPaths: null,
+        trajectoryTotalRuns: null,
+      };
+    }),
+
+  setSeasonCast: (seasonId, queens) =>
+    set((s) => {
+      const season = s.seasonsById[seasonId];
+      if (!season) return {};
+      const next: SeasonData = {
+        ...season,
+        queens: queens.map((q) => ({ ...q, skills: { ...q.skills } })),
+      };
+      return {
+        seasonsById: { ...s.seasonsById, [seasonId]: next },
         currentEpisodeOverrides: {},
         selectedQueenId: null,
         conditions: [],

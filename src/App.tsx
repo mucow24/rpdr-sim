@@ -11,6 +11,7 @@ import DataPage from './components/DataPage';
 import LipSyncsPage from './components/LipSyncsPage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
 import PlacementGrid from './components/charts/PlacementGrid';
+import CastEditorPanel from './components/CastEditorPanel';
 
 export default function App() {
   const baselineSeason = useStore(selectBaselineSeason);
@@ -30,7 +31,7 @@ export default function App() {
   const setAppMode = useStore((s) => s.setAppMode);
 
   const [simInput, setSimInput] = useState(numSimulations.toLocaleString());
-  const [pendingSeasonId, setPendingSeasonId] = useState(activeSeasonId);
+  const [editingCast, setEditingCast] = useState(false);
   const [showDist, setShowDist] = useState(
     () => localStorage.getItem('rpdr-sim-show-dist') === '1',
   );
@@ -45,11 +46,6 @@ export default function App() {
   }, [debug]);
   // Shared with Timeline so episode boxes stay aligned with flow-chart columns.
   const carrierWidth = 75;
-
-  // Keep the dropdown selection in sync when the active season changes externally.
-  useEffect(() => {
-    setPendingSeasonId(activeSeasonId);
-  }, [activeSeasonId]);
 
   const { runBaseline, runFilter } = useSimulation((pct) =>
     setSimulationProgress(pct),
@@ -153,9 +149,10 @@ export default function App() {
         <>
           <div className="flex items-center gap-4 mb-6 text-[#666] min-w-[900px]">
             <select
-              value={pendingSeasonId}
-              onChange={(e) => setPendingSeasonId(e.target.value)}
-              className="bg-[#0a0a10] border border-[#2a2a3a] rounded text-sm text-[#ccc] px-2 py-1 focus:outline-none focus:border-amber-500/50"
+              value={activeSeasonId}
+              onChange={(e) => loadSeason(e.target.value)}
+              disabled={isSimulating}
+              className="bg-[#0a0a10] border border-[#3a3a4a] rounded text-sm text-[#ccc] px-2 py-1 focus:outline-none focus:border-amber-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {Object.values(seasonsById).map((s) => (
                 <option key={s.id} value={s.id}>
@@ -164,11 +161,14 @@ export default function App() {
               ))}
             </select>
             <button
-              onClick={() => loadSeason(pendingSeasonId)}
-              disabled={pendingSeasonId === activeSeasonId || isSimulating}
-              className="px-3 py-1 rounded text-sm font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => setEditingCast((v) => !v)}
+              className={`px-3 py-1 rounded text-sm font-medium border transition-colors ${
+                editingCast
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'text-[#999] border-[#3a3a4a] hover:text-[#ccc] hover:border-[#4a4a5a]'
+              }`}
             >
-              Load season
+              Edit cast
             </button>
             <span>
               {matchCount !== null
@@ -214,7 +214,7 @@ export default function App() {
                   }
                 }
               }}
-              className="w-28 px-2 py-1 bg-[#0a0a10] border border-[#2a2a3a] rounded text-sm text-[#ccc] text-right focus:outline-none focus:border-amber-500/50"
+              className="w-28 px-2 py-1 bg-[#0a0a10] border border-[#3a3a4a] rounded text-sm text-[#ccc] text-right focus:outline-none focus:border-amber-500/50"
             />
             <button
               onClick={() => {
@@ -231,6 +231,10 @@ export default function App() {
               Re-run Simulation
             </button>
           </div>
+
+          {editingCast && (
+            <CastEditorPanel key={activeSeasonId} onClose={() => setEditingCast(false)} />
+          )}
 
           <section className="mb-4 flex gap-4 items-stretch w-[900px]">
             <div className="flex-1 min-w-0">
