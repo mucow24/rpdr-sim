@@ -148,6 +148,9 @@ export interface FilterCondition {
   episodeIndex: number;   // 0-based episode index
   queenIndex: number;     // index into season.queens array
   placement: number;      // 0=WIN, 1=HIGH, 2=SAFE, 3=LOW, 4=BTM2
+  /** 'include' (default): keep runs where the queen got this placement.
+   *  'exclude': drop runs where the queen got this placement. */
+  mode?: 'include' | 'exclude';
 }
 
 /** Aggregated results across simulation runs */

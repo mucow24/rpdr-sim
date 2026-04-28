@@ -88,10 +88,14 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
       );
 
     // Y axis
-    const queensWithPins = new Set<string>();
+    const pinFlagsByQueen = new Map<string, { include: boolean; exclude: boolean }>();
     for (const c of conditions) {
       const q = season.queens[c.queenIndex];
-      if (q) queensWithPins.add(q.id);
+      if (!q) continue;
+      const flags = pinFlagsByQueen.get(q.id) ?? { include: false, exclude: false };
+      if (c.mode === 'exclude') flags.exclude = true;
+      else flags.include = true;
+      pinFlagsByQueen.set(q.id, flags);
     }
     const yAxisG = g.append('g')
       .call(
@@ -119,19 +123,31 @@ export default function PlacementDistChart({ onSwitch }: Props = {}) {
           .on('click', (_, id) => setSelectedQueenId(id as string)),
       );
 
-    // Yellow pin dots next to queens with active what-if conditions
+    // Pin dots — gold for include conditions, blue for exclude. Both colors
+    // stack when a queen has conditions of each kind.
     yAxisG.selectAll<SVGGElement, string>('.tick').each(function (id) {
-      if (!queensWithPins.has(id)) return;
+      const flags = pinFlagsByQueen.get(id);
+      if (!flags) return;
       const textNode = d3.select(this).select<SVGTextElement>('text').node();
       if (!textNode) return;
       const bbox = textNode.getBBox();
-      d3.select(this)
-        .append('circle')
-        .attr('cx', bbox.x - 6)
-        .attr('cy', 0)
-        .attr('r', 2.5)
-        .attr('fill', '#ffd700')
-        .attr('opacity', 0.9);
+      const drawDot = (cx: number, fill: string) => {
+        d3.select(this)
+          .append('circle')
+          .attr('cx', cx)
+          .attr('cy', 0)
+          .attr('r', 2.5)
+          .attr('fill', fill)
+          .attr('opacity', 0.9);
+      };
+      if (flags.include && flags.exclude) {
+        drawDot(bbox.x - 10, '#ffd700');
+        drawDot(bbox.x - 4, '#4fa3ff');
+      } else if (flags.include) {
+        drawDot(bbox.x - 6, '#ffd700');
+      } else {
+        drawDot(bbox.x - 6, '#4fa3ff');
+      }
     });
 
     // Tooltip

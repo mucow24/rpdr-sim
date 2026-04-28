@@ -733,21 +733,17 @@ export function getMatchingIndices(
     const fpBase = base + numEpisodes * numQueens;
     let matches = true;
     for (const cond of conditions) {
+      const isExclude = cond.mode === 'exclude';
       if (cond.episodeIndex === OUTCOME_EPISODE_INDEX) {
         // Outcome condition: WIN (placement 0) means finalPlace === 1.
         // ELIM in outcome = didn't win.
         const finalPlace = buffer[fpBase + cond.queenIndex];
-        if (cond.placement === 0) {
-          if (finalPlace !== 1) { matches = false; break; }
-        } else {
-          if (finalPlace === 1) { matches = false; break; }
-        }
+        const condMatches = cond.placement === 0 ? finalPlace === 1 : finalPlace !== 1;
+        if (condMatches === isExclude) { matches = false; break; }
       } else {
         const val = buffer[base + cond.episodeIndex * numQueens + cond.queenIndex];
-        if (val !== cond.placement) {
-          matches = false;
-          break;
-        }
+        const condMatches = val === cond.placement;
+        if (condMatches === isExclude) { matches = false; break; }
       }
     }
     if (matches) matchingIndices.push(r);
