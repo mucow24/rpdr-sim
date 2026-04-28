@@ -28,7 +28,8 @@ function buildGlobalList(): GlobalEntry[] {
 
 export default function CastEditorPanel({ onClose }: Props) {
   const activeSeasonId = useStore((s) => s.activeSeasonId);
-  const activeSeason = useStore((s) => s.seasonsById[s.activeSeasonId]);
+  const seasonsById = useStore((s) => s.seasonsById);
+  const loadSeason = useStore((s) => s.loadSeason);
   const setSeasonCast = useStore((s) => s.setSeasonCast);
 
   useEffect(() => {
@@ -36,19 +37,27 @@ export default function CastEditorPanel({ onClose }: Props) {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [onClose]);
 
-  const requiredSize = useMemo(() => {
-    const preset = SEASON_PRESETS.find((p) => p.id === activeSeasonId);
-    return preset?.season.queens.length ?? 0;
-  }, [activeSeasonId]);
+  // Both the season selection and the cast are staged locally — only Apply
+  // commits anything to the store, so the in-modal season dropdown never
+  // triggers a re-simulation.
+  const [stagedSeasonId, setStagedSeasonId] = useState(activeSeasonId);
+  const [stagedCast, setStagedCast] = useState<Queen[]>(() => {
+    const s = seasonsById[activeSeasonId];
+    return s ? s.queens.map((q) => ({ ...q, skills: { ...q.skills } })) : [];
+  });
 
-  // Caller passes a key=activeSeasonId so this remounts (and re-initializes
-  // staged cast from the new season) when the dropdown selection changes.
-  const [stagedCast, setStagedCast] = useState<Queen[]>(() =>
-    activeSeason ? activeSeason.queens.map((q) => ({ ...q, skills: { ...q.skills } })) : [],
-  );
+  const requiredSize = useMemo(() => {
+    const preset = SEASON_PRESETS.find((p) => p.id === stagedSeasonId);
+    return preset?.season.queens.length ?? 0;
+  }, [stagedSeasonId]);
 
   const stagedIds = useMemo(() => new Set(stagedCast.map((q) => q.id)), [stagedCast]);
 
@@ -71,8 +80,14 @@ export default function CastEditorPanel({ onClose }: Props) {
     return groups;
   }, [globalList, filter]);
 
+  const handleSeasonChange = (newId: string) => {
+    setStagedSeasonId(newId);
+    const s = seasonsById[newId];
+    setStagedCast(s ? s.queens.map((q) => ({ ...q, skills: { ...q.skills } })) : []);
+  };
+
   const restoreDefault = () => {
-    const preset = SEASON_PRESETS.find((p) => p.id === activeSeasonId);
+    const preset = SEASON_PRESETS.find((p) => p.id === stagedSeasonId);
     if (!preset) return;
     setStagedCast(preset.season.queens.map((q) => ({ ...q, skills: { ...q.skills } })));
   };
@@ -92,7 +107,10 @@ export default function CastEditorPanel({ onClose }: Props) {
 
   const apply = () => {
     if (stagedCast.length !== requiredSize) return;
-    setSeasonCast(activeSeasonId, stagedCast);
+    setSeasonCast(stagedSeasonId, stagedCast);
+    if (stagedSeasonId !== activeSeasonId) {
+      loadSeason(stagedSeasonId);
+    }
     onClose();
   };
 
@@ -107,8 +125,19 @@ export default function CastEditorPanel({ onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
         className="w-[900px] max-h-[90vh] overflow-y-auto bg-[#121218] border border-[#1a1a24] rounded-lg p-4 shadow-2xl"
       >
-        <div className="mb-3">
-          <h3 className="text-sm font-medium text-[#ddd]">Edit cast</h3>
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-medium text-[#ddd]">Edit cast of</h3>
+          <select
+            value={stagedSeasonId}
+            onChange={(e) => handleSeasonChange(e.target.value)}
+            className="bg-[#0a0a10] border border-[#3a3a4a] rounded text-sm text-[#ccc] px-2 py-1 focus:outline-none focus:border-amber-500/50"
+          >
+            {Object.values(seasonsById).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
         </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -170,13 +199,25 @@ export default function CastEditorPanel({ onClose }: Props) {
         <div className="flex flex-col">
           <div className="flex items-end justify-between mb-1.5 gap-2">
             <div className="text-xs uppercase tracking-wide text-[#bbb]">All queens</div>
-            <input
-              type="text"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search…"
-              className="w-40 text-xs leading-none px-1.5 py-0.5 bg-[#0a0a10] border border-[#3a3a4a] rounded text-[#ccc] placeholder-[#555] focus:outline-none focus:border-amber-500/50"
-            />
+            <div className="relative w-40">
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Search…"
+                className="w-full text-xs leading-none px-1.5 py-0.5 pr-5 bg-[#0a0a10] border border-[#3a3a4a] rounded text-[#ccc] placeholder-[#555] focus:outline-none focus:border-amber-500/50"
+              />
+              {filter && (
+                <button
+                  type="button"
+                  onClick={() => setFilter('')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 flex items-center justify-center rounded text-[#888] hover:text-[#ccc] hover:bg-[#3a3a4a] text-xs leading-none"
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
           <ul className="h-[427px] overflow-y-auto bg-[#0a0a10] border border-[#1a1a24] rounded">
             {groupedGlobal.map((group) => (
