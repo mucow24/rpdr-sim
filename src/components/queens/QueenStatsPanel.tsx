@@ -21,7 +21,7 @@ const STAT_CODE: Record<BaseStat, string> = {
  *  is selected, renders the same layout in a disabled state. */
 export default function QueenStatsPanel() {
   const season = useStore(selectCurrentSeason);
-  const activeSeasonId = useStore((s) => s.activeSeasonId);
+  const currentCast = useStore((s) => s.currentCast);
   const {
     selectedQueenId,
     baselineResults,
@@ -32,9 +32,14 @@ export default function QueenStatsPanel() {
   } = useStore();
 
   const results = filteredResults ?? baselineResults;
-  const queen = selectedQueenId
-    ? season.queens.find((q) => q.id === selectedQueenId) ?? null
-    : null;
+  // Find the queen via her cast slot — gives us both the Queen object (for
+  // rendering) and her composite key (for writing back to queensById, which
+  // may be a foreign-home queen if the cast was customized).
+  const queenIdx = selectedQueenId
+    ? season.queens.findIndex((q) => q.id === selectedQueenId)
+    : -1;
+  const queen = queenIdx >= 0 ? season.queens[queenIdx] : null;
+  const queenKey = queenIdx >= 0 ? currentCast[queenIdx] : null;
   const queenHasPins =
     !!queen &&
     conditions.some((c) => season.queens[c.queenIndex]?.id === queen.id);
@@ -127,9 +132,9 @@ export default function QueenStatsPanel() {
               gold={!!queen && (queen.skills[stat] ?? 0) === maxSkill}
               disabled={!queen}
               onCommit={(v) => {
-                if (!queen) return;
+                if (!queen || !queenKey) return;
                 if (v === (queen.skills[stat] ?? 0)) return;
-                updateQueenSkill(activeSeasonId, queen.id, stat, v);
+                updateQueenSkill(queenKey, stat, v);
               }}
             />
           </div>
@@ -144,9 +149,9 @@ export default function QueenStatsPanel() {
             gold={!!queen && queen.lipSync === 10}
             disabled={!queen}
             onCommit={(v) => {
-              if (!queen) return;
+              if (!queen || !queenKey) return;
               if (v === queen.lipSync) return;
-              updateQueenLipSync(activeSeasonId, queen.id, v);
+              updateQueenLipSync(queenKey, v);
             }}
           />
         </div>

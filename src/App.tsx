@@ -15,7 +15,7 @@ import CastEditorPanel from './components/CastEditorPanel';
 
 export default function App() {
   const baselineSeason = useStore(selectBaselineSeason);
-  const seasonsById = useStore((s) => s.seasonsById);
+  const seasonsMeta = useStore((s) => s.seasonsMeta);
   const activeSeasonId = useStore((s) => s.activeSeasonId);
   const loadSeason = useStore((s) => s.loadSeason);
   const conditions = useStore((s) => s.conditions);
@@ -154,9 +154,9 @@ export default function App() {
               disabled={isSimulating}
               className="bg-[#0a0a10] border border-[#3a3a4a] rounded text-sm text-[#ccc] px-2 py-1 focus:outline-none focus:border-amber-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {Object.values(seasonsById).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
+              {Object.entries(seasonsMeta).map(([id, meta]) => (
+                <option key={id} value={id}>
+                  {meta.name}
                 </option>
               ))}
             </select>

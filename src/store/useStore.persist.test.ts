@@ -24,12 +24,20 @@ describe('persist partialize', () => {
     const raw = localStorage.getItem('rpdr-sim-store');
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
-    expect(parsed.version).toBe(3);
+    expect(parsed.version).toBe(4);
 
     const allowedKeys = new Set([
-      'seasonsById',
+      // Datastore (canonical)
+      'queensById',
+      'casts',
+      'episodeLists',
+      'seasonsMeta',
+      // Session
       'activeSeasonId',
+      'currentCast',
+      'currentEpisodes',
       'currentEpisodeOverrides',
+      // UI prefs
       'enabledCalibrateSeasons',
       'numSimulations',
     ]);
