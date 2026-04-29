@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
   BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale, isPass,
-  type BaseStat, type Queen, type SeasonData,
+  type BaseStat, type Queen, type EpisodeData,
 } from '../engine/types';
 import { ARCHETYPES } from '../data/archetypes';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS } from './charts/common/palette';
@@ -23,14 +23,14 @@ const HEAVY_WEIGHT_THRESHOLD = 0.20;
  *  the queen was alive at episode start. Uses per-episode weight overrides
  *  when present, mirroring the scoring path in simulate.ts. */
 function getHeavyEpisodes(
-  season: SeasonData,
+  episodes: EpisodeData[],
   queenId: string,
   stat: BaseStat,
 ): HeavyEpisodeRow[] {
   const rows: HeavyEpisodeRow[] = [];
   const eliminatedBefore = new Set<string>();
 
-  for (const ep of season.episodes) {
+  for (const ep of episodes) {
     if (isFinale(ep) || isPass(ep)) continue;
 
     const alive = !eliminatedBefore.has(queenId);
@@ -265,7 +265,7 @@ function sortEntries(
   entries: RosterEntry[],
   sortMode: SortMode,
   selectedStat: StatKey,
-  seasonsById: Record<string, SeasonData>,
+  episodeLists: Record<string, EpisodeData[]>,
 ): RosterEntry[] {
   if (sortMode === 'season') return entries;
   if (sortMode === 'name') {
@@ -274,8 +274,8 @@ function sortEntries(
   // skill-desc / skill-asc
   if (selectedStat === 'lipSync') return entries;
   const scored = entries.map((entry) => {
-    const season = seasonsById[entry.seasonId];
-    const rows = season ? getHeavyEpisodes(season, entry.queen.id, selectedStat) : [];
+    const eps = episodeLists[entry.seasonId];
+    const rows = eps ? getHeavyEpisodes(eps, entry.queen.id, selectedStat) : [];
     return { entry, score: skillScore(rows) };
   });
   const dir = sortMode === 'skill-desc' ? -1 : 1;
@@ -291,7 +291,9 @@ const LEGACY_STORAGE_KEYS = [
 ];
 
 export default function CalibratePage() {
-  const seasonsById = useStore((s) => s.seasonsById);
+  const queensById = useStore((s) => s.queensById);
+  const seasonsMeta = useStore((s) => s.seasonsMeta);
+  const episodeLists = useStore((s) => s.episodeLists);
   const enabledCalibrateSeasons = useStore((s) => s.enabledCalibrateSeasons);
   const updateQueenSkill = useStore((s) => s.updateQueenSkill);
   const updateQueenLipSync = useStore((s) => s.updateQueenLipSync);
@@ -318,13 +320,17 @@ export default function CalibratePage() {
     setEnabledCalibrateSeasons(enabled ? SEASON_PRESETS.map((p) => p.id) : []);
   };
 
-  // Flatten all queens across all seasons into a single roster.
+  // Flatten all queens across all seasons into a single roster, sourced from
+  // the canonical queen registry. Each queen appears exactly once (under her
+  // home season) — the pre-refactor double-listing for queens-in-custom-casts
+  // is gone now that queens have a single canonical record.
   const roster: RosterEntry[] = [];
   for (const preset of SEASON_PRESETS) {
-    const season = seasonsById[preset.id];
-    if (!season) continue;
-    for (const queen of season.queens) {
-      roster.push({ seasonId: preset.id, seasonName: season.name, queen });
+    const seasonName = seasonsMeta[preset.id]?.name ?? preset.season.name;
+    for (const presetQ of preset.season.queens) {
+      const queen = queensById[queenUid(preset.id, presetQ.id)];
+      if (!queen) continue;
+      roster.push({ seasonId: preset.id, seasonName, queen });
     }
   }
 
@@ -376,12 +382,11 @@ export default function CalibratePage() {
     setDragOverRow(null);
     const key = e.dataTransfer.getData('text/plain');
     if (!key) return;
-    const [seasonId, queenId] = key.split(':');
-    if (!seasonId || !queenId) return;
+    if (!key.includes(':')) return;
     if (selectedStat === 'lipSync') {
-      updateQueenLipSync(seasonId, queenId, targetScore);
+      updateQueenLipSync(key, targetScore);
     } else {
-      updateQueenSkill(seasonId, queenId, selectedStat, targetScore);
+      updateQueenSkill(key, selectedStat, targetScore);
     }
   };
 
@@ -462,7 +467,7 @@ export default function CalibratePage() {
             entriesByScore.get(score) ?? [],
             sortMode,
             selectedStat,
-            seasonsById,
+            episodeLists,
           );
           return (
             <div
@@ -498,7 +503,7 @@ export default function CalibratePage() {
                   const uid = queenUid(entry.seasonId, entry.queen.id);
                   const showTooltip =
                     hoveredUid === uid && selectedStat !== 'lipSync';
-                  const season = seasonsById[entry.seasonId];
+                  const eps = episodeLists[entry.seasonId];
                   return (
                     <div
                       key={uid}
@@ -522,10 +527,10 @@ export default function CalibratePage() {
                           {seasonAbbrev(entry.seasonId)}
                         </span>
                       </div>
-                      {showTooltip && season && (
+                      {showTooltip && eps && (
                         <HistoryTooltip
                           rows={getHeavyEpisodes(
-                            season,
+                            eps,
                             entry.queen.id,
                             selectedStat as BaseStat,
                           )}

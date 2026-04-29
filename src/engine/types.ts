@@ -43,6 +43,14 @@ export function queenUid(seasonId: string, queenId: string): string {
   return `${seasonId}:${queenId}`;
 }
 
+/** Inverse of `queenUid`. Splits on the FIRST `:` so queen ids containing
+ *  colons (none today, but defensively) round-trip correctly. */
+export function parseQueenUid(uid: string): { seasonId: string; queenId: string } {
+  const i = uid.indexOf(':');
+  if (i === -1) throw new Error(`malformed queen uid: ${uid}`);
+  return { seasonId: uid.slice(0, i), queenId: uid.slice(i + 1) };
+}
+
 /** "Competitive" placements a queen can earn from a maxi challenge. ELIM is an
  *  outcome marker (queen left this episode), not a competitive placement, and
  *  intentionally lives outside this tuple — chart code iterates `PLACEMENTS`

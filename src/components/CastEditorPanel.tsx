@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
-import { BASE_STATS, type Queen } from '../engine/types';
+import { BASE_STATS, queenUid, type Queen } from '../engine/types';
 
 type StatTooltip = {
   rows: { label: string; value: number }[];
@@ -19,6 +19,7 @@ interface Props {
 interface GlobalEntry {
   seasonId: string;
   seasonName: string;
+  queenKey: string;
   queen: Queen;
 }
 
@@ -212,24 +213,38 @@ function ColumnHeader({
   );
 }
 
-function buildGlobalList(): GlobalEntry[] {
+/** Build the right-panel global picker from the canonical queen registry,
+ *  not from SEASON_PRESETS — so calibrate edits show up live in the picker
+ *  (same source of truth as the rest of the app). Iterating `SEASON_PRESETS`
+ *  preserves season grouping and stable insertion order. */
+function buildGlobalList(
+  queensById: Record<string, Queen>,
+  seasonsMeta: Record<string, { name: string }>,
+): GlobalEntry[] {
   const out: GlobalEntry[] = [];
   for (const preset of SEASON_PRESETS) {
-    const sorted = [...preset.season.queens].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-    for (const q of sorted) {
-      out.push({ seasonId: preset.id, seasonName: preset.name, queen: q });
-    }
+    const seasonName = seasonsMeta[preset.id]?.name ?? preset.name;
+    const entries = preset.season.queens
+      .map((presetQ) => {
+        const queenKey = queenUid(preset.id, presetQ.id);
+        const queen = queensById[queenKey];
+        return queen ? { seasonId: preset.id, seasonName, queenKey, queen } : null;
+      })
+      .filter((e): e is GlobalEntry => e !== null);
+    entries.sort((a, b) => a.queen.name.localeCompare(b.queen.name));
+    out.push(...entries);
   }
   return out;
 }
 
 export default function CastEditorPanel({ onClose }: Props) {
   const activeSeasonId = useStore((s) => s.activeSeasonId);
-  const seasonsById = useStore((s) => s.seasonsById);
+  const queensById = useStore((s) => s.queensById);
+  const casts = useStore((s) => s.casts);
+  const seasonsMeta = useStore((s) => s.seasonsMeta);
+  const currentCast = useStore((s) => s.currentCast);
   const loadSeason = useStore((s) => s.loadSeason);
-  const setSeasonCast = useStore((s) => s.setSeasonCast);
+  const setCurrentCast = useStore((s) => s.setCurrentCast);
 
   // One shared tooltip rendered via portal at <body>. Each stat dot wires
   // mouseenter/leave to populate it; this avoids per-row absolute popovers
@@ -266,18 +281,33 @@ export default function CastEditorPanel({ onClose }: Props) {
   // Both the season selection and the cast are staged locally — only Apply
   // commits anything to the store, so the in-modal season dropdown never
   // triggers a re-simulation.
+  //
+  // `stagedCast` holds queen *keys* (composite "season:queenId" ids). All
+  // resolution to Queen objects happens at render time via `queensById`, so
+  // calibrate edits to a queen are live-visible in the editor without a
+  // remount.
   const [stagedSeasonId, setStagedSeasonId] = useState(activeSeasonId);
-  const [stagedCast, setStagedCast] = useState<Queen[]>(() => {
-    const s = seasonsById[activeSeasonId];
-    return s ? s.queens.map((q) => ({ ...q, skills: { ...q.skills } })) : [];
-  });
+  const [stagedCast, setStagedCast] = useState<string[]>(() =>
+    activeSeasonId === stagedSeasonId ? [...currentCast] : [...(casts[stagedSeasonId] ?? [])],
+  );
 
   const requiredSize = useMemo(() => {
     const preset = SEASON_PRESETS.find((p) => p.id === stagedSeasonId);
     return preset?.season.queens.length ?? 0;
   }, [stagedSeasonId]);
 
-  const stagedIds = useMemo(() => new Set(stagedCast.map((q) => q.id)), [stagedCast]);
+  const stagedKeys = useMemo(() => new Set(stagedCast), [stagedCast]);
+
+  // Materialized cast as (key, queen) pairs — reads from queensById on every
+  // render so calibrate edits propagate immediately. The key is preserved
+  // alongside the queen for stable list keys and remove-by-key.
+  const stagedEntries = useMemo(
+    () =>
+      stagedCast
+        .map((k) => ({ key: k, queen: queensById[k] }))
+        .filter((e): e is { key: string; queen: Queen } => e.queen !== undefined),
+    [stagedCast, queensById],
+  );
 
   const [filter, setFilter] = useState('');
 
@@ -301,11 +331,14 @@ export default function CastEditorPanel({ onClose }: Props) {
   const onGlobalSort = (col: SortCol) => cycleSort(globalSort, setGlobalSort, col);
 
   const sortedStagedCast = useMemo(() => {
-    if (!castSort) return stagedCast;
-    return [...stagedCast].sort((a, b) => compareQueens(a, b, castSort));
-  }, [stagedCast, castSort]);
+    if (!castSort) return stagedEntries;
+    return [...stagedEntries].sort((a, b) => compareQueens(a.queen, b.queen, castSort));
+  }, [stagedEntries, castSort]);
 
-  const globalList = useMemo(() => buildGlobalList(), []);
+  const globalList = useMemo(
+    () => buildGlobalList(queensById, seasonsMeta),
+    [queensById, seasonsMeta],
+  );
 
   const filteredEntries = useMemo(() => {
     const needle = filter.trim().toLowerCase();
@@ -323,49 +356,56 @@ export default function CastEditorPanel({ onClose }: Props) {
 
   const groupedGlobal = useMemo(() => {
     if (globalSort) return null;
-    const groups: { seasonId: string; seasonName: string; queens: Queen[] }[] = [];
+    const groups: { seasonId: string; seasonName: string; entries: GlobalEntry[] }[] = [];
     for (const entry of filteredEntries) {
       let g = groups.find((x) => x.seasonId === entry.seasonId);
       if (!g) {
-        g = { seasonId: entry.seasonId, seasonName: entry.seasonName, queens: [] };
+        g = { seasonId: entry.seasonId, seasonName: entry.seasonName, entries: [] };
         groups.push(g);
       }
-      g.queens.push(entry.queen);
+      g.entries.push(entry);
     }
     return groups;
   }, [filteredEntries, globalSort]);
 
   const handleSeasonChange = (newId: string) => {
     setStagedSeasonId(newId);
-    const s = seasonsById[newId];
-    setStagedCast(s ? s.queens.map((q) => ({ ...q, skills: { ...q.skills } })) : []);
+    // For the active season we stage from the live `currentCast` (any
+    // in-flight session edits the user already had); for any other season
+    // we read from the canonical `casts` map.
+    setStagedCast(newId === activeSeasonId ? [...currentCast] : [...(casts[newId] ?? [])]);
   };
 
   const restoreDefault = () => {
-    const preset = SEASON_PRESETS.find((p) => p.id === stagedSeasonId);
-    if (!preset) return;
-    setStagedCast(preset.season.queens.map((q) => ({ ...q, skills: { ...q.skills } })));
+    // Reset to the datastore canonical cast for the staged season — NOT to
+    // SEASON_PRESETS. The Data tab's "Reload from source" is the deeper
+    // reset; this button just discards in-flight cast edits.
+    setStagedCast([...(casts[stagedSeasonId] ?? [])]);
   };
 
-  const removeQueen = (queenId: string) => {
-    setStagedCast((prev) => prev.filter((q) => q.id !== queenId));
+  const removeQueen = (queenKey: string) => {
+    setStagedCast((prev) => prev.filter((k) => k !== queenKey));
   };
 
   const clearCast = () => {
     setStagedCast([]);
   };
 
-  const addQueen = (q: Queen) => {
-    if (stagedIds.has(q.id)) return;
-    setStagedCast((prev) => [...prev, { ...q, skills: { ...q.skills } }]);
+  const addQueen = (queenKey: string) => {
+    if (stagedKeys.has(queenKey)) return;
+    setStagedCast((prev) => [...prev, queenKey]);
   };
 
   const apply = () => {
     if (stagedCast.length !== requiredSize) return;
-    setSeasonCast(stagedSeasonId, stagedCast);
     if (stagedSeasonId !== activeSeasonId) {
+      // Switch the loaded season first, then overwrite C with the staged
+      // cast. The intermediate `loadSeason` reseed is overwritten by
+      // `setCurrentCast` in the same render tick, so the user only sees the
+      // final staged cast.
       loadSeason(stagedSeasonId);
     }
+    setCurrentCast(stagedCast);
     onClose();
   };
 
@@ -387,9 +427,9 @@ export default function CastEditorPanel({ onClose }: Props) {
             onChange={(e) => handleSeasonChange(e.target.value)}
             className="bg-[#0a0a10] border border-[#3a3a4a] rounded text-sm text-[#ccc] px-2 py-1 focus:outline-none focus:border-amber-500/50"
           >
-            {Object.values(seasonsById).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
+            {Object.entries(seasonsMeta).map(([id, meta]) => (
+              <option key={id} value={id}>
+                {meta.name}
               </option>
             ))}
           </select>
@@ -405,9 +445,9 @@ export default function CastEditorPanel({ onClose }: Props) {
               {sortedStagedCast.length === 0 && (
                 <li className="px-3 py-2 text-sm text-[#555] italic">Empty</li>
               )}
-              {sortedStagedCast.map((q) => (
+              {sortedStagedCast.map(({ key: queenKey, queen: q }) => (
                 <li
-                  key={q.id}
+                  key={queenKey}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c] last:border-b-0"
                 >
                   <span
@@ -438,7 +478,7 @@ export default function CastEditorPanel({ onClose }: Props) {
                   </div>
                   <span className="w-6 flex-shrink-0 flex items-center justify-center">
                     <button
-                      onClick={() => removeQueen(q.id)}
+                      onClick={() => removeQueen(queenKey)}
                       className="text-[#888] hover:text-red-400 transition-colors text-lg font-bold leading-none"
                       title="Remove from cast"
                     >
@@ -503,11 +543,12 @@ export default function CastEditorPanel({ onClose }: Props) {
           <div className="bg-[#0a0a10] border border-[#1a1a24] rounded h-[455px] overflow-y-auto">
             <ColumnHeader sort={globalSort} onSort={onGlobalSort} />
             {(() => {
-              const renderGlobalRow = (q: Queen, seasonId: string) => {
-                const inCast = stagedIds.has(q.id);
+              const renderGlobalRow = (entry: GlobalEntry) => {
+                const { queen: q, queenKey } = entry;
+                const inCast = stagedKeys.has(queenKey);
                 return (
                   <li
-                    key={`${seasonId}:${q.id}`}
+                    key={queenKey}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#ccc] border-b border-[#15151c]"
                   >
                     <span
@@ -542,7 +583,7 @@ export default function CastEditorPanel({ onClose }: Props) {
                     </div>
                     <span className="w-6 flex-shrink-0 flex items-center justify-center">
                       <button
-                        onClick={() => addQueen(q)}
+                        onClick={() => addQueen(queenKey)}
                         disabled={inCast || sizeOk}
                         className="text-[#888] hover:text-emerald-400 transition-colors text-lg font-bold leading-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-[#888]"
                         title={inCast ? 'Already in cast' : sizeOk ? 'Cast is full' : 'Add to cast'}
@@ -556,13 +597,13 @@ export default function CastEditorPanel({ onClose }: Props) {
               return (
                 <ul>
                   {sortedGlobal
-                    ? sortedGlobal.map((e) => renderGlobalRow(e.queen, e.seasonId))
+                    ? sortedGlobal.map((e) => renderGlobalRow(e))
                     : groupedGlobal!.map((group) => (
                         <li key={group.seasonId}>
                           <div className="px-3 py-1 text-[11px] uppercase tracking-wider font-medium text-amber-300 bg-amber-700/40 border-b border-amber-500/40 sticky top-7 z-10">
                             {group.seasonName}
                           </div>
-                          <ul>{group.queens.map((q) => renderGlobalRow(q, group.seasonId))}</ul>
+                          <ul>{group.entries.map((e) => renderGlobalRow(e))}</ul>
                         </li>
                       ))}
                 </ul>
