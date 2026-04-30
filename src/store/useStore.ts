@@ -47,6 +47,10 @@ export interface AppState {
   // Sim run state (ephemeral)
   conditions: FilterCondition[];
   baselineResults: SimulationResults | null;
+  /** Counterfactual baseline ran at riggory=0, same seed as `baselineResults`,
+   *  used by the flow chart to size the rigged-flow overlay. Null when
+   *  riggory === 0 (the delta is trivially zero). */
+  baselineR0Results: SimulationResults | null;
   filteredResults: SimulationResults | null;
   filterMatchCount: number | null;
   filterTotalRuns: number | null;
@@ -57,6 +61,9 @@ export interface AppState {
   trajectoryTotalRuns: number | null;
 
   numSimulations: number;
+  /** 0..1 — biases lip syncs toward the season's frontrunner. See
+   *  RunBaselineOptions.riggory. */
+  riggory: number;
 
   // UI preferences
   appMode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs';
@@ -87,12 +94,14 @@ export interface AppState {
 
   // Sim control
   setBaselineResults: (results: SimulationResults | null) => void;
+  setBaselineR0Results: (results: SimulationResults | null) => void;
   setSimulationProgress: (pct: number | null) => void;
   setFilteredResults: (results: SimulationResults | null, matchCount: number | null, totalRuns: number | null) => void;
   setIsSimulating: (isSimulating: boolean) => void;
   setSelectedQueenId: (queenId: string | null) => void;
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
   setNumSimulations: (n: number) => void;
+  setRiggory: (r: number) => void;
 
   // UI
   setAppMode: (mode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs') => void;
@@ -107,6 +116,7 @@ export interface AppState {
 
 const RESULT_INVALIDATIONS = {
   baselineResults: null,
+  baselineR0Results: null,
   filteredResults: null,
   filterMatchCount: null,
   filterTotalRuns: null,
@@ -177,6 +187,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
 
     conditions: [],
     baselineResults: null,
+    baselineR0Results: null,
     filteredResults: null,
     filterMatchCount: null,
     filterTotalRuns: null,
@@ -187,6 +198,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     trajectoryTotalRuns: null,
 
     numSimulations: 100_000,
+    riggory: 0,
 
     appMode: 'simulation',
     enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
@@ -473,6 +485,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     },
 
     setBaselineResults: (results) => set({ baselineResults: results }),
+    setBaselineR0Results: (results) => set({ baselineR0Results: results }),
     setFilteredResults: (results, matchCount, totalRuns) =>
       set({ filteredResults: results, filterMatchCount: matchCount, filterTotalRuns: totalRuns }),
     setIsSimulating: (isSimulating) => set({ isSimulating }),
@@ -483,6 +496,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
       set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),
 
     setNumSimulations: (n) => set({ numSimulations: n }),
+    setRiggory: (r) => set({ riggory: Math.max(0, Math.min(1, r)) }),
 
     setAppMode: (mode) => set({ appMode: mode }),
 
@@ -552,6 +566,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     currentEpisodeOverrides: s.currentEpisodeOverrides,
     enabledCalibrateSeasons: s.enabledCalibrateSeasons,
     numSimulations: s.numSimulations,
+    riggory: s.riggory,
   }),
 }));
 

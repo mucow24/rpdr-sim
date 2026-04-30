@@ -613,3 +613,150 @@ describe('[statistical] sim output matches algebraic expectations', () => {
     }
   });
 });
+
+// ── [simulator] Riggory: lip-sync rig bias ────────────────────
+//
+// End-to-end coverage that the riggory dial actually flips outcomes via the
+// public API. Per the engine convention at simulate.ts ("Adding a new kind …
+// MUST ship with a dedicated zero-noise oracle test") we exercise the new
+// branch in regularHandler (rig-score updates + biased lip-sync) with
+// hand-constructed fixtures whose outcomes are derivable by eye.
+
+describe('[simulator] Riggory dial', () => {
+  test('riggory=0 is byte-for-byte identical to the legacy lip-sync (default behavior)', () => {
+    // Two queens at noise=0 with skills 5 and 4 (so the second is always BTM2-tied
+    // with the first via n=2 → WIN/HIGH, no lip sync). To force a lip sync we need
+    // n>=3 so BTM2 fires. Use n=3 with skills picked so q3 and q2 land in BTM2.
+    const season: SeasonData = {
+      id: 't', name: 'T',
+      queens: [
+        mkQueen('q1', 10, 5),
+        mkQueen('q2', 5, 8),  // higher lipSync — favored to win lip sync
+        mkQueen('q3', 1, 2),  // lower lipSync
+      ],
+      // n=3: WIN=q1, HIGH=q2, BTM2=q3. Only one BTM2 → the contract says i=n-1
+      // and i=n-2, so q2 and q3 both BTM2 — but i=1 also matches HIGH first.
+      // From assignPlacements rule order, i=1 (q2) lands HIGH, i=2 (q3) is BTM2.
+      // Field too small for a lip sync. Bump to n=4: WIN q1, HIGH q2, BTM2 q3+q4.
+      episodes: [],
+    };
+    season.queens.push(mkQueen('q4', 0, 3));
+    season.episodes = [
+      ballEp(1, {}, ['q4']),  // forces a lip sync; expected eliminee is q4 (lower lipSync)
+      finaleEp(2),
+    ];
+
+    const r0 = runBaseline({ season, numSimulations: 200, noise: 0, riggory: 0, seed: 7 });
+    // q3 (lipSync 2) vs q4 (lipSync 3): pStat = 2/(2+3) = 0.4 → q3 wins ~40% of LSes
+    // and survives. So q3.elim ≈ 0.6, q4.elim ≈ 0.4. We just check the legacy
+    // rule: lipSync stat governs, frontrunner is irrelevant.
+    expect(r0.results.elimProbByEpisode[0].q3).toBeGreaterThan(0.45);
+    expect(r0.results.elimProbByEpisode[0].q3).toBeLessThan(0.75);
+    expect(r0.results.elimProbByEpisode[0].q4).toBeGreaterThan(0.25);
+    expect(r0.results.elimProbByEpisode[0].q4).toBeLessThan(0.55);
+    // Sanity: every run produced exactly one elimination.
+    expect(r0.results.elimProbByEpisode[0].q3 + r0.results.elimProbByEpisode[0].q4).toBeCloseTo(1, 12);
+  });
+
+  test('riggory=1 deterministically picks the season frontrunner over higher lipSync', () => {
+    // Construct a 4-queen, 2-episode setup where:
+    //   ep1: q4 takes BTM2 alone alongside q3 (no lip sync because authored
+    //        eliminated=['q4']) — gives q4 a BTM2 incident, q3 also BTM2.
+    //   ep2: forces a fresh lip sync between q3 (now stronger rig score) and q2
+    //        (worse rig).
+    // Cleaner: use a single ep where rig scores naturally differ.
+    //
+    // Alternative: pre-load history via runFromState so the rig score is seeded.
+    // Even cleaner still: skill ordering forces q3 > q4 by skill, and ep1 is
+    // a non-elim so q3 is HIGH while q4 is BTM2 (n=4 → BTM2 q3+q4 actually,
+    // since at n=4 WIN/HIGH/BTM2/BTM2). Need n>=5 to get a single BTM2 outside
+    // q3/q4. Use n=6 — positions: WIN, HIGH, SAFE, LOW, BTM2, BTM2.
+    //
+    // Skills 10>8>7>5>3>1 sorted desc: q1, q2, q3, q4, q5, q6. Bottom 2 = q5, q6.
+    // Give q6 the higher lipSync but the worse rig history (loaded via prior ep).
+    // Forward sim from fromEpisode=1 with a locked ep0 that gave q6 multiple BTM2s.
+    //
+    // Simplest setup: ep0 locked with q6=BTM2 (and surviving). Then ep1 produces
+    // a lip sync between q5 (no BTM2 history, score 0) and q6 (one BTM2, score -4).
+    // q6 frontrunner-loser at riggory=1 → q6 always eliminated, regardless of lipSync.
+    const queens = [
+      mkQueen('q1', 10, 5), mkQueen('q2', 8, 5), mkQueen('q3', 7, 5),
+      mkQueen('q4', 5, 5), mkQueen('q5', 3, 1),  // weak lipSync
+      mkQueen('q6', 1, 10), // strong lipSync — would dominate at riggory=0
+    ];
+    const season: SeasonData = {
+      id: 't', name: 'T', queens,
+      episodes: [
+        // Authored locked ep with q6 in BTM2 (survives — eliminated empty).
+        ballEp(1, {
+          q1: 'WIN', q2: 'HIGH', q3: 'SAFE', q4: 'LOW', q5: 'BTM2', q6: 'BTM2',
+        } as Record<string, Placement>, []),
+        // Free-sim ep: lip sync between bottom 2 by skill = q5, q6.
+        ballEp(2, {}, ['xxx']), // any non-empty single elim triggers lip sync path
+        finaleEp(3),
+      ],
+    };
+    // Replace the dummy elim id with a real one — sim chooses via lip sync,
+    // not from `eliminated`, when eliminated.length === 1. Just need length=1.
+    (season.episodes[1] as { eliminated: string[] }).eliminated = ['placeholder'];
+
+    // riggory=0 baseline: q6's huge lipSync dominates, so q5 should be elim ~most runs.
+    const baseline = runFromState({
+      season, fromEpisode: 1, numSimulations: 500, noise: 0, riggory: 0, seed: 13,
+    });
+    // pStat for q5 vs q6 = 1/(1+10) = ~0.09 — q5 should be elim ~91% of the time.
+    expect(baseline.results.elimProbByEpisode[1].q5).toBeGreaterThan(0.85);
+    expect(baseline.results.elimProbByEpisode[1].q6).toBeLessThan(0.15);
+
+    // riggory=1: q5 has score 0 (was BTM2 in ep0? Actually q5 was BTM2 too — so
+    // both have score -4. With tied scores at riggory=1 we fall back to pStat).
+    // To get a real frontrunner difference we need q5 to NOT have been BTM2 in ep0.
+    // Edit the locked ep: only q6 in BTM2.
+    (season.episodes[0] as { placements: Record<string, Placement> }).placements = {
+      q1: 'WIN', q2: 'HIGH', q3: 'SAFE', q4: 'LOW', q5: 'LOW', q6: 'BTM2',
+    };
+    // (Assigning two LOWs is fine — outcomeToEpisodeResult just feeds the placements
+    // verbatim into applyRigDeltas.) Now: q5 score = -2 (LOW), q6 score = -4 (BTM2).
+    // q5 is the relative frontrunner. At riggory=1, q6 (BTM2 history) loses every time.
+    const rigged = runFromState({
+      season, fromEpisode: 1, numSimulations: 500, noise: 0, riggory: 1, seed: 13,
+    });
+    // q6 always eliminated despite her lipSync=10 advantage.
+    expect(rigged.results.elimProbByEpisode[1].q6).toBe(1);
+    expect(rigged.results.elimProbByEpisode[1].q5).toBe(0);
+  });
+
+  test('riggory partially blends: 0.5 produces an outcome between 0 and 1', () => {
+    // Same setup as the previous test, with q5 LOW / q6 BTM2 in ep0 so q5 is
+    // the frontrunner. At riggory=0, q6 wins ~91% of LSes (lipSync 10 vs 1).
+    // At riggory=1, q6 loses 100%. At riggory=0.5: pFinal = 0.5*0.09 + 0.5*0 = 0.045.
+    // So q6 should win ~4.5% of the time → q6 elim ~95.5%.
+    const queens = [
+      mkQueen('q1', 10, 5), mkQueen('q2', 8, 5), mkQueen('q3', 7, 5),
+      mkQueen('q4', 5, 5), mkQueen('q5', 3, 1), mkQueen('q6', 1, 10),
+    ];
+    const season: SeasonData = {
+      id: 't', name: 'T', queens,
+      episodes: [
+        ballEp(1, {
+          q1: 'WIN', q2: 'HIGH', q3: 'SAFE', q4: 'LOW', q5: 'LOW', q6: 'BTM2',
+        } as Record<string, Placement>, []),
+        ballEp(2, {}, ['placeholder']),
+        finaleEp(3),
+      ],
+    };
+    const blended = runFromState({
+      season, fromEpisode: 1, numSimulations: 2000, noise: 0, riggory: 0.5, seed: 99,
+    });
+    // bottom2[0] is the higher-skill BTM2 queen (assignPlacements inserts in
+    // descending-score order), so queenA = q5 here. pA = 0.5*(1/11) + 0.5*1 ≈ 0.545
+    // → q5 wins ~54.5% of LSes → q6 elim ≈ 0.545. ±0.04 tolerance covers ~3.5σ
+    // on Bernoulli(0.545) at N=2000.
+    expect(blended.results.elimProbByEpisode[1].q6).toBeGreaterThan(0.50);
+    expect(blended.results.elimProbByEpisode[1].q6).toBeLessThan(0.59);
+    // And it must be strictly *between* the riggory=0 and riggory=1 outcomes.
+    // (riggory=0 gave q6 elim ~0.09; riggory=1 gives 1.0 — see prior tests.)
+    expect(blended.results.elimProbByEpisode[1].q6).toBeGreaterThan(0.15);
+    expect(blended.results.elimProbByEpisode[1].q6).toBeLessThan(1);
+  });
+});

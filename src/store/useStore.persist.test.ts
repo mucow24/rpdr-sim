@@ -40,6 +40,7 @@ describe('persist partialize', () => {
       // UI prefs
       'enabledCalibrateSeasons',
       'numSimulations',
+      'riggory',
     ]);
     for (const key of Object.keys(parsed.state)) {
       expect(allowedKeys.has(key), `unexpected persisted key: ${key}`).toBe(true);
