@@ -75,6 +75,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     innerW: number;
     survival: Record<string, number[]>;
     elimByEp: Record<string, number[]>;
+    riggedBTM2: Record<string, number[]>;
     pinDotsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
   };
   const geomRef = useRef<GeomStash | null>(null);
@@ -756,6 +757,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       innerW,
       survival,
       elimByEp,
+      riggedBTM2,
       pinDotsGroup,
     };
 
@@ -774,7 +776,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     if (!geom || !svgRef.current || !results) return;
     const {
       g, overlayGroup, nodes, srcBands, queenOrder, queenMap,
-      colX, numCols, innerW, survival, elimByEp, pinDotsGroup,
+      colX, numCols, innerW, survival, elimByEp, riggedBTM2, pinDotsGroup,
     } = geom;
 
     const dimOp = (t: number): number => {
@@ -927,6 +929,16 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
           .attr('rx', 1)
           .style('cursor', cellPinnable ? 'pointer' : 'default');
 
+        // Cell-level tooltip dimensions (column-driven, not row-driven). Cached
+        // here so the mousemove flip-left math matches the rendered width when
+        // the ELIM row carries a riggory delta suffix.
+        const qidCell = selectedQueen.id;
+        const elimProbCell = elimByEp[qidCell]?.[col] ?? 0;
+        const elimDeltaCell = riggedBTM2[qidCell]?.[col] ?? 0;
+        const cellShowElimDelta = elimDeltaCell >= 0.005 && elimProbCell >= 0.001;
+        const cellTtTextW = cellShowElimDelta ? 85 : 65;
+        const cellTtW = cellTtTextW + 34;
+
         overlay
           .on('mouseenter', function (event) {
             if (!isPinned) {
@@ -943,10 +955,12 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
             const rawProb = placementName === 'ELIM' ? elimProb : (dist[placementName] ?? 0);
             const noRoutes = !isPinned && rawProb < 0.001;
             const priorElim = Math.max(0, Math.min(1, 1 - surv));
+            const elimDelta = elimDeltaCell;
+            const showElimDelta = cellShowElimDelta;
 
-            const ttTextW = 65;
+            const ttTextW = cellTtTextW;
             const ttBarW = 34;
-            const ttW = ttTextW + ttBarW;
+            const ttW = cellTtW;
             const lineH = 12;
             const numRows = CHART_PLACEMENTS.length + 1;
             const ttH = 22 + numRows * lineH;
@@ -973,12 +987,19 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
               const rowRaw = p === 'ELIM' ? elimProb : (dist[p] ?? 0);
               const rowDead = rowRaw < 0.001;
               const valStr = rowDead ? ' --' : `${(prob * 100).toFixed(0).padStart(3)}%`;
-              tt.append('text')
+              const rowText = tt.append('text')
                 .attr('x', 6).attr('y', 27 + idx * lineH)
                 .attr('fill', p === 'ELIM' ? '#b22222' : PLACEMENT_COLORS[p])
                 .attr('font-size', '9px').attr('font-family', 'monospace')
-                .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-                .text(`${p.padEnd(6)} ${valStr}`);
+                .attr('opacity', isPinned || noRoutes ? 0.2 : 1);
+              if (p === 'ELIM' && showElimDelta) {
+                rowText.append('tspan').text(`${p.padEnd(6)} ${valStr}`);
+                rowText.append('tspan')
+                  .attr('fill', '#ff0000')
+                  .text(` (-${(elimDelta * 100).toFixed(0)}%)`);
+              } else {
+                rowText.text(`${p.padEnd(6)} ${valStr}`);
+              }
             });
 
             tt.append('text')
@@ -1041,7 +1062,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
             const tt = g.select('.flow-tooltip');
             if (tt.empty()) return;
             const [mx, my] = d3.pointer(event, g.node());
-            const ttW = 65 + 34;
+            const ttW = cellTtW;
             const ttH = 22 + (CHART_PLACEMENTS.length + 1) * 12;
             const rawX = mx + 12;
             const flipLeft = rawX + ttW > innerW;
