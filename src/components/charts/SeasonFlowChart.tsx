@@ -74,6 +74,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     numCols: number;
     innerW: number;
     survival: Record<string, number[]>;
+    survivalR0: Record<string, number[]>;
     elimByEp: Record<string, number[]>;
     riggedBTM2: Record<string, number[]>;
     pinDotsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
@@ -122,7 +123,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     }
 
     if (!flowDataMemo) return;
-    const { queenOrder, survival, flow: flowData, elimByEp, riggedBTM2 } = flowDataMemo;
+    const { queenOrder, survival, survivalR0, flow: flowData, elimByEp, riggedBTM2 } = flowDataMemo;
     const numEps = season.episodes.length;
     const innerW = width - MARGIN.left - MARGIN.right;
 
@@ -756,6 +757,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       numCols,
       innerW,
       survival,
+      survivalR0,
       elimByEp,
       riggedBTM2,
       pinDotsGroup,
@@ -776,7 +778,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     if (!geom || !svgRef.current || !results) return;
     const {
       g, overlayGroup, nodes, srcBands, queenOrder, queenMap,
-      colX, numCols, innerW, survival, elimByEp, riggedBTM2, pinDotsGroup,
+      colX, numCols, innerW, survival, survivalR0, elimByEp, riggedBTM2, pinDotsGroup,
     } = geom;
 
     const dimOp = (t: number): number => {
@@ -931,12 +933,17 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
 
         // Cell-level tooltip dimensions (column-driven, not row-driven). Cached
         // here so the mousemove flip-left math matches the rendered width when
-        // the ELIM row carries a riggory delta suffix.
+        // the ELIM or P.ELIM rows carry a riggory delta suffix.
         const qidCell = selectedQueen.id;
         const elimProbCell = elimByEp[qidCell]?.[col] ?? 0;
         const elimDeltaCell = riggedBTM2[qidCell]?.[col] ?? 0;
         const cellShowElimDelta = elimDeltaCell >= 0.005 && elimProbCell >= 0.001;
-        const cellTtTextW = cellShowElimDelta ? 85 : 65;
+        const survCell = survival[qidCell]?.[col] ?? 0;
+        const survR0Cell = survivalR0[qidCell]?.[col] ?? survCell;
+        const priorElimCell = Math.max(0, Math.min(1, 1 - survCell));
+        const priorElimDeltaCell = Math.max(0, survCell - survR0Cell);
+        const cellShowPriorElimDelta = priorElimDeltaCell >= 0.005 && priorElimCell >= 0.001;
+        const cellTtTextW = cellShowElimDelta || cellShowPriorElimDelta ? 85 : 65;
         const cellTtW = cellTtTextW + 34;
 
         overlay
@@ -1002,12 +1009,24 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
               }
             });
 
-            tt.append('text')
+            const priorElimDelta = priorElimDeltaCell;
+            const showPriorElimDelta = cellShowPriorElimDelta && priorElim >= 0.001;
+            const priorElimValStr = priorElim < 0.001
+              ? ' --'
+              : `${(priorElim * 100).toFixed(0).padStart(3)}%`;
+            const priorElimRow = tt.append('text')
               .attr('x', 6).attr('y', 27 + CHART_PLACEMENTS.length * lineH)
               .attr('fill', '#666')
               .attr('font-size', '9px').attr('font-family', 'monospace')
-              .attr('opacity', isPinned || noRoutes ? 0.2 : 1)
-              .text(`${'P.ELIM'.padEnd(6)} ${(priorElim * 100).toFixed(0).padStart(3)}%`);
+              .attr('opacity', isPinned || noRoutes ? 0.2 : 1);
+            if (showPriorElimDelta) {
+              priorElimRow.append('tspan').text(`${'P.ELIM'.padEnd(6)} ${priorElimValStr}`);
+              priorElimRow.append('tspan')
+                .attr('fill', '#ff0000')
+                .text(` (-${(priorElimDelta * 100).toFixed(0)}%)`);
+            } else {
+              priorElimRow.text(`${'P.ELIM'.padEnd(6)} ${priorElimValStr}`);
+            }
 
             type BarSeg = { key: string; value: number; color: string };
             const barInput: BarSeg[] = [
