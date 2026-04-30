@@ -57,6 +57,9 @@ export interface AppState {
   trajectoryTotalRuns: number | null;
 
   numSimulations: number;
+  /** 0..1 — biases lip syncs toward the season's frontrunner. See
+   *  RunBaselineOptions.riggory. */
+  riggory: number;
 
   // UI preferences
   appMode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs';
@@ -93,6 +96,7 @@ export interface AppState {
   setSelectedQueenId: (queenId: string | null) => void;
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
   setNumSimulations: (n: number) => void;
+  setRiggory: (r: number) => void;
 
   // UI
   setAppMode: (mode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs') => void;
@@ -187,6 +191,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     trajectoryTotalRuns: null,
 
     numSimulations: 100_000,
+    riggory: 0,
 
     appMode: 'simulation',
     enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
@@ -483,6 +488,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
       set({ trajectoryPaths: paths, trajectoryTotalRuns: totalRuns }),
 
     setNumSimulations: (n) => set({ numSimulations: n }),
+    setRiggory: (r) => set({ riggory: Math.max(0, Math.min(1, r)) }),
 
     setAppMode: (mode) => set({ appMode: mode }),
 
@@ -552,6 +558,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     currentEpisodeOverrides: s.currentEpisodeOverrides,
     enabledCalibrateSeasons: s.enabledCalibrateSeasons,
     numSimulations: s.numSimulations,
+    riggory: s.riggory,
   }),
 }));
 

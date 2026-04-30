@@ -12,15 +12,19 @@
 
 import { describe, test, expect } from 'vitest';
 import {
+  applyRigDeltas,
   assignPlacements,
   aggregateFromBuffer,
+  btm2Penalty,
   bytesPerRun,
   buildMidSeason,
   extractTrajectories,
   getMatchingIndices,
+  lipSyncWinProbA,
   outcomeToEpisodeResult,
   runBaseline,
 } from './simulate';
+import type { EpisodeOutcome } from './types';
 import type {
   EpisodeData,
   FilterCondition,
@@ -577,5 +581,129 @@ describe('buffer encoding invariants', () => {
     // Enforces the domain boundary documented in types.ts — chart code iterates
     // PLACEMENTS and would double-count if ELIM leaked in.
     expect(PLACEMENTS).not.toContain('ELIM');
+  });
+});
+
+// ── Riggory: lip-sync rig-bias model ─────────────────────────
+//
+// Three knobs feed `resolveLipSync` once riggory > 0:
+//   1. lipSyncWinProbA — closed-form blend of the stat ratio and the
+//      "frontrunner-wins" indicator.
+//   2. btm2Penalty     — escalating per-incident penalty curve.
+//   3. applyRigDeltas  — mutates the running score map per episode bands.
+// All three are pure and tested at the boundary, not via end-to-end runs.
+
+describe('btm2Penalty — escalating curve f(n) = n² − n + 4', () => {
+  test('matches the user-facing schedule: 4, 6, 10, 16, 24, 34', () => {
+    expect(btm2Penalty(1)).toBe(4);
+    expect(btm2Penalty(2)).toBe(6);
+    expect(btm2Penalty(3)).toBe(10);
+    expect(btm2Penalty(4)).toBe(16);
+    expect(btm2Penalty(5)).toBe(24);
+    expect(btm2Penalty(6)).toBe(34);
+  });
+
+  test('strictly increasing: every additional BTM2 hurts more than the last', () => {
+    for (let n = 1; n < 20; n++) {
+      expect(btm2Penalty(n + 1)).toBeGreaterThan(btm2Penalty(n));
+    }
+  });
+});
+
+describe('lipSyncWinProbA — riggory blend', () => {
+  test('riggory=0 reduces to the pure stat ratio (legacy behavior)', () => {
+    // 6/(6+4) = 0.6 regardless of rig scores.
+    expect(lipSyncWinProbA(6, 4, -100, +100, 0)).toBeCloseTo(0.6, 12);
+    expect(lipSyncWinProbA(6, 4, +100, -100, 0)).toBeCloseTo(0.6, 12);
+    expect(lipSyncWinProbA(5, 5, +100, -100, 0)).toBeCloseTo(0.5, 12);
+  });
+
+  test('riggory=1 picks the frontrunner outright when scores differ', () => {
+    expect(lipSyncWinProbA(1, 9, +5, -5, 1)).toBe(1); // weak A wins anyway
+    expect(lipSyncWinProbA(9, 1, -5, +5, 1)).toBe(0); // strong A loses anyway
+  });
+
+  test('riggory=1 with tied scores falls back to p_stat (lipSync still matters)', () => {
+    expect(lipSyncWinProbA(6, 4, 0, 0, 1)).toBeCloseTo(0.6, 12);
+    expect(lipSyncWinProbA(2, 8, 0, 0, 1)).toBeCloseTo(0.2, 12);
+    expect(lipSyncWinProbA(5, 5, 7, 7, 1)).toBeCloseTo(0.5, 12);
+  });
+
+  test('partial riggory linearly interpolates between p_stat and the indicator', () => {
+    // p_stat = 0.5, p_rig = 1 (A frontrunner). At r=0.5: 0.5*0.5 + 0.5*1 = 0.75
+    expect(lipSyncWinProbA(5, 5, 10, 0, 0.5)).toBeCloseTo(0.75, 12);
+    // p_stat = 0.5, p_rig = 0 (B frontrunner). At r=0.5: 0.5*0.5 + 0.5*0 = 0.25
+    expect(lipSyncWinProbA(5, 5, 0, 10, 0.5)).toBeCloseTo(0.25, 12);
+    // p_stat = 0.6, p_rig = 1, r=0.25: 0.75*0.6 + 0.25*1 = 0.7
+    expect(lipSyncWinProbA(6, 4, 1, 0, 0.25)).toBeCloseTo(0.7, 12);
+  });
+
+  test('result stays in [0, 1] for every (r, scores, stats) combination', () => {
+    const samples: [number, number, number, number, number][] = [
+      [10, 1, 100, -100, 0.0], [10, 1, 100, -100, 0.5], [10, 1, 100, -100, 1.0],
+      [1, 10, -100, 100, 0.0], [1, 10, -100, 100, 0.5], [1, 10, -100, 100, 1.0],
+      [5, 5, 0, 0, 0.7], [3, 7, 4, 4, 0.3],
+    ];
+    for (const [a, b, sa, sb, r] of samples) {
+      const p = lipSyncWinProbA(a, b, sa, sb, r);
+      expect(p).toBeGreaterThanOrEqual(0);
+      expect(p).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('applyRigDeltas — per-episode score updates', () => {
+  function placements(entries: [string, EpisodeOutcome][]): Map<string, EpisodeOutcome> {
+    return new Map(entries);
+  }
+
+  test('band deltas accumulate correctly across episodes', () => {
+    const scores = new Map<string, number>();
+    const counts = new Map<string, number>();
+
+    // Ep 1: q1 WIN, q2 HIGH, q3 SAFE, q4 LOW
+    applyRigDeltas(placements([
+      ['q1', 'WIN'], ['q2', 'HIGH'], ['q3', 'SAFE'], ['q4', 'LOW'],
+    ]), scores, counts);
+    expect(scores.get('q1')).toBe(4);
+    expect(scores.get('q2')).toBe(2);
+    expect(scores.get('q3')).toBe(1);
+    expect(scores.get('q4')).toBe(-2);
+
+    // Ep 2: q1 SAFE again — accumulates
+    applyRigDeltas(placements([['q1', 'SAFE']]), scores, counts);
+    expect(scores.get('q1')).toBe(5);
+  });
+
+  test('BTM2 penalty escalates per incident; non-BTM2 episodes do not bump the counter', () => {
+    const scores = new Map<string, number>();
+    const counts = new Map<string, number>();
+
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, counts);
+    expect(scores.get('q1')).toBe(-4);
+    expect(counts.get('q1')).toBe(1);
+
+    // Intervening LOW does not increment the BTM2 count.
+    applyRigDeltas(placements([['q1', 'LOW']]), scores, counts);
+    expect(scores.get('q1')).toBe(-6);
+    expect(counts.get('q1')).toBe(1);
+
+    // 2nd BTM2 incident: penalty 6.
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, counts);
+    expect(scores.get('q1')).toBe(-12);
+    expect(counts.get('q1')).toBe(2);
+
+    // 3rd BTM2 incident: penalty 10.
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, counts);
+    expect(scores.get('q1')).toBe(-22);
+    expect(counts.get('q1')).toBe(3);
+  });
+
+  test('ELIM placement contributes no rig delta (already handled by prior BTM2)', () => {
+    const scores = new Map<string, number>();
+    const counts = new Map<string, number>();
+    applyRigDeltas(placements([['q1', 'ELIM']]), scores, counts);
+    expect(scores.has('q1')).toBe(false);
+    expect(counts.has('q1')).toBe(false);
   });
 });

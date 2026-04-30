@@ -194,6 +194,10 @@ export interface RunFromStateOptions {
   fromEpisode: number;     // 0-based, first ep to simulate
   numSimulations?: number;
   noise?: number;
+  /** 0..1. Bias the lip-sync coin flip toward the queen with the higher
+   *  cumulative rig-score. 0 = pure lipSync stat (default). 1 = always
+   *  picks the frontrunner; ties fall back to the lipSync stat. */
+  riggory?: number;
   /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
   seed?: number;
 }

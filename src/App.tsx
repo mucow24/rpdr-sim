@@ -26,6 +26,17 @@ export default function App() {
   const setSimulationProgress = useStore((s) => s.setSimulationProgress);
   const numSimulations = useStore((s) => s.numSimulations);
   const setNumSimulations = useStore((s) => s.setNumSimulations);
+  const riggory = useStore((s) => s.riggory);
+  const setRiggory = useStore((s) => s.setRiggory);
+  // Visual-only state for the slider mid-drag. We commit to the store on
+  // mouseup/touchend/keyup so the sim doesn't re-run every pixel of drag.
+  const [riggoryDraft, setRiggoryDraft] = useState(() => Math.round(riggory * 100));
+  // Keep the draft in sync if the store value changes from elsewhere.
+  useEffect(() => { setRiggoryDraft(Math.round(riggory * 100)); }, [riggory]);
+  const commitRiggory = useCallback(() => {
+    const next = riggoryDraft / 100;
+    if (next !== riggory) setRiggory(next);
+  }, [riggoryDraft, riggory, setRiggory]);
 
   const appMode = useStore((s) => s.appMode);
   const setAppMode = useStore((s) => s.setAppMode);
@@ -58,18 +69,19 @@ export default function App() {
     runBaseline({
       season: baselineSeason,
       numSimulations: n,
+      riggory,
     }).then((results) => {
       setBaselineResults(results);
       setIsSimulating(false);
       setSimulationProgress(null);
     });
-  }, [baselineSeason, runBaseline, setBaselineResults, setIsSimulating, setSimulationProgress]);
+  }, [baselineSeason, riggory, runBaseline, setBaselineResults, setIsSimulating, setSimulationProgress]);
 
   // Run baseline on mount and when season changes — but only in simulation mode.
   useEffect(() => {
     if (appMode !== 'simulation') return;
     triggerSimulation(numSimulations);
-  }, [baselineSeason, appMode, numSimulations, triggerSimulation]);
+  }, [baselineSeason, appMode, numSimulations, riggory, triggerSimulation]);
 
   // Run filter when conditions change
   useEffect(() => {
@@ -191,6 +203,23 @@ export default function App() {
               </span>
             )}
             <span className="ml-auto" />
+            <label className="flex items-center gap-2 text-sm text-[#888] select-none" title="Bias lip syncs toward the season's frontrunner. 0% = pure lipSync stat; 100% = always picks the frontrunner.">
+              <span>Riggory</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={riggoryDraft}
+                onChange={(e) => setRiggoryDraft(parseInt(e.target.value, 10))}
+                onMouseUp={commitRiggory}
+                onTouchEnd={commitRiggory}
+                onKeyUp={commitRiggory}
+                disabled={isSimulating}
+                className="w-24 accent-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              />
+              <span className="tabular-nums w-9 text-right text-[#ccc]">{riggoryDraft}%</span>
+            </label>
             <label className="flex items-center gap-1.5 text-sm text-[#888] cursor-pointer select-none">
               <input
                 type="checkbox"
