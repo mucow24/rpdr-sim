@@ -23,6 +23,7 @@ import {
   lipSyncWinProbA,
   outcomeToEpisodeResult,
   runBaseline,
+  winPoints,
 } from './simulate';
 import type { EpisodeOutcome } from './types';
 import type {
@@ -586,21 +587,39 @@ describe('buffer encoding invariants', () => {
 
 // ── Riggory: lip-sync rig-bias model ─────────────────────────
 //
-// Three knobs feed `resolveLipSync` once riggory > 0:
+// Four knobs feed `resolveLipSync` once riggory > 0:
 //   1. lipSyncWinProbA — closed-form blend of the stat ratio and the
 //      "frontrunner-wins" indicator.
-//   2. btm2Penalty     — escalating per-incident penalty curve.
-//   3. applyRigDeltas  — mutates the running score map per episode bands.
-// All three are pure and tested at the boundary, not via end-to-end runs.
+//   2. winPoints       — escalating per-incident WIN bonus.
+//   3. btm2Penalty     — escalating per-incident BTM2 penalty.
+//   4. applyRigDeltas  — mutates the running score maps per episode bands.
+// All four are pure and tested at the boundary, not via end-to-end runs.
 
-describe('btm2Penalty — escalating curve f(n) = n² − n + 4', () => {
+describe('winPoints — quadratic curve f(n) = n² − n + 4', () => {
   test('matches the user-facing schedule: 4, 6, 10, 16, 24, 34', () => {
+    expect(winPoints(1)).toBe(4);
+    expect(winPoints(2)).toBe(6);
+    expect(winPoints(3)).toBe(10);
+    expect(winPoints(4)).toBe(16);
+    expect(winPoints(5)).toBe(24);
+    expect(winPoints(6)).toBe(34);
+  });
+
+  test('strictly increasing: every additional WIN is worth more than the last', () => {
+    for (let n = 1; n < 20; n++) {
+      expect(winPoints(n + 1)).toBeGreaterThan(winPoints(n));
+    }
+  });
+});
+
+describe('btm2Penalty — exponential curve f(n) = 2^(n+1)', () => {
+  test('matches the user-facing schedule: 4, 8, 16, 32, 64, 128', () => {
     expect(btm2Penalty(1)).toBe(4);
-    expect(btm2Penalty(2)).toBe(6);
-    expect(btm2Penalty(3)).toBe(10);
-    expect(btm2Penalty(4)).toBe(16);
-    expect(btm2Penalty(5)).toBe(24);
-    expect(btm2Penalty(6)).toBe(34);
+    expect(btm2Penalty(2)).toBe(8);
+    expect(btm2Penalty(3)).toBe(16);
+    expect(btm2Penalty(4)).toBe(32);
+    expect(btm2Penalty(5)).toBe(64);
+    expect(btm2Penalty(6)).toBe(128);
   });
 
   test('strictly increasing: every additional BTM2 hurts more than the last', () => {
@@ -659,51 +678,105 @@ describe('applyRigDeltas — per-episode score updates', () => {
 
   test('band deltas accumulate correctly across episodes', () => {
     const scores = new Map<string, number>();
-    const counts = new Map<string, number>();
+    const winC = new Map<string, number>();
+    const btm2C = new Map<string, number>();
 
     // Ep 1: q1 WIN, q2 HIGH, q3 SAFE, q4 LOW
     applyRigDeltas(placements([
       ['q1', 'WIN'], ['q2', 'HIGH'], ['q3', 'SAFE'], ['q4', 'LOW'],
-    ]), scores, counts);
-    expect(scores.get('q1')).toBe(4);
+    ]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(4);  // 1st WIN: +4
     expect(scores.get('q2')).toBe(2);
     expect(scores.get('q3')).toBe(1);
     expect(scores.get('q4')).toBe(-2);
 
-    // Ep 2: q1 SAFE again — accumulates
-    applyRigDeltas(placements([['q1', 'SAFE']]), scores, counts);
+    // Ep 2: q1 SAFE — fixed +1, no win counter bump
+    applyRigDeltas(placements([['q1', 'SAFE']]), scores, winC, btm2C);
     expect(scores.get('q1')).toBe(5);
+    expect(winC.get('q1')).toBe(1);
+  });
+
+  test('WIN bonus escalates per incident; intervening non-WIN bands do not bump the counter', () => {
+    const scores = new Map<string, number>();
+    const winC = new Map<string, number>();
+    const btm2C = new Map<string, number>();
+
+    applyRigDeltas(placements([['q1', 'WIN']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(4);  // 1st WIN: +4
+    expect(winC.get('q1')).toBe(1);
+
+    // Intervening HIGH does not increment the WIN count.
+    applyRigDeltas(placements([['q1', 'HIGH']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(6);  // +2
+    expect(winC.get('q1')).toBe(1);
+
+    // 2nd WIN: +6.
+    applyRigDeltas(placements([['q1', 'WIN']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(12);
+    expect(winC.get('q1')).toBe(2);
+
+    // 3rd WIN: +10.
+    applyRigDeltas(placements([['q1', 'WIN']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(22);
+    expect(winC.get('q1')).toBe(3);
+
+    // 4th WIN: +16.
+    applyRigDeltas(placements([['q1', 'WIN']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(38);
+    expect(winC.get('q1')).toBe(4);
   });
 
   test('BTM2 penalty escalates per incident; non-BTM2 episodes do not bump the counter', () => {
     const scores = new Map<string, number>();
-    const counts = new Map<string, number>();
+    const winC = new Map<string, number>();
+    const btm2C = new Map<string, number>();
 
-    applyRigDeltas(placements([['q1', 'BTM2']]), scores, counts);
-    expect(scores.get('q1')).toBe(-4);
-    expect(counts.get('q1')).toBe(1);
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(-4);  // 1st BTM2: -4
+    expect(btm2C.get('q1')).toBe(1);
 
     // Intervening LOW does not increment the BTM2 count.
-    applyRigDeltas(placements([['q1', 'LOW']]), scores, counts);
+    applyRigDeltas(placements([['q1', 'LOW']]), scores, winC, btm2C);
     expect(scores.get('q1')).toBe(-6);
-    expect(counts.get('q1')).toBe(1);
+    expect(btm2C.get('q1')).toBe(1);
 
-    // 2nd BTM2 incident: penalty 6.
-    applyRigDeltas(placements([['q1', 'BTM2']]), scores, counts);
-    expect(scores.get('q1')).toBe(-12);
-    expect(counts.get('q1')).toBe(2);
+    // 2nd BTM2: -8.
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(-14);
+    expect(btm2C.get('q1')).toBe(2);
 
-    // 3rd BTM2 incident: penalty 10.
-    applyRigDeltas(placements([['q1', 'BTM2']]), scores, counts);
-    expect(scores.get('q1')).toBe(-22);
-    expect(counts.get('q1')).toBe(3);
+    // 3rd BTM2: -16.
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(-30);
+    expect(btm2C.get('q1')).toBe(3);
+
+    // 4th BTM2: -32.
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, winC, btm2C);
+    expect(scores.get('q1')).toBe(-62);
+    expect(btm2C.get('q1')).toBe(4);
+  });
+
+  test('WIN and BTM2 counters are independent', () => {
+    const scores = new Map<string, number>();
+    const winC = new Map<string, number>();
+    const btm2C = new Map<string, number>();
+
+    applyRigDeltas(placements([['q1', 'WIN']]), scores, winC, btm2C);   //  +4 →   4
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, winC, btm2C);  //  -4 →   0
+    applyRigDeltas(placements([['q1', 'WIN']]), scores, winC, btm2C);   //  +6 →   6
+    applyRigDeltas(placements([['q1', 'BTM2']]), scores, winC, btm2C);  //  -8 →  -2
+    expect(scores.get('q1')).toBe(-2);
+    expect(winC.get('q1')).toBe(2);
+    expect(btm2C.get('q1')).toBe(2);
   });
 
   test('ELIM placement contributes no rig delta (already handled by prior BTM2)', () => {
     const scores = new Map<string, number>();
-    const counts = new Map<string, number>();
-    applyRigDeltas(placements([['q1', 'ELIM']]), scores, counts);
+    const winC = new Map<string, number>();
+    const btm2C = new Map<string, number>();
+    applyRigDeltas(placements([['q1', 'ELIM']]), scores, winC, btm2C);
     expect(scores.has('q1')).toBe(false);
-    expect(counts.has('q1')).toBe(false);
+    expect(winC.has('q1')).toBe(false);
+    expect(btm2C.has('q1')).toBe(false);
   });
 });

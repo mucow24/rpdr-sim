@@ -123,15 +123,22 @@ function resolveLipSync(
   return rng() < pA ? queenA.id : queenB.id;
 }
 
-/** Per-incident BTM2 penalty: f(n) = n² − n + 4 for the n-th BTM2 (1-indexed).
- *  Sequence: 4, 6, 10, 16, 24, 34, … — quadratic so a queen who keeps showing
- *  up in the bottom rapidly tanks her rig score. @internal */
-export function btm2Penalty(nthIncident: number): number {
+/** Per-incident WIN bonus: f(n) = n² − n + 4 for the n-th WIN (1-indexed).
+ *  Sequence: 4, 6, 10, 16, 24, 34, … — quadratic so repeat winners pull away
+ *  from the rest of the field. @internal */
+export function winPoints(nthIncident: number): number {
   return nthIncident * nthIncident - nthIncident + 4;
 }
 
+/** Per-incident BTM2 penalty: f(n) = 2^(n+1) for the n-th BTM2 (1-indexed).
+ *  Sequence: 4, 8, 16, 32, 64, … — exponential so a queen who keeps showing
+ *  up in the bottom rapidly tanks her rig score. @internal */
+export function btm2Penalty(nthIncident: number): number {
+  return 1 << (nthIncident + 1);
+}
+
 const BAND_RIG_DELTA: Record<EpisodeOutcome, number> = {
-  WIN: 4,
+  WIN: 0, // Handled separately via escalating winPoints.
   HIGH: 2,
   SAFE: 1,
   LOW: -2,
@@ -140,17 +147,22 @@ const BAND_RIG_DELTA: Record<EpisodeOutcome, number> = {
 };
 
 /** Update each queen's rig-score in place after a regular episode's bands
- *  have been finalized. BTM2 uses an escalating per-queen penalty; all other
- *  bands apply a fixed delta. ELIM placements are post-lip-sync and don't
- *  contribute (the BTM2 penalty already fired when the band was assigned).
- *  @internal — exported for direct testing */
+ *  have been finalized. WIN and BTM2 each escalate per-queen via their own
+ *  incident counter; HIGH/SAFE/LOW apply a fixed delta. ELIM placements are
+ *  post-lip-sync and don't contribute (the BTM2 penalty already fired when
+ *  the band was assigned). @internal — exported for direct testing */
 export function applyRigDeltas(
   placements: Map<string, EpisodeOutcome>,
   rigScores: Map<string, number>,
+  winCounts: Map<string, number>,
   btm2Counts: Map<string, number>,
 ): void {
   for (const [qid, band] of placements) {
-    if (band === 'BTM2') {
+    if (band === 'WIN') {
+      const next = (winCounts.get(qid) ?? 0) + 1;
+      winCounts.set(qid, next);
+      rigScores.set(qid, (rigScores.get(qid) ?? 0) + winPoints(next));
+    } else if (band === 'BTM2') {
       const next = (btm2Counts.get(qid) ?? 0) + 1;
       btm2Counts.set(qid, next);
       rigScores.set(qid, (rigScores.get(qid) ?? 0) - btm2Penalty(next));
@@ -231,6 +243,9 @@ interface SimCtx {
    *  the lip-sync handler to bias the coin flip toward the season's
    *  frontrunner when riggory > 0. */
   rigScores: Map<string, number>;
+  /** queenId -> count of WIN incidents so far this run. Drives the escalating
+   *  WIN bonus in `applyRigDeltas`. */
+  winCounts: Map<string, number>;
   /** queenId -> count of BTM2 incidents so far this run. Drives the
    *  escalating BTM2 penalty in `applyRigDeltas`. */
   btm2Counts: Map<string, number>;
@@ -261,7 +276,7 @@ const regularHandler: EpisodeHandler<RegularEpisode> = {
     }));
     const placements = assignPlacements(scores);
     applyPriorWinnerImmunity(placements, scores, ctx.episodes, ctx.episodeResults, ctx.remaining);
-    applyRigDeltas(placements, ctx.rigScores, ctx.btm2Counts);
+    applyRigDeltas(placements, ctx.rigScores, ctx.winCounts, ctx.btm2Counts);
 
     // Non-elim episode: record placements, no lip sync, no removals.
     if (episode.eliminated.length === 0) {
@@ -422,10 +437,11 @@ function simulateOneSeason(
   // outcomeToEpisodeResult), so applyRigDeltas naturally skips their final
   // BTM2 — but their earlier-episode bands still feed the running tally.
   const rigScores = new Map<string, number>();
+  const winCounts = new Map<string, number>();
   const btm2Counts = new Map<string, number>();
   if (midSeason) {
     for (const pr of midSeason.priorResults) {
-      applyRigDeltas(pr.placements, rigScores, btm2Counts);
+      applyRigDeltas(pr.placements, rigScores, winCounts, btm2Counts);
     }
   }
 
@@ -436,6 +452,7 @@ function simulateOneSeason(
     noise,
     riggory,
     rigScores,
+    winCounts,
     btm2Counts,
     eliminationOrder,
     finalRanks: new Map(),
