@@ -12,6 +12,7 @@ import LipSyncsPage from './components/LipSyncsPage';
 import SeasonFlowChart from './components/charts/SeasonFlowChart';
 import PlacementGrid from './components/charts/PlacementGrid';
 import CastEditorPanel from './components/CastEditorPanel';
+import SurprisingEventsTable from './components/SurprisingEventsTable';
 
 export default function App() {
   const baselineSeason = useStore(selectBaselineSeason);
@@ -302,6 +303,8 @@ export default function App() {
               <SeasonFlowChart carrierWidth={carrierWidth} />
             </div>
           </section>
+
+          <SurprisingEventsTable />
 
           <DivergencePanel />
 
