@@ -21,6 +21,7 @@ export default function App() {
   const conditions = useStore((s) => s.conditions);
   const isSimulating = useStore((s) => s.isSimulating);
   const setBaselineResults = useStore((s) => s.setBaselineResults);
+  const setBaselineR0Results = useStore((s) => s.setBaselineR0Results);
   const setFilteredResults = useStore((s) => s.setFilteredResults);
   const setIsSimulating = useStore((s) => s.setIsSimulating);
   const setSimulationProgress = useStore((s) => s.setSimulationProgress);
@@ -66,16 +67,30 @@ export default function App() {
     setIsSimulating(true);
     setSimulationProgress(0);
     setBaselineResults(null);
-    runBaseline({
-      season: baselineSeason,
-      numSimulations: n,
-      riggory,
-    }).then((results) => {
-      setBaselineResults(results);
-      setIsSimulating(false);
-      setSimulationProgress(null);
-    });
-  }, [baselineSeason, riggory, runBaseline, setBaselineResults, setIsSimulating, setSimulationProgress]);
+    // When riggory > 0, run a counterfactual r=0 sim with the same seed first
+    // so the rigged-flow overlay has a low-variance baseline to subtract. The
+    // r=0 sim's buffer gets imported into the primary worker first, then the
+    // main sim overwrites it — so the filter path keeps reading from the main
+    // run. Sequential, not parallel: the worker pool kills its prior generation
+    // on a new run, and the primary's buffer slot can only hold one set.
+    const sharedSeed = riggory > 0 ? Math.floor(Math.random() * 0x100000000) : undefined;
+    const r0Phase: Promise<void> = riggory > 0
+      ? runBaseline({ season: baselineSeason, numSimulations: n, riggory: 0, seed: sharedSeed })
+          .then((r0Results) => { setBaselineR0Results(r0Results); })
+      : Promise.resolve().then(() => { setBaselineR0Results(null); });
+    r0Phase
+      .then(() => runBaseline({
+        season: baselineSeason,
+        numSimulations: n,
+        riggory,
+        seed: sharedSeed,
+      }))
+      .then((results) => {
+        setBaselineResults(results);
+        setIsSimulating(false);
+        setSimulationProgress(null);
+      });
+  }, [baselineSeason, riggory, runBaseline, setBaselineResults, setBaselineR0Results, setIsSimulating, setSimulationProgress]);
 
   // Run baseline on mount and when season changes — but only in simulation mode.
   useEffect(() => {

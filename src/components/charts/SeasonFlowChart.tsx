@@ -44,9 +44,14 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
   const { containerRef, width } = useContainerWidth(1000);
 
   const season = useStore(selectCurrentSeason);
-  const { baselineResults, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
+  const { baselineResults, baselineR0Results, filteredResults, conditions, addCondition, removeCondition, clearConditions, selectedQueenId, setSelectedQueenId } =
     useStore();
   const results = filteredResults ?? baselineResults;
+  // The r=0 counterfactual baseline isn't refiltered when pins are applied,
+  // so the rigged share is approximate while filters are active. The red
+  // overlay is capped to the displayed (filtered) BTM2 height at render time
+  // so it never exceeds the visible band — accurate-enough for the visual.
+  const r0Results = baselineR0Results;
 
   // Hover handlers live inside the structural effect (which doesn't re-run on
   // selection change, so the chart stays cheap to interact with). They read
@@ -78,8 +83,8 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
   // (season, results). Independent of width / hover / selection — memoizing
   // here means the d3 effect doesn't redo this on every resize or hover.
   const flowDataMemo = useMemo(
-    () => (results ? computeFlowData(season, results) : null),
-    [season, results],
+    () => (results ? computeFlowData(season, results, r0Results) : null),
+    [season, results, r0Results],
   );
 
   // Layout heights (fixed scale; chart auto-sizes to fit whichever stack is taller).
@@ -116,7 +121,7 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     }
 
     if (!flowDataMemo) return;
-    const { queenOrder, survival, flow: flowData, elimByEp } = flowDataMemo;
+    const { queenOrder, survival, flow: flowData, elimByEp, riggedBTM2 } = flowDataMemo;
     const numEps = season.episodes.length;
     const innerW = width - MARGIN.left - MARGIN.right;
 
@@ -480,6 +485,39 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
     }
     const allBands = bandGroup.selectAll<SVGRectElement, unknown>('rect[data-queen]');
 
+    // Rigged-flow overlay: a solid-red sub-band at the bottom of each queen's
+    // BTM2 band, sized to the rigged BTM2 mass (= mass shifted from ELIM into
+    // BTM2 by riggory > 0). Bottom-aligned so it visually abuts the ELIM node
+    // — narratively "this much was almost ELIM but got rigged into BTM2."
+    // Hidden by default; selection effect raises it for the selected queen.
+    const riggedGroup = g.append('g').attr('class', 'rigged-bands');
+    const btm2Pi = CHART_PLACEMENTS.indexOf('BTM2');
+    if (btm2Pi >= 0) {
+      for (let col = 0; col < numCols; col++) {
+        for (const queen of queenOrder) {
+          const qid = queen.id;
+          const rigged = riggedBTM2[qid]?.[col] ?? 0;
+          if (rigged < MIN_FLOW) continue;
+          const fullBand = bands[col][btm2Pi][qid];
+          if (!fullBand || fullBand.h < 0.3) continue;
+          // Cap at the band's actual height — rigged BTM2 should never exceed
+          // total BTM2, but defensive against floating-point drift across the
+          // two sims' independent survival lineages.
+          const riggedH = Math.min(rigged * SCALE, fullBand.h);
+          if (riggedH < 0.3) continue;
+          riggedGroup.append('rect')
+            .attr('x', colX(col) - NODE_WIDTH / 2)
+            .attr('y', fullBand.y + fullBand.h - riggedH)
+            .attr('width', NODE_WIDTH)
+            .attr('height', riggedH)
+            .attr('fill', '#ff0000')
+            .attr('opacity', 0)
+            .attr('data-queen', qid)
+            .style('pointer-events', 'none');
+        }
+      }
+    }
+
     // Sub-ribbons (render weakest queens first, strongest on top)
     const winProbs = new Map(season.queens.map((q) => [q.id, results.winProb[q.id] ?? 0]));
     const sortedRibbons = [...allRibbons].sort(
@@ -593,6 +631,14 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
         } else {
           el.attr('opacity', 0);
         }
+      });
+      // Rigged-flow band overlay tracks selection/hover identically.
+      riggedGroup.selectAll<SVGRectElement, unknown>('rect[data-queen]').each(function () {
+        const el = d3.select(this);
+        const pq = el.attr('data-queen')!;
+        const isSel = isSelected(pq);
+        const isHover = highlightId !== null && pq === highlightId;
+        el.attr('opacity', isSel || isHover ? 1 : 0);
       });
       // Ensure hovered queen's ribbons and placement bars render above selected queen's.
       if (highlightId !== null) {
@@ -751,6 +797,12 @@ export default function SeasonFlowChart({ carrierWidth }: Props) {
       } else {
         el.attr('opacity', 0);
       }
+    });
+
+    // -- Rigged BTM2 overlay (solid red, on/off by selection only) ----------
+    svgSel.selectAll<SVGRectElement, unknown>('.rigged-bands rect[data-queen]').each(function () {
+      const el = d3.select(this);
+      el.attr('opacity', isSelected(el.attr('data-queen')) ? 1 : 0);
     });
 
     // -- Queen band opacities ------------------------------------------------
