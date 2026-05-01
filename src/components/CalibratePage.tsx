@@ -73,20 +73,13 @@ function TooltipShell({ children }: { children: ReactNode }) {
   );
 }
 
-function QueenChip({
-  entry,
-  minWidth,
-}: {
-  entry: RosterEntry;
-  /** When set, the chip stretches to at least this width — used by QueenGrid
-   *  to make every chip in a wrapping row match the widest sibling. */
-  minWidth?: number;
-}) {
+function QueenChip({ entry }: { entry: RosterEntry }) {
+  // The min-width that equalizes chips to the widest sibling is set
+  // imperatively by QueenGrid's useLayoutEffect — keeping it out of the
+  // React `style` prop avoids a setState-in-effect lint violation and
+  // a cascading render.
   return (
-    <div
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30"
-      style={minWidth ? { minWidth } : undefined}
-    >
+    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30">
       <span
         className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
@@ -115,42 +108,40 @@ function QueenGrid({ entries }: { entries: RosterEntry[] }) {
   //      intrinsic-sizing pass, then expands to fill the resolved width.
   //   2. All chips share a uniform width equal to the widest chip's natural
   //      width. CSS alone can't do "match the widest sibling" with wrapping,
-  //      so we measure with useLayoutEffect and apply via min-width.
+  //      so we measure in useLayoutEffect and apply min-width imperatively.
+  //
+  // Imperative DOM mutation here (vs. setState + re-render) is intentional:
+  // it avoids the cascading re-render that `react-hooks/set-state-in-effect`
+  // is flagging, and runs synchronously before paint so there's no flicker.
   const innerRef = useRef<HTMLDivElement>(null);
   const entriesKey = useMemo(
     () => entries.map((e) => queenUid(e.seasonId, e.queen.id)).join('|'),
     [entries],
   );
-  const [chipWidth, setChipWidth] = useState(0);
 
   useLayoutEffect(() => {
     const inner = innerRef.current;
     if (!inner) return;
     const children = Array.from(inner.children) as HTMLElement[];
-    // Strip any previously-applied min-width so we measure NATURAL widths,
-    // not the stale forced width carried over from a prior entries change.
-    const originals = children.map((c) => c.style.minWidth);
-    for (const c of children) c.style.minWidth = '0px';
+    // Reset any prior forced width so measurement reflects natural intrinsic
+    // size rather than a stale value from the previous entry set.
+    for (const c of children) c.style.minWidth = '';
     let max = 0;
     for (const c of children) {
       const w = c.getBoundingClientRect().width;
       if (w > max) max = w;
     }
-    children.forEach((c, i) => {
-      c.style.minWidth = originals[i];
-    });
-    if (max > 0) setChipWidth(Math.ceil(max));
+    if (max > 0) {
+      const px = `${Math.ceil(max)}px`;
+      for (const c of children) c.style.minWidth = px;
+    }
   }, [entriesKey]);
 
   return (
     <div className="w-0 min-w-full">
       <div ref={innerRef} className="flex flex-wrap gap-1">
         {entries.map((entry) => (
-          <QueenChip
-            key={queenUid(entry.seasonId, entry.queen.id)}
-            entry={entry}
-            minWidth={chipWidth || undefined}
-          />
+          <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
         ))}
       </div>
     </div>
