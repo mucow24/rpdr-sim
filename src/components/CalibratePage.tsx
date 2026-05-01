@@ -8,7 +8,7 @@ import {
 import { ARCHETYPES } from '../data/archetypes';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS } from './charts/common/palette';
 import { skillScore, type HeavyEpisodeRow, type PlacementOrElim } from './calibrateScoring';
-import { getLipSyncRows, type LipSyncRow } from './calibrateLipSyncRows';
+import { getLipSyncRows, calibrateSeasonToCanonical, type LipSyncRow } from './calibrateLipSyncRows';
 import { statColorClass } from './statColor';
 
 type StatKey = BaseStat | 'lipSync';
@@ -98,11 +98,23 @@ function sampleEntries(entries: RosterEntry[], n: number): RosterEntry[] {
 }
 
 function QueenGrid({ entries }: { entries: RosterEntry[] }) {
+  // The chip row should NEVER drive the tooltip's width — it should respond to
+  // whatever width the upstream content (the history table, etc.) establishes.
+  //
+  // Trick: the outer wrapper has `width: 0` so it contributes nothing to the
+  // parent's intrinsic max-content sizing pass. Once the parent's width is
+  // resolved by its other children, `min-width: 100%` lets this wrapper fill
+  // that resolved width. The inner flex-wrap row then wraps within it.
+  //
+  // Net: table dictates tooltip width; chips fill it horizontally and flow to
+  // additional rows as needed (height only, never width).
   return (
-    <div className="flex flex-col gap-1 w-max">
-      {entries.map((entry) => (
-        <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
-      ))}
+    <div className="w-0 min-w-full">
+      <div className="flex flex-wrap gap-1">
+        {entries.map((entry) => (
+          <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -180,6 +192,63 @@ const LIP_SYNC_RESULT_STYLES: Record<'W' | 'L' | 'T', PlacementBadgeStyle> = {
   T: tooltipBadgeStyle('SAFE'),
 };
 
+function LipSyncTable({
+  rows,
+  opponentLipSync,
+}: {
+  rows: LipSyncRow[];
+  opponentLipSync: (opponentId: string) => number | null;
+}) {
+  return (
+    <table className="text-[10px] font-mono border-separate" style={{ borderSpacing: '6px 2px' }}>
+      <tbody>
+        {rows.map((row, i) => {
+          const stat = row.namedOpponentId ? opponentLipSync(row.namedOpponentId) : null;
+          return (
+            <tr key={i} className="align-top">
+              <td>
+                {(() => {
+                  const s = LIP_SYNC_RESULT_STYLES[row.result];
+                  return (
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                      style={{
+                        backgroundColor: s.bg,
+                        color: s.fg,
+                        border: `1px solid ${s.border}`,
+                      }}
+                    >
+                      {row.result}
+                    </span>
+                  );
+                })()}
+              </td>
+              <td className="text-amber-300 whitespace-nowrap">{row.opponent}</td>
+              <td className="whitespace-nowrap text-right">
+                {stat == null ? (
+                  <span className="text-amber-500/40">[-]</span>
+                ) : (
+                  <span className={statColorClass(stat)}>[{stat}]</span>
+                )}
+              </td>
+              <td className="text-amber-500/70 whitespace-nowrap">{row.episode}</td>
+              <td className="text-amber-300/70 italic max-w-[240px] break-words">{row.notes}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function LipSyncSectionHeader({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
+      {children}
+    </div>
+  );
+}
+
 function LipSyncHistoryTooltip({
   rows,
   sameScoreQueens,
@@ -191,51 +260,30 @@ function LipSyncHistoryTooltip({
    *  opponent isn't in our roster (e.g. `ext_jimbo` international returnees). */
   opponentLipSync: (opponentId: string) => number | null;
 }) {
+  // Split home vs. other only when both buckets are non-empty. Filtering
+  // preserves the (W → T → L, chronological) order from getLipSyncRows, so
+  // each subsection is already correctly sorted on its own.
+  const homeRows = rows.filter((r) => r.isHome);
+  const otherRows = rows.filter((r) => !r.isHome);
+  const split = homeRows.length > 0 && otherRows.length > 0;
+
   return (
     <TooltipShell>
       {rows.length === 0 ? (
         <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
           No lip-syncs on record
         </div>
+      ) : split ? (
+        <>
+          <LipSyncSectionHeader>Lip syncs in original season</LipSyncSectionHeader>
+          <LipSyncTable rows={homeRows} opponentLipSync={opponentLipSync} />
+          <div className="border-t border-amber-500/30 mt-2 pt-2">
+            <LipSyncSectionHeader>Lip syncs in other seasons</LipSyncSectionHeader>
+            <LipSyncTable rows={otherRows} opponentLipSync={opponentLipSync} />
+          </div>
+        </>
       ) : (
-        <table className="text-[10px] font-mono border-separate" style={{ borderSpacing: '6px 2px' }}>
-          <tbody>
-            {rows.map((row, i) => {
-              const stat = row.namedOpponentId ? opponentLipSync(row.namedOpponentId) : null;
-              return (
-                <tr key={i} className="align-top">
-                  <td>
-                    {(() => {
-                      const s = LIP_SYNC_RESULT_STYLES[row.result];
-                      return (
-                        <span
-                          className="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                          style={{
-                            backgroundColor: s.bg,
-                            color: s.fg,
-                            border: `1px solid ${s.border}`,
-                          }}
-                        >
-                          {row.result}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="text-amber-300 whitespace-nowrap">{row.opponent}</td>
-                  <td className="whitespace-nowrap text-right">
-                    {stat == null ? (
-                      <span className="text-amber-500/40">[-]</span>
-                    ) : (
-                      <span className={statColorClass(stat)}>[{stat}]</span>
-                    )}
-                  </td>
-                  <td className="text-amber-500/70 whitespace-nowrap">{row.episode}</td>
-                  <td className="text-amber-300/70 italic max-w-[240px] break-words">{row.notes}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <LipSyncTable rows={rows} opponentLipSync={opponentLipSync} />
       )}
       <SameScoreFooter sameScoreQueens={sameScoreQueens} />
     </TooltipShell>
@@ -626,7 +674,10 @@ export default function CalibratePage() {
                       </div>
                       {showTooltip && selectedStat === 'lipSync' && (
                         <LipSyncHistoryTooltip
-                          rows={getLipSyncRows(entry.queen.id)}
+                          rows={getLipSyncRows(
+                            entry.queen.id,
+                            calibrateSeasonToCanonical(entry.seasonId),
+                          )}
                           sameScoreQueens={sameScoreSample}
                           opponentLipSync={lookupOpponentLipSync}
                         />

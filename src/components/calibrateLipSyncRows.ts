@@ -16,12 +16,26 @@ export type LipSyncRow = {
    *  (defensive; canonical data always has at least one). Consumers use this
    *  to look up the opponent's live lip-sync stat from the store. */
   namedOpponentId: QueenId | null;
+  /** True iff this row is from the queen's home season (the one she debuted on,
+   *  which is also the only season her stats live under in the calibrate UI). */
+  isHome: boolean;
   result: LipSyncResult;
   notes: string;              // empty string if the canonical entry has no notes
   seasonRank: number;         // chronological sort: s01..s18 → 1..18, as01..as10 → 101..110
   episodeNum: number;         // secondary chronological sort
   sequence: number;           // tertiary sort (multiple lip syncs in one episode)
 };
+
+/**
+ * Convert a Calibrate-style season id ("season10") into the canonical
+ * lip-sync season id format ("s10"). Returns null for ids that don't match
+ * the expected pattern (defensive — every current preset is "seasonN").
+ */
+export function calibrateSeasonToCanonical(calibrateSeasonId: string): string | null {
+  const m = calibrateSeasonId.match(/^season(\d+)$/);
+  if (!m) return null;
+  return 's' + m[1].padStart(2, '0');
+}
 
 // Wins first, ties middle, losses last — within each bucket, chronological.
 const RESULT_BUCKET: Record<LipSyncResult, number> = { W: 0, T: 1, L: 2 };
@@ -55,7 +69,13 @@ function queenName(id: QueenId): string {
   return QUEEN_NAME_MAP.get(id) ?? id;
 }
 
-export function getLipSyncRows(queenId: QueenId): LipSyncRow[] {
+export function getLipSyncRows(
+  queenId: QueenId,
+  /** Canonical-form home season id (e.g. "s10"). Rows from this season are
+   *  flagged with `isHome: true` so callers can style them differently. Pass
+   *  `null` to skip the flagging — every row will have `isHome: false`. */
+  homeSeasonId: string | null,
+): LipSyncRow[] {
   const rows: LipSyncRow[] = [];
   for (const ls of LIP_SYNCS_CANONICAL) {
     if (ls.outcome === 'self_elimination') continue;
@@ -99,6 +119,7 @@ export function getLipSyncRows(queenId: QueenId): LipSyncRow[] {
       episode: `${seasonLabel(ls.seasonId)}E${ls.episode}`,
       opponent,
       namedOpponentId: opponentIds[0] ?? null,
+      isHome: homeSeasonId !== null && ls.seasonId === homeSeasonId,
       result,
       notes: ls.notes ?? '',
       seasonRank: seasonRank(ls.seasonId),
