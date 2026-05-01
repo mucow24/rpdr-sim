@@ -8,12 +8,19 @@ export type PoolTask = {
 
 export type ResultType = 'partialBaseline' | 'partialFromState';
 
+export type DualBufferPair = { riggedBuffer: ArrayBuffer; r0Buffer: ArrayBuffer };
+
 export type WorkerPool = {
   run(
     tasks: PoolTask[],
     resultType: ResultType,
     onProgress: (pct: number) => void,
   ): Promise<ArrayBuffer[]>;
+  /** Dual-buffer variant — each task returns a (rigged, r0) pair. */
+  runDual(
+    tasks: PoolTask[],
+    onProgress: (pct: number) => void,
+  ): Promise<DualBufferPair[]>;
 };
 
 /**
@@ -84,5 +91,56 @@ export function createWorkerPool(factory: () => Worker): WorkerPool {
     });
   }
 
-  return { run };
+  function runDual(
+    tasks: PoolTask[],
+    onProgress: (pct: number) => void,
+  ): Promise<DualBufferPair[]> {
+    for (const w of activeGeneration) w.terminate();
+    activeGeneration = [];
+
+    const totalWeight = tasks.reduce((s, t) => s + t.weight, 0);
+    const progressPerTask = new Array<number>(tasks.length).fill(0);
+
+    const reportProgress = () => {
+      let weighted = 0;
+      for (let i = 0; i < tasks.length; i++) {
+        weighted += progressPerTask[i] * tasks[i].weight;
+      }
+      onProgress(Math.round(weighted / totalWeight));
+    };
+
+    return new Promise((resolve) => {
+      const pairs: DualBufferPair[] = new Array(tasks.length);
+      const generation = activeGeneration;
+      let completed = 0;
+
+      tasks.forEach((task, idx) => {
+        const worker = factory();
+        generation.push(worker);
+
+        worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+          if (generation !== activeGeneration) return;
+
+          const msg = e.data;
+          if (msg.type === 'progress') {
+            progressPerTask[idx] = msg.pct;
+            reportProgress();
+            return;
+          }
+          if (msg.type === 'partialBaselineDual') {
+            pairs[idx] = { riggedBuffer: msg.riggedBuffer, r0Buffer: msg.r0Buffer };
+            completed++;
+            worker.terminate();
+            const i = generation.indexOf(worker);
+            if (i >= 0) generation.splice(i, 1);
+            if (completed === tasks.length) resolve(pairs);
+          }
+        };
+
+        worker.postMessage(task.request);
+      });
+    });
+  }
+
+  return { run, runDual };
 }
