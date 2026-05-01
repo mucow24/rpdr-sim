@@ -7,6 +7,8 @@ import { PLACEMENTS } from '../../../engine/types';
  *  - `queenOrder`: queens sorted best-first by win probability (the canonical
  *     stacking order for the source column and ribbon priority).
  *  - `survival[qid][ep]`: P(queen alive at start of episode `ep`).
+ *  - `survivalR0[qid][ep]`: same, but in the r=0 counterfactual lineage.
+ *    Mirrors `survival` (so deltas are zero) when no r=0 baseline was supplied.
  *  - `flow[qid][ep][placement]`: probability mass for this queen in this
  *    placement at this episode, scaled to the queen's surviving share.
  *    `flow[qid][ep]['ELIM']` is cumulative — the running graveyard share.
@@ -18,6 +20,7 @@ import { PLACEMENTS } from '../../../engine/types';
 export interface FlowData {
   queenOrder: Queen[];
   survival: Record<string, number[]>;
+  survivalR0: Record<string, number[]>;
   flow: Record<string, Record<string, number>[]>;
   elimByEp: Record<string, number[]>;
   riggedBTM2: Record<string, number[]>;
@@ -34,12 +37,14 @@ export function computeFlowData(
   );
 
   const survival: Record<string, number[]> = {};
+  const survivalR0: Record<string, number[]> = {};
   const flow: Record<string, Record<string, number>[]> = {};
   const elimByEp: Record<string, number[]> = {};
   const riggedBTM2: Record<string, number[]> = {};
 
   for (const q of season.queens) {
     survival[q.id] = [];
+    survivalR0[q.id] = [];
     flow[q.id] = [];
     elimByEp[q.id] = [];
     riggedBTM2[q.id] = [];
@@ -48,6 +53,7 @@ export function computeFlowData(
     let cumElim = 0;
     for (let ep = 0; ep < numEps; ep++) {
       survival[q.id][ep] = surv;
+      survivalR0[q.id][ep] = r0Results ? survR0 : surv;
       const dist = results.episodePlacements[ep]?.[q.id] ?? {};
       const f: Record<string, number> = {};
       for (const p of PLACEMENTS) f[p] = surv * (dist[p] ?? 0);
@@ -83,5 +89,5 @@ export function computeFlowData(
     }
   }
 
-  return { queenOrder, survival, flow, elimByEp, riggedBTM2 };
+  return { queenOrder, survival, survivalR0, flow, elimByEp, riggedBTM2 };
 }
