@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
-  BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale, isPass,
+  BASE_STATS, BASE_STAT_DISPLAY, queenUid, parseQueenUid, isFinale, isPass,
   type BaseStat, type Queen, type EpisodeData,
 } from '../engine/types';
 import { ARCHETYPES } from '../data/archetypes';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS } from './charts/common/palette';
 import { skillScore, type HeavyEpisodeRow, type PlacementOrElim } from './calibrateScoring';
+import { getLipSyncRows, calibrateSeasonToCanonical, type LipSyncRow } from './calibrateLipSyncRows';
+import { statColorClass } from './statColor';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -72,6 +74,10 @@ function TooltipShell({ children }: { children: ReactNode }) {
 }
 
 function QueenChip({ entry }: { entry: RosterEntry }) {
+  // The min-width that equalizes chips to the widest sibling is set
+  // imperatively by QueenGrid's useLayoutEffect — keeping it out of the
+  // React `style` prop avoids a setState-in-effect lint violation and
+  // a cascading render.
   return (
     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30">
       <span
@@ -96,11 +102,48 @@ function sampleEntries(entries: RosterEntry[], n: number): RosterEntry[] {
 }
 
 function QueenGrid({ entries }: { entries: RosterEntry[] }) {
+  // Layout goals (see also the discussion that produced this):
+  //   1. Chip row never drives the tooltip's width — only consumes it. The
+  //      `w-0 min-w-full` shim collapses to 0 width during the parent's
+  //      intrinsic-sizing pass, then expands to fill the resolved width.
+  //   2. All chips share a uniform width equal to the widest chip's natural
+  //      width. CSS alone can't do "match the widest sibling" with wrapping,
+  //      so we measure in useLayoutEffect and apply min-width imperatively.
+  //
+  // Imperative DOM mutation here (vs. setState + re-render) is intentional:
+  // it avoids the cascading re-render that `react-hooks/set-state-in-effect`
+  // is flagging, and runs synchronously before paint so there's no flicker.
+  const innerRef = useRef<HTMLDivElement>(null);
+  const entriesKey = useMemo(
+    () => entries.map((e) => queenUid(e.seasonId, e.queen.id)).join('|'),
+    [entries],
+  );
+
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const children = Array.from(inner.children) as HTMLElement[];
+    // Reset any prior forced width so measurement reflects natural intrinsic
+    // size rather than a stale value from the previous entry set.
+    for (const c of children) c.style.minWidth = '';
+    let max = 0;
+    for (const c of children) {
+      const w = c.getBoundingClientRect().width;
+      if (w > max) max = w;
+    }
+    if (max > 0) {
+      const px = `${Math.ceil(max)}px`;
+      for (const c of children) c.style.minWidth = px;
+    }
+  }, [entriesKey]);
+
   return (
-    <div className="flex flex-col gap-1 w-max">
-      {entries.map((entry) => (
-        <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
-      ))}
+    <div className="w-0 min-w-full">
+      <div ref={innerRef} className="flex flex-wrap gap-1">
+        {entries.map((entry) => (
+          <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -149,6 +192,131 @@ function tooltipBadgeStyle(p: PlacementOrElim): PlacementBadgeStyle {
   const c = TOOLTIP_PLACEMENT_OVERRIDES[p] ?? PLACEMENT_COLORS[p];
   const fg = TOOLTIP_PLACEMENT_FG_OVERRIDES[p] ?? c;
   return { bg: c + '33', fg, border: c + '66' };
+}
+
+// Shared "same score, other seasons" footer for both stat-history tooltips.
+function SameScoreFooter({ sameScoreQueens }: { sameScoreQueens: RosterEntry[] }) {
+  return (
+    <div className="border-t border-amber-500/30 mt-2 pt-2">
+      <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
+        Same score, other seasons
+      </div>
+      {sameScoreQueens.length === 0 ? (
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
+          No matches in other seasons
+        </div>
+      ) : (
+        <QueenGrid entries={sameScoreQueens} />
+      )}
+    </div>
+  );
+}
+
+// W/T reuse the WIN/SAFE badge styles from the regular stat tooltips so the
+// two tooltips look like siblings. L mirrors the ELIM badge (same red as a
+// queen going home from a placement-tooltip row).
+const LIP_SYNC_RESULT_STYLES: Record<'W' | 'L' | 'T', PlacementBadgeStyle> = {
+  W: tooltipBadgeStyle('WIN'),
+  L: tooltipBadgeStyle('ELIM'),
+  T: tooltipBadgeStyle('SAFE'),
+};
+
+function LipSyncTable({
+  rows,
+  opponentLipSync,
+}: {
+  rows: LipSyncRow[];
+  opponentLipSync: (opponentId: string) => number | null;
+}) {
+  return (
+    <table className="text-[10px] font-mono border-separate" style={{ borderSpacing: '6px 2px' }}>
+      <tbody>
+        {rows.map((row, i) => {
+          const stat = row.namedOpponentId ? opponentLipSync(row.namedOpponentId) : null;
+          return (
+            <tr key={i} className="align-top">
+              <td>
+                {(() => {
+                  const s = LIP_SYNC_RESULT_STYLES[row.result];
+                  return (
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                      style={{
+                        backgroundColor: s.bg,
+                        color: s.fg,
+                        border: `1px solid ${s.border}`,
+                      }}
+                    >
+                      {row.result}
+                    </span>
+                  );
+                })()}
+              </td>
+              <td className="text-amber-300 whitespace-nowrap">{row.opponent}</td>
+              <td className="whitespace-nowrap text-right">
+                {stat == null ? (
+                  <span className="text-amber-500/40">[-]</span>
+                ) : (
+                  <span className={statColorClass(stat)}>[{stat}]</span>
+                )}
+              </td>
+              <td className="text-amber-500/70 whitespace-nowrap">{row.episode}</td>
+              <td className="text-amber-300/70 italic max-w-[240px] break-words">{row.notes}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function LipSyncSectionHeader({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
+      {children}
+    </div>
+  );
+}
+
+function LipSyncHistoryTooltip({
+  rows,
+  sameScoreQueens,
+  opponentLipSync,
+}: {
+  rows: LipSyncRow[];
+  sameScoreQueens: RosterEntry[];
+  /** Returns the named opponent's current lip-sync stat, or null if the
+   *  opponent isn't in our roster (e.g. `ext_jimbo` international returnees). */
+  opponentLipSync: (opponentId: string) => number | null;
+}) {
+  // Split home vs. other only when both buckets are non-empty. Filtering
+  // preserves the (W → T → L, chronological) order from getLipSyncRows, so
+  // each subsection is already correctly sorted on its own.
+  const homeRows = rows.filter((r) => r.isHome);
+  const otherRows = rows.filter((r) => !r.isHome);
+  const split = homeRows.length > 0 && otherRows.length > 0;
+
+  return (
+    <TooltipShell>
+      {rows.length === 0 ? (
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
+          No lip-syncs on record
+        </div>
+      ) : split ? (
+        <>
+          <LipSyncSectionHeader>Lip syncs in original season</LipSyncSectionHeader>
+          <LipSyncTable rows={homeRows} opponentLipSync={opponentLipSync} />
+          <div className="border-t border-amber-500/30 mt-2 pt-2">
+            <LipSyncSectionHeader>Lip syncs in other seasons</LipSyncSectionHeader>
+            <LipSyncTable rows={otherRows} opponentLipSync={opponentLipSync} />
+          </div>
+        </>
+      ) : (
+        <LipSyncTable rows={rows} opponentLipSync={opponentLipSync} />
+      )}
+      <SameScoreFooter sameScoreQueens={sameScoreQueens} />
+    </TooltipShell>
+  );
 }
 
 function HistoryTooltip({
@@ -201,18 +369,7 @@ function HistoryTooltip({
           {skillScore(rows).toFixed(2)}
         </div>
       )}
-      <div className="border-t border-amber-500/30 mt-2 pt-2">
-        <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
-          Same score, other seasons
-        </div>
-        {sameScoreQueens.length === 0 ? (
-          <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
-            No matches in other seasons
-          </div>
-        ) : (
-          <QueenGrid entries={sameScoreQueens} />
-        )}
-      </div>
+      <SameScoreFooter sameScoreQueens={sameScoreQueens} />
     </TooltipShell>
   );
 }
@@ -350,8 +507,26 @@ export default function CalibratePage() {
     }
   }
 
+  // Opponent lip-sync stats for the Lip Sync tooltip. Map queenId → most-recent
+  // canonical lipSync. For returnees (Shangela, Eureka, Vanjie, Cynthia) we
+  // arbitrarily pick the home-season entry — calibrate stat divergence between
+  // a queen's two records is rare in practice and not worth disambiguating.
+  // External / international returnees ("ext_jimbo" etc.) aren't in the roster
+  // and resolve to null → tooltip prints "--".
+  const opponentLipSyncByQueenId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const uid of Object.keys(queensById)) {
+      const { queenId } = parseQueenUid(uid);
+      if (!map.has(queenId)) map.set(queenId, queensById[uid].lipSync);
+    }
+    return map;
+  }, [queensById]);
+
+  const lookupOpponentLipSync = (opponentId: string): number | null =>
+    opponentLipSyncByQueenId.get(opponentId) ?? null;
+
   const sameScoreSample = useMemo(() => {
-    if (!hoveredUid || selectedStat === 'lipSync') return [] as RosterEntry[];
+    if (!hoveredUid) return [] as RosterEntry[];
     const hovered = roster.find(
       (r) => queenUid(r.seasonId, r.queen.id) === hoveredUid,
     );
@@ -501,8 +676,7 @@ export default function CalibratePage() {
               <div className="flex flex-wrap gap-1.5">
                 {entries.map((entry) => {
                   const uid = queenUid(entry.seasonId, entry.queen.id);
-                  const showTooltip =
-                    hoveredUid === uid && selectedStat !== 'lipSync';
+                  const showTooltip = hoveredUid === uid;
                   const eps = episodeLists[entry.seasonId];
                   return (
                     <div
@@ -527,7 +701,17 @@ export default function CalibratePage() {
                           {seasonAbbrev(entry.seasonId)}
                         </span>
                       </div>
-                      {showTooltip && eps && (
+                      {showTooltip && selectedStat === 'lipSync' && (
+                        <LipSyncHistoryTooltip
+                          rows={getLipSyncRows(
+                            entry.queen.id,
+                            calibrateSeasonToCanonical(entry.seasonId),
+                          )}
+                          sameScoreQueens={sameScoreSample}
+                          opponentLipSync={lookupOpponentLipSync}
+                        />
+                      )}
+                      {showTooltip && selectedStat !== 'lipSync' && eps && (
                         <HistoryTooltip
                           rows={getHeavyEpisodes(
                             eps,
