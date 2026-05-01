@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
@@ -73,9 +73,20 @@ function TooltipShell({ children }: { children: ReactNode }) {
   );
 }
 
-function QueenChip({ entry }: { entry: RosterEntry }) {
+function QueenChip({
+  entry,
+  minWidth,
+}: {
+  entry: RosterEntry;
+  /** When set, the chip stretches to at least this width — used by QueenGrid
+   *  to make every chip in a wrapping row match the widest sibling. */
+  minWidth?: number;
+}) {
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30">
+    <div
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs bg-[#1a1a24]/80 border border-amber-500/30"
+      style={minWidth ? { minWidth } : undefined}
+    >
       <span
         className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: SEASON_COLORS[entry.seasonId] ?? '#888' }}
@@ -98,21 +109,48 @@ function sampleEntries(entries: RosterEntry[], n: number): RosterEntry[] {
 }
 
 function QueenGrid({ entries }: { entries: RosterEntry[] }) {
-  // The chip row should NEVER drive the tooltip's width — it should respond to
-  // whatever width the upstream content (the history table, etc.) establishes.
-  //
-  // Trick: the outer wrapper has `width: 0` so it contributes nothing to the
-  // parent's intrinsic max-content sizing pass. Once the parent's width is
-  // resolved by its other children, `min-width: 100%` lets this wrapper fill
-  // that resolved width. The inner flex-wrap row then wraps within it.
-  //
-  // Net: table dictates tooltip width; chips fill it horizontally and flow to
-  // additional rows as needed (height only, never width).
+  // Layout goals (see also the discussion that produced this):
+  //   1. Chip row never drives the tooltip's width — only consumes it. The
+  //      `w-0 min-w-full` shim collapses to 0 width during the parent's
+  //      intrinsic-sizing pass, then expands to fill the resolved width.
+  //   2. All chips share a uniform width equal to the widest chip's natural
+  //      width. CSS alone can't do "match the widest sibling" with wrapping,
+  //      so we measure with useLayoutEffect and apply via min-width.
+  const innerRef = useRef<HTMLDivElement>(null);
+  const entriesKey = useMemo(
+    () => entries.map((e) => queenUid(e.seasonId, e.queen.id)).join('|'),
+    [entries],
+  );
+  const [chipWidth, setChipWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const children = Array.from(inner.children) as HTMLElement[];
+    // Strip any previously-applied min-width so we measure NATURAL widths,
+    // not the stale forced width carried over from a prior entries change.
+    const originals = children.map((c) => c.style.minWidth);
+    for (const c of children) c.style.minWidth = '0px';
+    let max = 0;
+    for (const c of children) {
+      const w = c.getBoundingClientRect().width;
+      if (w > max) max = w;
+    }
+    children.forEach((c, i) => {
+      c.style.minWidth = originals[i];
+    });
+    if (max > 0) setChipWidth(Math.ceil(max));
+  }, [entriesKey]);
+
   return (
     <div className="w-0 min-w-full">
-      <div className="flex flex-wrap gap-1">
+      <div ref={innerRef} className="flex flex-wrap gap-1">
         {entries.map((entry) => (
-          <QueenChip key={queenUid(entry.seasonId, entry.queen.id)} entry={entry} />
+          <QueenChip
+            key={queenUid(entry.seasonId, entry.queen.id)}
+            entry={entry}
+            minWidth={chipWidth || undefined}
+          />
         ))}
       </div>
     </div>
