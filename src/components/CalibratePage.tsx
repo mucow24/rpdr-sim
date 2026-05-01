@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from 're
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import {
-  BASE_STATS, BASE_STAT_DISPLAY, queenUid, isFinale, isPass,
+  BASE_STATS, BASE_STAT_DISPLAY, queenUid, parseQueenUid, isFinale, isPass,
   type BaseStat, type Queen, type EpisodeData,
 } from '../engine/types';
 import { ARCHETYPES } from '../data/archetypes';
 import { PLACEMENT_PALETTE as PLACEMENT_COLORS } from './charts/common/palette';
 import { skillScore, type HeavyEpisodeRow, type PlacementOrElim } from './calibrateScoring';
+import { getLipSyncRows, type LipSyncRow } from './calibrateLipSyncRows';
+import { statColorClass } from './statColor';
 
 type StatKey = BaseStat | 'lipSync';
 
@@ -151,6 +153,95 @@ function tooltipBadgeStyle(p: PlacementOrElim): PlacementBadgeStyle {
   return { bg: c + '33', fg, border: c + '66' };
 }
 
+// Shared "same score, other seasons" footer for both stat-history tooltips.
+function SameScoreFooter({ sameScoreQueens }: { sameScoreQueens: RosterEntry[] }) {
+  return (
+    <div className="border-t border-amber-500/30 mt-2 pt-2">
+      <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
+        Same score, other seasons
+      </div>
+      {sameScoreQueens.length === 0 ? (
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
+          No matches in other seasons
+        </div>
+      ) : (
+        <QueenGrid entries={sameScoreQueens} />
+      )}
+    </div>
+  );
+}
+
+// W/T reuse the WIN/SAFE badge styles from the regular stat tooltips so the
+// two tooltips look like siblings. L mirrors the ELIM badge (same red as a
+// queen going home from a placement-tooltip row).
+const LIP_SYNC_RESULT_STYLES: Record<'W' | 'L' | 'T', PlacementBadgeStyle> = {
+  W: tooltipBadgeStyle('WIN'),
+  L: tooltipBadgeStyle('ELIM'),
+  T: tooltipBadgeStyle('SAFE'),
+};
+
+function LipSyncHistoryTooltip({
+  rows,
+  sameScoreQueens,
+  opponentLipSync,
+}: {
+  rows: LipSyncRow[];
+  sameScoreQueens: RosterEntry[];
+  /** Returns the named opponent's current lip-sync stat, or null if the
+   *  opponent isn't in our roster (e.g. `ext_jimbo` international returnees). */
+  opponentLipSync: (opponentId: string) => number | null;
+}) {
+  return (
+    <TooltipShell>
+      {rows.length === 0 ? (
+        <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
+          No lip-syncs on record
+        </div>
+      ) : (
+        <table className="text-[10px] font-mono border-separate" style={{ borderSpacing: '6px 2px' }}>
+          <tbody>
+            {rows.map((row, i) => {
+              const stat = row.namedOpponentId ? opponentLipSync(row.namedOpponentId) : null;
+              return (
+                <tr key={i} className="align-top">
+                  <td>
+                    {(() => {
+                      const s = LIP_SYNC_RESULT_STYLES[row.result];
+                      return (
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                          style={{
+                            backgroundColor: s.bg,
+                            color: s.fg,
+                            border: `1px solid ${s.border}`,
+                          }}
+                        >
+                          {row.result}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td className="text-amber-300 whitespace-nowrap">{row.opponent}</td>
+                  <td className="whitespace-nowrap text-right">
+                    {stat == null ? (
+                      <span className="text-amber-500/40">[-]</span>
+                    ) : (
+                      <span className={statColorClass(stat)}>[{stat}]</span>
+                    )}
+                  </td>
+                  <td className="text-amber-500/70 whitespace-nowrap">{row.episode}</td>
+                  <td className="text-amber-300/70 italic max-w-[240px] break-words">{row.notes}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <SameScoreFooter sameScoreQueens={sameScoreQueens} />
+    </TooltipShell>
+  );
+}
+
 function HistoryTooltip({
   rows,
   sameScoreQueens,
@@ -201,18 +292,7 @@ function HistoryTooltip({
           {skillScore(rows).toFixed(2)}
         </div>
       )}
-      <div className="border-t border-amber-500/30 mt-2 pt-2">
-        <div className="text-[9px] uppercase tracking-wide text-amber-500/70 mb-1 px-1 whitespace-nowrap">
-          Same score, other seasons
-        </div>
-        {sameScoreQueens.length === 0 ? (
-          <div className="text-[10px] text-amber-500/60 italic px-1 py-0.5 whitespace-nowrap">
-            No matches in other seasons
-          </div>
-        ) : (
-          <QueenGrid entries={sameScoreQueens} />
-        )}
-      </div>
+      <SameScoreFooter sameScoreQueens={sameScoreQueens} />
     </TooltipShell>
   );
 }
@@ -350,8 +430,26 @@ export default function CalibratePage() {
     }
   }
 
+  // Opponent lip-sync stats for the Lip Sync tooltip. Map queenId → most-recent
+  // canonical lipSync. For returnees (Shangela, Eureka, Vanjie, Cynthia) we
+  // arbitrarily pick the home-season entry — calibrate stat divergence between
+  // a queen's two records is rare in practice and not worth disambiguating.
+  // External / international returnees ("ext_jimbo" etc.) aren't in the roster
+  // and resolve to null → tooltip prints "--".
+  const opponentLipSyncByQueenId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const uid of Object.keys(queensById)) {
+      const { queenId } = parseQueenUid(uid);
+      if (!map.has(queenId)) map.set(queenId, queensById[uid].lipSync);
+    }
+    return map;
+  }, [queensById]);
+
+  const lookupOpponentLipSync = (opponentId: string): number | null =>
+    opponentLipSyncByQueenId.get(opponentId) ?? null;
+
   const sameScoreSample = useMemo(() => {
-    if (!hoveredUid || selectedStat === 'lipSync') return [] as RosterEntry[];
+    if (!hoveredUid) return [] as RosterEntry[];
     const hovered = roster.find(
       (r) => queenUid(r.seasonId, r.queen.id) === hoveredUid,
     );
@@ -501,8 +599,7 @@ export default function CalibratePage() {
               <div className="flex flex-wrap gap-1.5">
                 {entries.map((entry) => {
                   const uid = queenUid(entry.seasonId, entry.queen.id);
-                  const showTooltip =
-                    hoveredUid === uid && selectedStat !== 'lipSync';
+                  const showTooltip = hoveredUid === uid;
                   const eps = episodeLists[entry.seasonId];
                   return (
                     <div
@@ -527,7 +624,14 @@ export default function CalibratePage() {
                           {seasonAbbrev(entry.seasonId)}
                         </span>
                       </div>
-                      {showTooltip && eps && (
+                      {showTooltip && selectedStat === 'lipSync' && (
+                        <LipSyncHistoryTooltip
+                          rows={getLipSyncRows(entry.queen.id)}
+                          sameScoreQueens={sameScoreSample}
+                          opponentLipSync={lookupOpponentLipSync}
+                        />
+                      )}
+                      {showTooltip && selectedStat !== 'lipSync' && eps && (
                         <HistoryTooltip
                           rows={getHeavyEpisodes(
                             eps,

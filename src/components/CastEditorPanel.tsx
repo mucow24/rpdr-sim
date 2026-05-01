@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { SEASON_PRESETS } from '../data/presets';
 import { BASE_STATS, queenUid, type Queen } from '../engine/types';
+import { statColorClass } from './statColor';
 
 type StatTooltip = {
   rows: { label: string; value: number }[];
@@ -99,16 +100,7 @@ function formatTooltipNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-// Color palette for stat values. Bands are inclusive on the lower bound, so
-// e.g. 5.99 is still neutral and only a true 6 reads as green. Glow on 10.
-function statColorClass(value: number): string {
-  if (value >= 10) return 'text-amber-300 font-semibold drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]';
-  if (value >= 8) return 'text-sky-300';
-  if (value >= 6) return 'text-green-400';
-  if (value >= 5) return 'text-[#ddd]';
-  if (value >= 3) return 'text-orange-400';
-  return 'text-red-400';
-}
+// statColorClass moved to ./statColor.ts so the Calibrate tooltip can share it.
 
 type SortCol = 'name' | 'strength' | StatKey;
 type SortState = { col: SortCol; dir: 'asc' | 'desc' };
