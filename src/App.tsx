@@ -207,7 +207,14 @@ export default function App() {
             )}
             <span className="ml-auto" />
             <label className="flex items-center gap-2 text-sm text-[#888] select-none" title="Bias lip syncs toward the season's frontrunner. 0% = pure lipSync stat; 100% = always picks the frontrunner.">
-              <span>Riggory</span>
+              <a
+                href="/riggory-explorer.html"
+                target="_blank"
+                rel="noopener"
+                className="hover:text-amber-400 underline decoration-dotted underline-offset-4"
+              >
+                Riggory
+              </a>
               <input
                 type="range"
                 min={0}

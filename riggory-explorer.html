@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Riggory ↔ Lip Sync Explorer</title>
+<style>
+  body {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    background: #1a1a1a;
+    color: #eee;
+    max-width: 560px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+  h2 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #f59e0b;
+    border-bottom: 1px solid #333;
+    padding-bottom: 0.35rem;
+    margin: 1.75rem 0 0.5rem;
+  }
+  h2:first-of-type { margin-top: 0.5rem; }
+  h2.queen-label.loaded {
+    font-size: 1.15rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  h2.queen-label .winner-tag {
+    color: #ffd700;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0.75rem 0;
+  }
+  label { flex: 1; }
+  input[type="number"], select {
+    background: #2a2a2a;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    width: 6rem;
+    font-weight: 600;
+  }
+  input[type="range"] { width: 12rem; accent-color: #f59e0b; }
+  select.wide {
+    width: 22rem;
+    max-width: 100%;
+  }
+  .slider-row { gap: 0.75rem; }
+  .slider-row .val { width: 3.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+  hr { border: none; border-top: 1px solid #333; margin: 1.5rem 0; }
+
+  /* Stat color classes (mirrors src/components/statColor.ts). */
+  .stat-10 { color: #fcd34d; text-shadow: 0 0 4px rgba(251, 191, 36, 0.6); }
+  .stat-89 { color: #7dd3fc; }
+  .stat-67 { color: #4ade80; }
+  .stat-5  { color: #dddddd; }
+  .stat-34 { color: #fb923c; }
+  .stat-02 { color: #f87171; }
+
+  /* Track record list. */
+  .track-list {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.4rem;
+    min-height: 5.5rem;
+    max-height: 9rem;
+    overflow-y: auto;
+    margin: 0.5rem 0;
+  }
+  .track-empty {
+    color: #666;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0.4rem;
+  }
+  .track-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0.5rem;
+    margin: 0.15rem 0;
+    border-radius: 3px;
+    font-size: 0.85rem;
+  }
+  .track-entry .ep { color: #888; font-variant-numeric: tabular-nums; min-width: 2.5rem; }
+  .track-entry .pl {
+    flex: 1;
+    text-align: left;
+    font-weight: 600;
+    padding-left: 0.5rem;
+  }
+  .track-entry .delta {
+    font-variant-numeric: tabular-nums;
+    color: #aaa;
+    font-size: 0.8rem;
+    padding: 0 0.5rem;
+  }
+  .track-entry .delta.pos { color: #6ee7b7; }
+  .track-entry .delta.neg { color: #fca5a5; }
+  .track-entry button {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    font-size: 0.95rem;
+  }
+  .track-entry button:hover { color: #f87171; }
+
+  /* Placement buttons. */
+  .placement-btns {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0.5rem 0;
+  }
+  .placement-btns button {
+    flex: 1;
+    padding: 0.4rem 0;
+    border: none;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: #1a1a1a;
+    transition: filter 0.1s;
+  }
+  .placement-btns button:hover { filter: brightness(1.15); }
+  .pl-WIN  { background: #ffd700; }
+  .pl-HIGH { background: #a8d8ea; }
+  .pl-SAFE { background: #888888; color: #eee; }
+  .pl-LOW  { background: #e8a87c; }
+  .pl-BTM2 { background: #e74c3c; color: #eee; }
+
+  .rig-readout {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .rig-readout .label { color: #aaa; }
+  .rig-readout .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .curve-wrap {
+    margin: 0.75rem 0 0.25rem;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.5rem;
+  }
+  #curve { width: 100%; height: 120px; display: block; }
+  .curve-caption {
+    color: #888;
+    font-size: 0.75rem;
+    text-align: center;
+    margin-top: 0.25rem;
+  }
+
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 4px;
+    align-items: stretch;
+    margin-top: 0.5rem;
+  }
+  .heatmap-grid .y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #888;
+    text-align: right;
+    padding: 2px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .heatmap-grid .x-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #888;
+    font-variant-numeric: tabular-nums;
+  }
+  #heatmap {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid #333;
+    cursor: crosshair;
+  }
+  .heatmap-axis-label {
+    font-size: 0.7rem;
+    color: #888;
+    text-align: center;
+    margin-top: 0.4rem;
+  }
+  .hm-tooltip {
+    position: fixed;
+    background: #0a0a10;
+    border: 1px solid #444;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    color: #eee;
+    border-radius: 3px;
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+  }
+
+  .ls-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+  }
+  .ls-table th, .ls-table td {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid #2a2a2a;
+    text-align: left;
+  }
+  .ls-table th {
+    color: #f59e0b;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    background: #1a1a1a;
+    white-space: nowrap;
+  }
+  .ls-table th:hover { color: #fbbf24; }
+  .ls-table th.num, .ls-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ls-table th .arrow {
+    color: #888;
+    font-size: 0.7rem;
+    margin-left: 0.25rem;
+  }
+  .ls-table tbody tr:hover { background: #1f1f1f; cursor: pointer; }
+  .ls-table .delta-pos { color: #6ee7b7; }
+  .ls-table .delta-neg { color: #fca5a5; }
+
+  .results { font-variant-numeric: tabular-nums; }
+  .results .row { font-size: 1.05rem; }
+  .results .label { color: #aaa; }
+  .results .value { font-weight: 600; }
+  .highlight { color: #f59e0b; }
+  .formula { color: #888; font-size: 0.85rem; font-family: ui-monospace, monospace; margin-top: 0.25rem; }
+</style>
+</head>
+<body>
+  <h1>Riggory ↔ Lip Sync Explorer</h1>
+
+  <h2>Lip Sync</h2>
+  <div class="row">
+    <label for="lipSyncSelect">Load matchup</label>
+    <select id="lipSyncSelect" class="wide">
+      <option value="">— loading… —</option>
+    </select>
+  </div>
+  <div id="trackWarn" style="display:none; color:#fca5a5; font-size:0.85rem; margin-top:0.25rem;"></div>
+
+  <h2 id="queenALabel" class="queen-label">Queen A</h2>
+  <div class="row">
+    <label for="lipSyncA">lipSync (1–10)</label>
+    <input type="number" id="lipSyncA" min="1" max="10" step="1" value="5" />
+  </div>
+  <div class="track-list" id="trackA"></div>
+  <div class="placement-btns" data-queen="A">
+    <button class="pl-BTM2" data-pl="BTM2">BTM2</button>
+    <button class="pl-LOW"  data-pl="LOW">LOW</button>
+    <button class="pl-SAFE" data-pl="SAFE">SAFE</button>
+    <button class="pl-HIGH" data-pl="HIGH">HIGH</button>
+    <button class="pl-WIN"  data-pl="WIN">WIN</button>
+  </div>
+  <div class="rig-readout">
+    <span class="label">Rig score</span>
+    <span class="value" id="rigA">0</span>
+  </div>
+
+  <h2 id="queenBLabel" class="queen-label">Queen B</h2>
+  <div class="row">
+    <label for="lipSyncB">lipSync (1–10)</label>
+    <input type="number" id="lipSyncB" min="1" max="10" step="1" value="5" />
+  </div>
+  <div class="track-list" id="trackB"></div>
+  <div class="placement-btns" data-queen="B">
+    <button class="pl-BTM2" data-pl="BTM2">BTM2</button>
+    <button class="pl-LOW"  data-pl="LOW">LOW</button>
+    <button class="pl-SAFE" data-pl="SAFE">SAFE</button>
+    <button class="pl-HIGH" data-pl="HIGH">HIGH</button>
+    <button class="pl-WIN"  data-pl="WIN">WIN</button>
+  </div>
+  <div class="rig-readout">
+    <span class="label">Rig score</span>
+    <span class="value" id="rigB">0</span>
+  </div>
+
+  <h2>Rig Parameters</h2>
+  <div class="row slider-row">
+    <label for="riggory">Riggory</label>
+    <input type="range" id="riggory" min="0" max="100" step="1" value="50" />
+    <span class="val" id="riggoryVal">0.50</span>
+  </div>
+  <div class="row slider-row">
+    <label for="scale">Scale</label>
+    <input type="range" id="scale" min="1" max="120" step="1" value="10" />
+    <span class="val" id="scaleVal">10</span>
+  </div>
+
+  <div class="curve-wrap">
+    <svg id="curve" viewBox="0 0 280 120" preserveAspectRatio="none" aria-label="pRig vs rig-score gap">
+      <line x1="140" y1="10" x2="140" y2="100" stroke="#333" stroke-width="1" />
+      <line x1="20"  y1="55" x2="260" y2="55" stroke="#333" stroke-width="1" stroke-dasharray="2 3" />
+      <text x="20"  y="115" fill="#666" font-size="9">−90</text>
+      <text x="138" y="115" fill="#666" font-size="9">0</text>
+      <text x="248" y="115" fill="#666" font-size="9">+90</text>
+      <text x="262" y="14"  fill="#666" font-size="9">1</text>
+      <text x="262" y="103" fill="#666" font-size="9">0</text>
+      <path id="curvePath" fill="none" stroke="#f59e0b" stroke-width="1.5" />
+      <circle id="curveDot" r="3.5" fill="#fcd34d" stroke="#1a1a1a" stroke-width="1" />
+    </svg>
+    <div class="curve-caption">pRig vs (scoreA − scoreB) — current gap marked</div>
+  </div>
+
+  <hr />
+
+  <div class="results">
+    <div class="row">
+      <span class="label">pStat (Queen A)</span>
+      <span class="value" id="pStat">—</span>
+    </div>
+    <div class="formula">lipSyncA / (lipSyncA + lipSyncB)</div>
+
+    <div class="row" style="margin-top: 1rem;">
+      <span class="label">pRig</span>
+      <span class="value" id="pRig">—</span>
+    </div>
+    <div class="formula">1 / (1 + exp(−(scoreA − scoreB) / scale))</div>
+
+    <div class="row" style="margin-top: 1rem;">
+      <span class="label">w (rig weight)</span>
+      <span class="value" id="rigWeight">—</span>
+    </div>
+    <div class="formula">riggory · |pRig − 0.5| · 2</div>
+
+    <div class="row" style="margin-top: 1rem;">
+      <span class="label">pBlend</span>
+      <span class="value" id="pBlend">—</span>
+    </div>
+    <div class="formula">(1 − w) · pStat + w · pRig</div>
+
+    <div class="row" style="margin-top: 1rem;">
+      <span class="label">P(Queen A wins)</span>
+      <span class="value highlight" id="pAWins">—</span>
+    </div>
+  </div>
+
+  <h2>pBlend Heatmap</h2>
+  <div class="heatmap-grid">
+    <div class="y-axis">
+      <span>+7</span>
+      <span>0</span>
+      <span>−7</span>
+    </div>
+    <div>
+      <canvas id="heatmap" width="800" height="320"></canvas>
+      <div class="x-axis"><span>−80</span><span>0</span><span>+80</span></div>
+    </div>
+  </div>
+  <div class="heatmap-axis-label">x: Δ rig score (A − B) &nbsp;·&nbsp; y: Δ lipSync (A − B) &nbsp;·&nbsp; assumes lipSync avg = 5.5</div>
+  <div id="heatmapTooltip" class="hm-tooltip"></div>
+
+  <h2>All Lip Syncs</h2>
+  <table id="lipsyncTable" class="ls-table">
+    <thead>
+      <tr>
+        <th data-col="name">Lip Sync<span class="arrow"></span></th>
+        <th data-col="scoreA" class="num">A score<span class="arrow"></span></th>
+        <th data-col="scoreB" class="num">B score<span class="arrow"></span></th>
+        <th data-col="delta"  class="num">Δ<span class="arrow"></span></th>
+        <th data-col="lipA"   class="num">A LS<span class="arrow"></span></th>
+        <th data-col="lipB"   class="num">B LS<span class="arrow"></span></th>
+        <th data-col="lipDelta" class="num">Δ LS<span class="arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script type="module">
+  import { LIP_SYNCS_CANONICAL } from '/src/data/lipSyncsCanonical.ts';
+
+  const $ = (id) => document.getElementById(id);
+
+  const tracks = { A: [], B: [] };
+  let allLipSyncRows = [];
+
+  function statClass(v) {
+    if (v >= 10) return 'stat-10';
+    if (v >= 8)  return 'stat-89';
+    if (v >= 6)  return 'stat-67';
+    if (v >= 5)  return 'stat-5';
+    if (v >= 3)  return 'stat-34';
+    return 'stat-02';
+  }
+
+  function applyStatColor(inputEl) {
+    const v = parseFloat(inputEl.value);
+    inputEl.classList.remove('stat-10', 'stat-89', 'stat-67', 'stat-5', 'stat-34', 'stat-02');
+    if (isFinite(v)) inputEl.classList.add(statClass(v));
+  }
+
+  // Mirrors src/engine/simulate.ts: winPoints(n) = n^2 - n + 4, btm2Penalty(n) = 2^(n+1).
+  // n is 1-indexed count of prior incidents of that type (after increment).
+  function rigStepDeltas(track) {
+    const deltas = [];
+    let wins = 0;
+    let btm2s = 0;
+    for (const p of track) {
+      if (p === 'WIN')      { wins++;  deltas.push(wins * wins - wins + 4); }
+      else if (p === 'BTM2') { btm2s++; deltas.push(-(1 << (btm2s + 1))); }
+      else if (p === 'HIGH') deltas.push(2);
+      else if (p === 'SAFE') deltas.push(1);
+      else if (p === 'LOW')  deltas.push(-2);
+      else                   deltas.push(0);
+    }
+    return deltas;
+  }
+
+  function rigScore(track) {
+    return rigStepDeltas(track).reduce((a, b) => a + b, 0);
+  }
+
+  function renderTrack(queen) {
+    const list = $(`track${queen}`);
+    const track = tracks[queen];
+    list.innerHTML = '';
+    if (track.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'track-empty';
+      empty.textContent = 'No episodes yet — click a placement button below.';
+      list.appendChild(empty);
+      return;
+    }
+    const deltas = rigStepDeltas(track);
+    track.forEach((pl, idx) => {
+      const row = document.createElement('div');
+      row.className = 'track-entry';
+      const ep = document.createElement('span');
+      ep.className = 'ep';
+      ep.textContent = `Ep ${idx + 1}`;
+      const label = document.createElement('span');
+      label.className = 'pl';
+      label.textContent = pl;
+      label.style.color = {
+        WIN: '#ffd700', HIGH: '#a8d8ea', SAFE: '#bbb', LOW: '#e8a87c', BTM2: '#e74c3c',
+      }[pl];
+      const delta = document.createElement('span');
+      const d = deltas[idx];
+      delta.className = 'delta ' + (d > 0 ? 'pos' : d < 0 ? 'neg' : '');
+      delta.textContent = (d > 0 ? '+' : '') + d;
+      const x = document.createElement('button');
+      x.textContent = '×';
+      x.title = 'Remove';
+      x.addEventListener('click', () => {
+        tracks[queen].splice(idx, 1);
+        renderAll();
+      });
+      row.appendChild(ep);
+      row.appendChild(label);
+      row.appendChild(delta);
+      row.appendChild(x);
+      list.appendChild(row);
+    });
+  }
+
+  function logistic(gap, scale) {
+    return 1 / (1 + Math.exp(-gap / scale));
+  }
+
+  // SVG plot constants — must match viewBox in markup.
+  const PLOT = { x0: 20, x1: 260, y0: 10, y1: 100, gMin: -90, gMax: 90 };
+  const gapToX = (g) => PLOT.x0 + ((g - PLOT.gMin) / (PLOT.gMax - PLOT.gMin)) * (PLOT.x1 - PLOT.x0);
+  const probToY = (p) => PLOT.y1 - p * (PLOT.y1 - PLOT.y0);
+
+  function renderCurve(scale, currentGap) {
+    const samples = 61;
+    const pts = [];
+    for (let i = 0; i < samples; i++) {
+      const g = PLOT.gMin + (i / (samples - 1)) * (PLOT.gMax - PLOT.gMin);
+      pts.push(`${gapToX(g).toFixed(2)},${probToY(logistic(g, scale)).toFixed(2)}`);
+    }
+    $('curvePath').setAttribute('d', 'M' + pts.join(' L'));
+    const clampedGap = Math.max(PLOT.gMin, Math.min(PLOT.gMax, currentGap));
+    $('curveDot').setAttribute('cx', gapToX(clampedGap).toFixed(2));
+    $('curveDot').setAttribute('cy', probToY(logistic(currentGap, scale)).toFixed(2));
+  }
+
+  function recomputeProbs() {
+    const a = parseFloat($('lipSyncA').value);
+    const b = parseFloat($('lipSyncB').value);
+    const riggory = parseInt($('riggory').value, 10) / 100;
+    const scale = parseInt($('scale').value, 10);
+    $('riggoryVal').textContent = riggory.toFixed(2);
+    $('scaleVal').textContent = String(scale);
+
+    const scoreA = rigScore(tracks.A);
+    const scoreB = rigScore(tracks.B);
+    $('rigA').textContent = scoreA;
+    $('rigB').textContent = scoreB;
+
+    const gap = scoreA - scoreB;
+    const pRig = logistic(gap, scale);
+    renderCurve(scale, gap);
+
+    if (!isFinite(a) || !isFinite(b) || a + b <= 0) {
+      $('pStat').textContent = '—';
+      $('pRig').textContent = '—';
+      $('rigWeight').textContent = '—';
+      $('pBlend').textContent = '—';
+      $('pAWins').textContent = '—';
+      return;
+    }
+
+    const pStat = a / (a + b);
+    const w = riggory * Math.abs(pRig - 0.5) * 2;
+    const pBlend = (1 - w) * pStat + w * pRig;
+
+    const fmt = (p) => `${(p * 100).toFixed(1)}%`;
+    $('pStat').textContent = fmt(pStat);
+    $('pRig').textContent = fmt(pRig);
+    $('rigWeight').textContent = w.toFixed(3);
+    $('pBlend').textContent = fmt(pBlend);
+    $('pAWins').textContent = fmt(pBlend);
+    renderHeatmap(riggory, scale);
+  }
+
+  // ─── Heatmap ───────────────────────────────────────────────────────────────
+
+  const HEATMAP = { gMin: -80, gMax: 80, lMin: -7, lMax: 7 };
+
+  function colorScale(p) {
+    const t = Math.max(0, Math.min(1, p));
+    const lo = [239, 68, 68];   // red — B wins
+    const mid = [60, 60, 60];    // dark gray — coin flip
+    const hi = [34, 197, 94];    // green — A wins
+    if (t < 0.5) {
+      const k = t * 2;
+      return [
+        Math.round(lo[0] + (mid[0] - lo[0]) * k),
+        Math.round(lo[1] + (mid[1] - lo[1]) * k),
+        Math.round(lo[2] + (mid[2] - lo[2]) * k),
+      ];
+    }
+    const k = (t - 0.5) * 2;
+    return [
+      Math.round(mid[0] + (hi[0] - mid[0]) * k),
+      Math.round(mid[1] + (hi[1] - mid[1]) * k),
+      Math.round(mid[2] + (hi[2] - mid[2]) * k),
+    ];
+  }
+
+  function pBlendAt(gap, lipDelta, riggory, scale) {
+    const a = 5.5 + lipDelta / 2;
+    const b = 5.5 - lipDelta / 2;
+    const pStat = a / (a + b);
+    const pRig = logistic(gap, scale);
+    const w = riggory * Math.abs(pRig - 0.5) * 2;
+    return (1 - w) * pStat + w * pRig;
+  }
+
+  function gapToPx(gap, W) {
+    return ((gap - HEATMAP.gMin) / (HEATMAP.gMax - HEATMAP.gMin)) * W;
+  }
+  function lipToPy(lipDelta, H) {
+    return ((HEATMAP.lMax - lipDelta) / (HEATMAP.lMax - HEATMAP.lMin)) * H;
+  }
+
+  function dotColor(pBlend) {
+    if (pBlend > 0.60) return '#22c55e';
+    if (pBlend < 0.40) return '#ef4444';
+    return '#aaa';
+  }
+
+  function renderHeatmap(riggory, scale) {
+    const canvas = $('heatmap');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const img = ctx.createImageData(W, H);
+    const xRange = HEATMAP.gMax - HEATMAP.gMin;
+    const yRange = HEATMAP.lMax - HEATMAP.lMin;
+    for (let py = 0; py < H; py++) {
+      const lipDelta = HEATMAP.lMax - (py + 0.5) * (yRange / H);
+      const a = 5.5 + lipDelta / 2;
+      const b = 5.5 - lipDelta / 2;
+      const pStat = a / (a + b);
+      for (let px = 0; px < W; px++) {
+        const gap = HEATMAP.gMin + (px + 0.5) * (xRange / W);
+        const pRig = logistic(gap, scale);
+        const w = riggory * Math.abs(pRig - 0.5) * 2;
+        const pBlend = (1 - w) * pStat + w * pRig;
+        const c = colorScale(pBlend);
+        const idx = (py * W + px) * 4;
+        img.data[idx]     = c[0];
+        img.data[idx + 1] = c[1];
+        img.data[idx + 2] = c[2];
+        img.data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Overlay real-world lip syncs as colored dots.
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    for (const r of allLipSyncRows) {
+      const gap = r.scoreA - r.scoreB;
+      const lipDelta = r.lipA - r.lipB;
+      if (gap < HEATMAP.gMin || gap > HEATMAP.gMax) continue;
+      if (lipDelta < HEATMAP.lMin || lipDelta > HEATMAP.lMax) continue;
+      const px = gapToPx(gap, W);
+      const py = lipToPy(lipDelta, H);
+      const pBlend = pBlendAt(gap, lipDelta, riggory, scale);
+      ctx.fillStyle = dotColor(pBlend);
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  (function wireHeatmapTooltip() {
+    const canvas = $('heatmap');
+    const tt = $('heatmapTooltip');
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const xScale = canvas.width / rect.width;
+      const yScale = canvas.height / rect.height;
+      const cx = (e.clientX - rect.left) * xScale;
+      const cy = (e.clientY - rect.top)  * yScale;
+      const riggory = parseInt($('riggory').value, 10) / 100;
+      const scale = parseInt($('scale').value, 10);
+
+      // Hit-test dots first.
+      let nearest = null;
+      let nearestDist = Infinity;
+      for (const r of allLipSyncRows) {
+        const gap = r.scoreA - r.scoreB;
+        const lipDelta = r.lipA - r.lipB;
+        if (gap < HEATMAP.gMin || gap > HEATMAP.gMax) continue;
+        if (lipDelta < HEATMAP.lMin || lipDelta > HEATMAP.lMax) continue;
+        const dx = cx - gapToPx(gap, canvas.width);
+        const dy = cy - lipToPy(lipDelta, canvas.height);
+        const d = Math.hypot(dx, dy);
+        if (d < nearestDist) { nearestDist = d; nearest = { row: r, gap, lipDelta }; }
+      }
+
+      tt.style.left = (e.clientX + 12) + 'px';
+      tt.style.top = (e.clientY + 12) + 'px';
+      tt.style.display = 'block';
+
+      const HIT = 8 * xScale;
+      if (nearest && nearestDist <= HIT) {
+        const { row, gap, lipDelta } = nearest;
+        const pBlend = pBlendAt(gap, lipDelta, riggory, scale);
+        const pStat = row.lipA / (row.lipA + row.lipB);
+        const sg = (gap >= 0 ? '+' : '') + gap;
+        const sl = (lipDelta >= 0 ? '+' : '') + lipDelta;
+        tt.innerHTML = `<b>${row.name}</b><br>Δ rig: <b>${sg}</b> &nbsp; Δ LS: <b>${sl}</b><br>pStat: <b>${(pStat * 100).toFixed(1)}%</b><br>pBlend: <b>${(pBlend * 100).toFixed(1)}%</b>`;
+      } else {
+        const xFrac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const yFrac = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+        const gap = HEATMAP.gMin + xFrac * (HEATMAP.gMax - HEATMAP.gMin);
+        const lipDelta = HEATMAP.lMax - yFrac * (HEATMAP.lMax - HEATMAP.lMin);
+        const pBlend = pBlendAt(gap, lipDelta, riggory, scale);
+        const sg = (gap >= 0 ? '+' : '') + gap.toFixed(0);
+        const sl = (lipDelta >= 0 ? '+' : '') + lipDelta.toFixed(1);
+        tt.innerHTML = `Δ rig: <b>${sg}</b><br>Δ LS: <b>${sl}</b><br>pBlend: <b>${(pBlend * 100).toFixed(1)}%</b>`;
+      }
+    });
+    canvas.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
+  })();
+
+  function renderAll() {
+    renderTrack('A');
+    renderTrack('B');
+    recomputeProbs();
+  }
+
+  // Wire up.
+  ['lipSyncA', 'lipSyncB'].forEach((id) => {
+    const el = $(id);
+    el.addEventListener('input', () => {
+      applyStatColor(el);
+      recomputeProbs();
+    });
+    applyStatColor(el);
+  });
+  $('riggory').addEventListener('input', recomputeProbs);
+  $('scale').addEventListener('input', recomputeProbs);
+
+  document.querySelectorAll('.placement-btns').forEach((group) => {
+    const queen = group.dataset.queen;
+    group.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        tracks[queen].push(btn.dataset.pl);
+        renderAll();
+      });
+    });
+  });
+
+  renderAll();
+
+  // ─── Lip-sync dropdown wiring ──────────────────────────────────────────────
+
+  const seasonsById = {};      // 'season1' → SeasonData
+  const seasonsBySId = {};     // 's01' → SeasonData
+  const queenById = {};        // queenId → Queen
+
+  function buildTrackRecord(season, queenId, throughEpisode) {
+    if (!season) return [];
+    const sorted = [...season.episodes].sort((a, b) => a.number - b.number);
+    const record = [];
+    for (const ep of sorted) {
+      if (ep.number > throughEpisode) break;
+      // Skip non-competition episodes (finale, recap/pass) — empty placements.
+      if (ep.kind && ep.kind !== 'regular') continue;
+      const placement = ep.placements?.[queenId];
+      record.push(placement || 'SAFE');
+    }
+    return record;
+  }
+
+  async function initLipSyncSelector() {
+    const seasonModules = import.meta.glob('/src/data/season*.ts');
+    await Promise.all(
+      Object.entries(seasonModules).map(async ([path, loader]) => {
+        const mod = await loader();
+        const s = mod.default;
+        if (!s) return;
+        seasonsById[s.id] = s;
+        const m = path.match(/season(\d+)\.ts$/);
+        if (m) seasonsBySId['s' + m[1].padStart(2, '0')] = s;
+        for (const q of s.queens) queenById[q.id] = q;
+      }),
+    );
+
+    // Filter to clean 1v1 single-winner lip syncs.
+    const lipSyncs = LIP_SYNCS_CANONICAL.filter((ls) =>
+      ls.type !== 'lalaparuza' &&
+      ls.outcome === 'single_winner' &&
+      ls.sides.length === 2 &&
+      ls.sides.every((s) => s.queens.length === 1) &&
+      ls.winners.length === 1 && ls.winners[0].queens.length === 1 &&
+      ls.eliminated.length === 1 && ls.eliminated[0].queens.length === 1 &&
+      queenById[ls.winners[0].queens[0]] && queenById[ls.eliminated[0].queens[0]],
+    );
+
+    lipSyncs.sort((a, b) => {
+      const sa = parseInt(a.seasonId.replace('s', ''), 10);
+      const sb = parseInt(b.seasonId.replace('s', ''), 10);
+      if (sa !== sb) return sa - sb;
+      if (a.episode !== b.episode) return a.episode - b.episode;
+      return (a.sequence || 0) - (b.sequence || 0);
+    });
+
+    const select = $('lipSyncSelect');
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— select —';
+    select.appendChild(placeholder);
+
+    let currentSeason = null;
+    let optgroup = null;
+    const lipSyncById = {};
+    for (const ls of lipSyncs) {
+      lipSyncById[ls.id] = ls;
+      if (ls.seasonId !== currentSeason) {
+        currentSeason = ls.seasonId;
+        optgroup = document.createElement('optgroup');
+        optgroup.label = seasonsBySId[ls.seasonId]?.name || ls.seasonId;
+        select.appendChild(optgroup);
+      }
+      const wq = queenById[ls.winners[0].queens[0]];
+      const lq = queenById[ls.eliminated[0].queens[0]];
+      const opt = document.createElement('option');
+      opt.value = ls.id;
+      opt.textContent = `Ep ${ls.episode}: ${wq.name} def. ${lq.name}`;
+      optgroup.appendChild(opt);
+    }
+
+    // Build the all-lip-syncs table.
+    allLipSyncRows = lipSyncs.map((ls) => {
+      const aId = ls.winners[0].queens[0];
+      const bId = ls.eliminated[0].queens[0];
+      const qa = queenById[aId];
+      const qb = queenById[bId];
+      const season = seasonsBySId[ls.seasonId];
+      const scoreA = rigScore(buildTrackRecord(season, aId, ls.episode));
+      const scoreB = rigScore(buildTrackRecord(season, bId, ls.episode));
+      const seasonNum = parseInt(ls.seasonId.replace(/^[a-z]+/, ''), 10);
+      const seasonPrefix = ls.seasonId.startsWith('as') ? 'AS' : 'S';
+      return {
+        id: ls.id,
+        name: `${seasonPrefix}${seasonNum} E${ls.episode}: ${qa.name} def. ${qb.name}`,
+        orderKey: (ls.seasonId.startsWith('as') ? 100 : 0) + seasonNum * 1000 + ls.episode * 10 + (ls.sequence || 0),
+        scoreA,
+        scoreB,
+        delta: scoreA - scoreB,
+        lipA: qa.lipSync,
+        lipB: qb.lipSync,
+        lipDelta: qa.lipSync - qb.lipSync,
+      };
+    });
+    const sortState = { col: 'name', dir: 1 };
+
+    function renderTable() {
+      const tbody = document.querySelector('#lipsyncTable tbody');
+      tbody.innerHTML = '';
+      const sortKey = (r) => sortState.col === 'name' ? r.orderKey : r[sortState.col];
+      const sorted = [...allLipSyncRows].sort((a, b) => (sortKey(a) - sortKey(b)) * sortState.dir);
+      for (const r of sorted) {
+        const tr = document.createElement('tr');
+        tr.dataset.id = r.id;
+        const deltaClass = r.delta > 0 ? 'delta-pos' : r.delta < 0 ? 'delta-neg' : '';
+        const deltaStr = (r.delta > 0 ? '+' : '') + r.delta;
+        const lipDeltaClass = r.lipDelta > 0 ? 'delta-pos' : r.lipDelta < 0 ? 'delta-neg' : '';
+        const lipDeltaStr = (r.lipDelta > 0 ? '+' : '') + r.lipDelta;
+        tr.innerHTML = `<td>${r.name}</td><td class="num">${r.scoreA}</td><td class="num">${r.scoreB}</td><td class="num ${deltaClass}">${deltaStr}</td><td class="num ${statClass(r.lipA)}">${r.lipA}</td><td class="num ${statClass(r.lipB)}">${r.lipB}</td><td class="num ${lipDeltaClass}">${lipDeltaStr}</td>`;
+        tr.addEventListener('click', () => {
+          select.value = r.id;
+          select.dispatchEvent(new Event('change'));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        tbody.appendChild(tr);
+      }
+      document.querySelectorAll('#lipsyncTable th').forEach((th) => {
+        const arrow = th.querySelector('.arrow');
+        arrow.textContent = th.dataset.col === sortState.col ? (sortState.dir === 1 ? '▲' : '▼') : '';
+      });
+    }
+
+    document.querySelectorAll('#lipsyncTable th').forEach((th) => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (sortState.col === col) sortState.dir *= -1;
+        else { sortState.col = col; sortState.dir = 1; }
+        renderTable();
+      });
+    });
+    renderTable();
+    recomputeProbs(); // Redraw heatmap now that allLipSyncRows is populated.
+
+    select.addEventListener('change', () => {
+      const ls = lipSyncById[select.value];
+      if (!ls) return;
+      const qa = queenById[ls.winners[0].queens[0]];
+      const qb = queenById[ls.eliminated[0].queens[0]];
+      const season = seasonsBySId[ls.seasonId];
+
+      const labelA = $('queenALabel');
+      labelA.innerHTML = '';
+      labelA.appendChild(document.createTextNode(qa.name));
+      const tag = document.createElement('span');
+      tag.className = 'winner-tag';
+      tag.textContent = '(winner)';
+      labelA.appendChild(tag);
+      labelA.style.color = qa.color;
+      labelA.classList.add('loaded');
+
+      const labelB = $('queenBLabel');
+      labelB.textContent = qb.name;
+      labelB.style.color = qb.color;
+      labelB.classList.add('loaded');
+
+      $('lipSyncA').value = qa.lipSync;
+      $('lipSyncB').value = qb.lipSync;
+      applyStatColor($('lipSyncA'));
+      applyStatColor($('lipSyncB'));
+
+      tracks.A = buildTrackRecord(season, qa.id, ls.episode);
+      tracks.B = buildTrackRecord(season, qb.id, ls.episode);
+
+      const warn = $('trackWarn');
+      if (tracks.A.length !== tracks.B.length) {
+        warn.textContent = `⚠ Track-record length mismatch: ${qa.name} has ${tracks.A.length}, ${qb.name} has ${tracks.B.length}.`;
+        warn.style.display = '';
+        console.warn('Mismatched track records', { ls, a: tracks.A, b: tracks.B });
+      } else {
+        warn.style.display = 'none';
+      }
+
+      renderAll();
+    });
+  }
+
+  initLipSyncSelector().catch((err) => {
+    console.error('Failed to initialize lip-sync selector:', err);
+    const select = $('lipSyncSelect');
+    select.innerHTML = '<option value="">— failed to load —</option>';
+  });
+</script>
+</body>
+</html>
