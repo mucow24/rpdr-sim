@@ -4,9 +4,13 @@ import type { SimulationResults, FilterCondition, TrajectoryPath } from './types
 import type { WorkerRequest, WorkerResponse } from './worker';
 import { createWorkerPool, type WorkerPool, type PoolTask } from './workerPool';
 
+export type DualResults = { rigged: SimulationResults; r0: SimulationResults };
+
 type PendingResolve =
   | { type: 'baseline'; resolve: (r: SimulationResults) => void }
+  | { type: 'baselineDual'; resolve: (r: DualResults) => void }
   | { type: 'importBuffer'; resolve: (r: SimulationResults) => void }
+  | { type: 'importBufferDual'; resolve: (r: DualResults) => void }
   | {
       type: 'filter';
       resolve: (r: {
@@ -58,8 +62,12 @@ export function useSimulation(onProgress?: (pct: number) => void) {
           if (pending.type === msg.type) {
             if (msg.type === 'baseline' && pending.type === 'baseline') {
               pending.resolve(msg.results);
+            } else if (msg.type === 'baselineDual' && pending.type === 'baselineDual') {
+              pending.resolve({ rigged: msg.rigged, r0: msg.r0 });
             } else if (msg.type === 'importBuffer' && pending.type === 'importBuffer') {
               pending.resolve(msg.results);
+            } else if (msg.type === 'importBufferDual' && pending.type === 'importBufferDual') {
+              pending.resolve({ rigged: msg.rigged, r0: msg.r0 });
             } else if (msg.type === 'filter' && pending.type === 'filter') {
               pending.resolve({
                 results: msg.results,
@@ -150,6 +158,79 @@ export function useSimulation(onProgress?: (pct: number) => void) {
     [getWorker, runParallel],
   );
 
+  /** Run dual-mode parallel baseline: each worker produces (rigged, r0) buffers
+   *  for its slice; merge both streams; aggregate both. */
+  const runParallelDual = useCallback(
+    (options: RunBaselineOptions): Promise<DualResults> => {
+      const totalSims = options.numSimulations ?? 100_000;
+      const workerCount = Math.min(NUM_WORKERS, totalSims);
+
+      const simsPerWorker = Math.floor(totalSims / workerCount);
+      const remainder = totalSims % workerCount;
+
+      const tasks: PoolTask[] = [];
+      for (let i = 0; i < workerCount; i++) {
+        const workerSims = simsPerWorker + (i < remainder ? 1 : 0);
+        tasks.push({
+          request: {
+            type: 'partialBaselineDual',
+            options: { ...options, numSimulations: workerSims },
+          } satisfies WorkerRequest,
+          weight: workerSims,
+        });
+      }
+
+      return getPool()
+        .runDual(tasks, (pct) => onProgressRef.current?.(pct))
+        .then(
+          (pairs) =>
+            new Promise<DualResults>((resolve) => {
+              const totalRiggedBytes = pairs.reduce((sum, p) => sum + p.riggedBuffer.byteLength, 0);
+              const totalR0Bytes = pairs.reduce((sum, p) => sum + p.r0Buffer.byteLength, 0);
+              const mergedRig = new Uint8Array(totalRiggedBytes);
+              const mergedR0 = new Uint8Array(totalR0Bytes);
+              let offRig = 0;
+              let offR0 = 0;
+              for (const p of pairs) {
+                mergedRig.set(new Uint8Array(p.riggedBuffer), offRig);
+                offRig += p.riggedBuffer.byteLength;
+                mergedR0.set(new Uint8Array(p.r0Buffer), offR0);
+                offR0 += p.r0Buffer.byteLength;
+              }
+
+              const primary = getWorker();
+              const id = nextId++;
+              pendingRef.current.set(id, { type: 'importBufferDual', resolve });
+              primary.postMessage({
+                type: 'importBufferDual',
+                riggedBuffer: mergedRig,
+                r0Buffer: mergedR0,
+                totalRuns: totalSims,
+                season: options.season,
+              } satisfies WorkerRequest);
+            }),
+        );
+    },
+    [getPool, getWorker],
+  );
+
+  const runBaselineDual = useCallback(
+    (options: RunBaselineOptions): Promise<DualResults> => {
+      if (NUM_WORKERS <= 1) {
+        return new Promise((resolve) => {
+          const id = nextId++;
+          pendingRef.current.set(id, { type: 'baselineDual', resolve });
+          getWorker().postMessage({
+            type: 'baselineDual',
+            options,
+          } satisfies WorkerRequest);
+        });
+      }
+      return runParallelDual(options);
+    },
+    [getWorker, runParallelDual],
+  );
+
   const runFilter = useCallback(
     (
       conditions: FilterCondition[],
@@ -205,5 +286,5 @@ export function useSimulation(onProgress?: (pct: number) => void) {
     [getWorker, runParallel],
   );
 
-  return { runBaseline, runFilter, runTrajectories, runFromState };
+  return { runBaseline, runBaselineDual, runFilter, runTrajectories, runFromState };
 }

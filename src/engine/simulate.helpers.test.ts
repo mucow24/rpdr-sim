@@ -21,6 +21,7 @@ import {
   extractTrajectories,
   getMatchingIndices,
   lipSyncWinProbA,
+  lipSyncWinProbs,
   outcomeToEpisodeResult,
   runBaseline,
   winPoints,
@@ -668,6 +669,36 @@ describe('lipSyncWinProbA — riggory blend', () => {
       expect(p).toBeGreaterThanOrEqual(0);
       expect(p).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+// lipSyncWinProbs returns BOTH the unrigged stat-only probability (pStat = the
+// r=0 value) and the rigged blend (pBlend = what `lipSyncWinProbA` returns at
+// the active riggory). Single source of truth so the dual-timeline driver can
+// compare both per lipsync without recomputing the blend twice. The legacy
+// `lipSyncWinProbA` is now a thin wrapper around this.
+describe('lipSyncWinProbs — both probs from one call', () => {
+  test('pBlend matches lipSyncWinProbA across the slider range', () => {
+    const samples: [number, number, number, number, number][] = [
+      [6, 4, +5, -5, 0.0], [6, 4, +5, -5, 0.25], [6, 4, +5, -5, 1.0],
+      [5, 5, +5, -5, 0.5], [3, 7, -5, +5, 0.7], [9, 1, 0, 0, 1.0],
+    ];
+    for (const [a, b, sa, sb, r] of samples) {
+      const { pBlend } = lipSyncWinProbs(a, b, sa, sb, r);
+      expect(pBlend).toBeCloseTo(lipSyncWinProbA(a, b, sa, sb, r), 12);
+    }
+  });
+
+  test('pStat is the pure stat ratio, independent of rig scores and riggory', () => {
+    expect(lipSyncWinProbs(6, 4, +100, -100, 0).pStat).toBeCloseTo(0.6, 12);
+    expect(lipSyncWinProbs(6, 4, -100, +100, 1).pStat).toBeCloseTo(0.6, 12);
+    expect(lipSyncWinProbs(5, 5, +5, -5, 0.5).pStat).toBeCloseTo(0.5, 12);
+    expect(lipSyncWinProbs(2, 8, 0, 0, 0.9).pStat).toBeCloseTo(0.2, 12);
+  });
+
+  test('riggory=0: pStat === pBlend (no divergence ever)', () => {
+    const { pStat, pBlend } = lipSyncWinProbs(6, 4, +100, -100, 0);
+    expect(pStat).toBe(pBlend);
   });
 });
 

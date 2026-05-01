@@ -93,11 +93,29 @@ export function assignPlacements(
   return placements;
 }
 
-/** Probability queenA wins the lip sync, given each side's lipSync stat,
- *  cumulative rig-score, and the riggory dial. r=0 reduces to the pure
- *  stat ratio (pre-riggory behavior); r=1 picks the frontrunner outright,
- *  with score ties falling back to the stat ratio so lipSync still
- *  matters at the extreme. @internal — exported for direct testing */
+/** Both lipsync win probabilities for queenA from one call:
+ *   - `pStat`: pure stat ratio = the r=0 (no-riggory) probability
+ *   - `pBlend`: stat ⨯ rig-frontrunner blend at the active riggory
+ *  The dual-timeline driver compares both per lipsync; `lipSyncWinProbA`
+ *  is a thin wrapper for the single-timeline path and tests.
+ *
+ *  r=0 → pBlend === pStat. r=1 → pBlend picks the frontrunner outright;
+ *  score ties fall back to pStat so lipSync still matters at the extreme.
+ *  @internal — exported for direct testing */
+export function lipSyncWinProbs(
+  lipSyncA: number,
+  lipSyncB: number,
+  scoreA: number,
+  scoreB: number,
+  riggory: number,
+): { pStat: number; pBlend: number } {
+  const pStat = lipSyncA / (lipSyncA + lipSyncB);
+  if (riggory <= 0) return { pStat, pBlend: pStat };
+  const pRig = scoreA > scoreB ? 1 : scoreA < scoreB ? 0 : pStat;
+  return { pStat, pBlend: (1 - riggory) * pStat + riggory * pRig };
+}
+
+/** @internal — exported for direct testing */
 export function lipSyncWinProbA(
   lipSyncA: number,
   lipSyncB: number,
@@ -105,10 +123,7 @@ export function lipSyncWinProbA(
   scoreB: number,
   riggory: number,
 ): number {
-  const pStat = lipSyncA / (lipSyncA + lipSyncB);
-  if (riggory <= 0) return pStat;
-  const pRig = scoreA > scoreB ? 1 : scoreA < scoreB ? 0 : pStat;
-  return (1 - riggory) * pStat + riggory * pRig;
+  return lipSyncWinProbs(lipSyncA, lipSyncB, scoreA, scoreB, riggory).pBlend;
 }
 
 function resolveLipSync(
@@ -266,43 +281,151 @@ interface EpisodeHandler<E extends EpisodeData> {
   apply(ep: E, ctx: SimCtx): void;
 }
 
+/** Shallow-clone a SimCtx for forking the dual-timeline driver at the moment
+ *  a lipsync diverges between rigged and r=0 outcomes. Maps and arrays are
+ *  copied; `queens`, `episodes`, and `rng` are shared (queens/episodes are
+ *  immutable inputs; the rng is intentionally shared so post-fork draws come
+ *  from one stream in a deterministic interleaving — driver advances r0
+ *  before rig). EpisodeResult objects already in `episodeResults` are
+ *  immutable after push, so sharing them across forks is safe.
+ *  @internal */
+function cloneSimCtx(ctx: SimCtx): SimCtx {
+  return {
+    queens: ctx.queens,
+    remaining: new Map(ctx.remaining),
+    rng: ctx.rng,
+    noise: ctx.noise,
+    riggory: ctx.riggory,
+    rigScores: new Map(ctx.rigScores),
+    winCounts: new Map(ctx.winCounts),
+    btm2Counts: new Map(ctx.btm2Counts),
+    eliminationOrder: [...ctx.eliminationOrder],
+    finalRanks: new Map(ctx.finalRanks),
+    episodeResults: [...ctx.episodeResults],
+    episodes: ctx.episodes,
+  };
+}
+
+/** Score every remaining queen, assign placement bands, run prior-winner
+ *  immunity backfill, and accumulate rig-deltas. Returns the placements map.
+ *  This is the deterministic-given-RNG portion of a regular episode — riggory
+ *  has no influence here. The dual driver runs this once for the coupled
+ *  pre-fork phase, then both forks run their own copies post-fork.
+ *  @internal — exported for direct testing */
+export function runChallengeAndBands(
+  episode: RegularEpisode,
+  ctx: SimCtx,
+): Map<string, EpisodeOutcome> {
+  const activeQueens = Array.from(ctx.remaining.values());
+  const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
+  const scores = activeQueens.map((q) => ({
+    queenId: q.id,
+    score: scoreQueen(q, weights, ctx.noise, ctx.rng),
+  }));
+  const placements = assignPlacements(scores);
+  applyPriorWinnerImmunity(placements, scores, ctx.episodes, ctx.episodeResults, ctx.remaining);
+  applyRigDeltas(placements, ctx.rigScores, ctx.winCounts, ctx.btm2Counts);
+  return placements;
+}
+
+/** Extract the bottom-2 queen ids from a placements map. Order matches map
+ *  insertion order (the order assigned by `assignPlacements`).
+ *  @internal — exported for direct testing */
+export function extractBottom2(placements: Map<string, EpisodeOutcome>): string[] {
+  const bottom2: string[] = [];
+  for (const [id, p] of placements) {
+    if (p === 'BTM2') bottom2.push(id);
+  }
+  return bottom2;
+}
+
+function recordNonElimEpisode(
+  ctx: SimCtx,
+  episode: RegularEpisode,
+  placements: Map<string, EpisodeOutcome>,
+): void {
+  ctx.episodeResults.push({
+    episodeNumber: episode.number,
+    placements,
+    lipSyncMatchup: ['', ''],
+    lipSyncWinner: '',
+    eliminated: '',
+  });
+}
+
+function recordDefensiveEpisode(
+  ctx: SimCtx,
+  episode: RegularEpisode,
+  placements: Map<string, EpisodeOutcome>,
+  bottom2: string[],
+): void {
+  ctx.episodeResults.push({
+    episodeNumber: episode.number,
+    placements,
+    lipSyncMatchup: [bottom2[0] ?? '', bottom2[1] ?? ''],
+    lipSyncWinner: bottom2[0] ?? '',
+    eliminated: '',
+  });
+}
+
+function applyDoubleElim(
+  ctx: SimCtx,
+  episode: RegularEpisode,
+  placements: Map<string, EpisodeOutcome>,
+  bottom2: string[],
+): void {
+  const [a, b] = bottom2;
+  placements.set(a, 'ELIM');
+  placements.set(b, 'ELIM');
+  ctx.remaining.delete(a);
+  ctx.remaining.delete(b);
+  ctx.eliminationOrder.push(a, b);
+  ctx.episodeResults.push({
+    episodeNumber: episode.number,
+    placements,
+    lipSyncMatchup: [a, b],
+    lipSyncWinner: '',
+    eliminated: a, // narrative convenience; both encoded as ELIM in placements
+  });
+}
+
+/** Apply a lipsync result: mark loser ELIM, mutate `remaining` /
+ *  `eliminationOrder`, push the EpisodeResult. The decision of *who* wins
+ *  the lipsync lives upstream — this just records the outcome.
+ *  @internal — exported for direct testing */
+export function applyLipSyncOutcome(
+  ctx: SimCtx,
+  episode: RegularEpisode,
+  placements: Map<string, EpisodeOutcome>,
+  bottom2: string[],
+  lipSyncWinner: string,
+): void {
+  const eliminated = lipSyncWinner === bottom2[0] ? bottom2[1] : bottom2[0];
+  placements.set(eliminated, 'ELIM');
+  ctx.remaining.delete(eliminated);
+  ctx.eliminationOrder.push(eliminated);
+  ctx.episodeResults.push({
+    episodeNumber: episode.number,
+    placements,
+    lipSyncMatchup: [bottom2[0], bottom2[1]],
+    lipSyncWinner,
+    eliminated,
+  });
+}
+
 const regularHandler: EpisodeHandler<RegularEpisode> = {
   apply(episode, ctx) {
-    const activeQueens = Array.from(ctx.remaining.values());
-    const weights = episode.weights ?? ARCHETYPES[episode.archetype].weights;
-    const scores = activeQueens.map((q) => ({
-      queenId: q.id,
-      score: scoreQueen(q, weights, ctx.noise, ctx.rng),
-    }));
-    const placements = assignPlacements(scores);
-    applyPriorWinnerImmunity(placements, scores, ctx.episodes, ctx.episodeResults, ctx.remaining);
-    applyRigDeltas(placements, ctx.rigScores, ctx.winCounts, ctx.btm2Counts);
+    const placements = runChallengeAndBands(episode, ctx);
 
-    // Non-elim episode: record placements, no lip sync, no removals.
     if (episode.eliminated.length === 0) {
-      ctx.episodeResults.push({
-        episodeNumber: episode.number,
-        placements,
-        lipSyncMatchup: ['', ''],
-        lipSyncWinner: '',
-        eliminated: '',
-      });
+      recordNonElimEpisode(ctx, episode, placements);
       return;
     }
 
-    const bottom2 = Array.from(placements.entries())
-      .filter(([, p]) => p === 'BTM2')
-      .map(([id]) => id);
+    const bottom2 = extractBottom2(placements);
 
-    // Defensive: if fewer than 2 BTM2 queens (tiny field), no lipsync.
     if (bottom2.length < 2) {
-      ctx.episodeResults.push({
-        episodeNumber: episode.number,
-        placements,
-        lipSyncMatchup: [bottom2[0] ?? '', bottom2[1] ?? ''],
-        lipSyncWinner: bottom2[0] ?? '',
-        eliminated: '',
-      });
+      recordDefensiveEpisode(ctx, episode, placements, bottom2);
       return;
     }
 
@@ -311,19 +434,7 @@ const regularHandler: EpisodeHandler<RegularEpisode> = {
     // elim episode leaves an extra queen alive at finale and throws every
     // subsequent placement off by one.
     if (episode.eliminated.length >= 2) {
-      const [a, b] = bottom2;
-      placements.set(a, 'ELIM');
-      placements.set(b, 'ELIM');
-      ctx.remaining.delete(a);
-      ctx.remaining.delete(b);
-      ctx.eliminationOrder.push(a, b);
-      ctx.episodeResults.push({
-        episodeNumber: episode.number,
-        placements,
-        lipSyncMatchup: [a, b],
-        lipSyncWinner: '',
-        eliminated: a, // narrative convenience; both encoded as ELIM in placements
-      });
+      applyDoubleElim(ctx, episode, placements, bottom2);
       return;
     }
 
@@ -332,18 +443,7 @@ const regularHandler: EpisodeHandler<RegularEpisode> = {
     const scoreA = ctx.rigScores.get(queenA.id) ?? 0;
     const scoreB = ctx.rigScores.get(queenB.id) ?? 0;
     const lipSyncWinner = resolveLipSync(queenA, queenB, scoreA, scoreB, ctx.riggory, ctx.rng);
-    const eliminated = lipSyncWinner === bottom2[0] ? bottom2[1] : bottom2[0];
-    placements.set(eliminated, 'ELIM');
-    ctx.remaining.delete(eliminated);
-    ctx.eliminationOrder.push(eliminated);
-
-    ctx.episodeResults.push({
-      episodeNumber: episode.number,
-      placements,
-      lipSyncMatchup: [bottom2[0], bottom2[1]],
-      lipSyncWinner,
-      eliminated,
-    });
+    applyLipSyncOutcome(ctx, episode, placements, bottom2, lipSyncWinner);
   },
 };
 
@@ -462,27 +562,152 @@ function simulateOneSeason(
 
   const startIdx = midSeason?.startEpisodeIndex ?? 0;
   for (let epIdx = startIdx; epIdx < episodes.length; epIdx++) {
-    const episode = episodes[epIdx];
-    if (isFinale(episode)) finaleHandler.apply(episode, ctx);
-    else if (isPass(episode)) passHandler.apply(episode, ctx);
-    else regularHandler.apply(episode, ctx);
+    applyEpisode(episodes[epIdx], ctx);
   }
 
-  // Fallback when no finale ran: derive ranks purely from elimination order,
-  // then assign any unranked-remaining queens the lowest non-eliminated
-  // ranks (arbitrary order — caller should have included a finale episode).
-  if (ctx.finalRanks.size === 0) {
-    const totalQueens = queens.length;
-    for (let i = 0; i < eliminationOrder.length; i++) {
-      ctx.finalRanks.set(eliminationOrder[i], totalQueens - i);
-    }
-    let nextRank = 1;
-    for (const id of remaining.keys()) {
-      if (!ctx.finalRanks.has(id)) ctx.finalRanks.set(id, nextRank++);
-    }
-  }
-
+  ensureFinalRanks(ctx);
   return { episodeResults, finalRanks: ctx.finalRanks };
+}
+
+/** Dispatch one episode to its handler. Used by both single and dual drivers
+ *  post-fork. @internal */
+function applyEpisode(episode: EpisodeData, ctx: SimCtx): void {
+  if (isFinale(episode)) finaleHandler.apply(episode, ctx);
+  else if (isPass(episode)) passHandler.apply(episode, ctx);
+  else regularHandler.apply(episode, ctx);
+}
+
+/** Fallback when no finale ran: derive ranks from elimination order, then
+ *  assign any unranked-remaining queens the lowest non-eliminated ranks
+ *  (arbitrary order — caller should have included a finale episode).
+ *  No-op when finale already populated `finalRanks`. @internal */
+function ensureFinalRanks(ctx: SimCtx): void {
+  if (ctx.finalRanks.size > 0) return;
+  const totalQueens = ctx.queens.length;
+  for (let i = 0; i < ctx.eliminationOrder.length; i++) {
+    ctx.finalRanks.set(ctx.eliminationOrder[i], totalQueens - i);
+  }
+  let nextRank = 1;
+  for (const id of ctx.remaining.keys()) {
+    if (!ctx.finalRanks.has(id)) ctx.finalRanks.set(id, nextRank++);
+  }
+}
+
+/** Dual-timeline season simulation: produces both the rigged (riggory=N) and
+ *  the r=0 counterfactual SimulationRuns from a single walk through the
+ *  season. Coupled phase: only the rigged ctx exists, both runs share its
+ *  trajectory because no lipsync has yet resolved differently. On the first
+ *  divergent lipsync, fork: clone the ctx into ctxR0 (riggory=0), apply each
+ *  outcome to its own fork, then advance both ctxs through the rest of the
+ *  season independently via `applyEpisode`.
+ *
+ *  Invariant: at most two trajectories per call. The r0 fork runs at
+ *  riggory=0, where `lipSyncWinProbs` returns `pStat === pBlend` — so the
+ *  r0 fork can never itself diverge. */
+/** @internal — exported for direct testing of the dual driver with custom RNG */
+export function simulateOneSeasonDual(
+  queens: Queen[],
+  episodes: EpisodeData[],
+  noise: number,
+  riggory: number,
+  rng: Rng,
+): { rigged: SimulationRun; r0: SimulationRun } {
+  const queenMap = new Map(queens.map((q) => [q.id, q]));
+  const ctxRig: SimCtx = {
+    queens,
+    remaining: new Map(queenMap),
+    rng,
+    noise,
+    riggory,
+    rigScores: new Map(),
+    winCounts: new Map(),
+    btm2Counts: new Map(),
+    eliminationOrder: [],
+    finalRanks: new Map(),
+    episodeResults: [],
+    episodes,
+  };
+  let ctxR0: SimCtx | null = null;
+
+  for (let epIdx = 0; epIdx < episodes.length; epIdx++) {
+    const episode = episodes[epIdx];
+
+    // Post-fork: independent advancement on both ctxs. Apply r0 first, then
+    // rig, so the rng-consumption order is deterministic.
+    if (ctxR0) {
+      applyEpisode(episode, ctxR0);
+      applyEpisode(episode, ctxRig);
+      continue;
+    }
+
+    // Coupled phase. Pass / finale episodes can't fork — riggory plays no
+    // role in them — so just advance ctxRig.
+    if (isFinale(episode) || isPass(episode)) {
+      applyEpisode(episode, ctxRig);
+      continue;
+    }
+
+    // Regular episode: split into phases so we can intercept the lipsync.
+    const placements = runChallengeAndBands(episode, ctxRig);
+
+    if (episode.eliminated.length === 0) {
+      recordNonElimEpisode(ctxRig, episode, placements);
+      continue;
+    }
+    const bottom2 = extractBottom2(placements);
+    if (bottom2.length < 2) {
+      recordDefensiveEpisode(ctxRig, episode, placements, bottom2);
+      continue;
+    }
+    if (episode.eliminated.length >= 2) {
+      applyDoubleElim(ctxRig, episode, placements, bottom2);
+      continue;
+    }
+
+    // Single-elim with lipsync — this is the only place a fork can fire.
+    const queenA = ctxRig.remaining.get(bottom2[0])!;
+    const queenB = ctxRig.remaining.get(bottom2[1])!;
+    const scoreA = ctxRig.rigScores.get(queenA.id) ?? 0;
+    const scoreB = ctxRig.rigScores.get(queenB.id) ?? 0;
+    const { pStat, pBlend } = lipSyncWinProbs(
+      queenA.lipSync, queenB.lipSync, scoreA, scoreB, ctxRig.riggory,
+    );
+    const u = rng();
+    const winnerRig = u < pBlend ? queenA.id : queenB.id;
+    const winnerR0 = u < pStat ? queenA.id : queenB.id;
+
+    if (winnerRig === winnerR0) {
+      // No divergence — coupled continues.
+      applyLipSyncOutcome(ctxRig, episode, placements, bottom2, winnerRig);
+      continue;
+    }
+
+    // Divergence: fork. Clone ctxRig BEFORE applying the rigged outcome (the
+    // clone must reflect pre-lipsync state). The placements map gets cloned
+    // too so each fork's ELIM marker lands on its own copy.
+    ctxR0 = cloneSimCtx(ctxRig);
+    ctxR0.riggory = 0;
+    const placementsR0 = new Map(placements);
+    applyLipSyncOutcome(ctxRig, episode, placements, bottom2, winnerRig);
+    applyLipSyncOutcome(ctxR0, episode, placementsR0, bottom2, winnerR0);
+  }
+
+  ensureFinalRanks(ctxRig);
+  if (!ctxR0) {
+    // Never forked — both runs share the rigged trajectory. The shared
+    // `episodeResults` and `finalRanks` are safe because nothing mutates
+    // them after this function returns; consumers (writeRunToBuffer,
+    // aggregator) only read.
+    return {
+      rigged: { episodeResults: ctxRig.episodeResults, finalRanks: ctxRig.finalRanks },
+      r0: { episodeResults: ctxRig.episodeResults, finalRanks: ctxRig.finalRanks },
+    };
+  }
+  ensureFinalRanks(ctxR0);
+  return {
+    rigged: { episodeResults: ctxRig.episodeResults, finalRanks: ctxRig.finalRanks },
+    r0: { episodeResults: ctxR0.episodeResults, finalRanks: ctxR0.finalRanks },
+  };
 }
 
 // ── Compact buffer layout ──────────────────────────────────
@@ -637,6 +862,56 @@ export function runBaseline(
 ): BaselineResult {
   const buffer = runToBuffer(season, numSimulations, noise, riggory, resolveRng(seed), undefined, onProgress);
   return wrapAsBaselineResult(buffer, season, numSimulations);
+}
+
+export interface BaselineDualResult {
+  rigged: BaselineResult;
+  r0: BaselineResult;
+}
+
+/** Run baseline simulations and emit both the rigged result and the
+ *  riggory=0 counterfactual from a single MC pass. Per-run dual-tracking
+ *  costs work only when a lipsync resolves to different winners under r=N
+ *  vs r=0; in practice that's rare and late in the season, so total cost
+ *  stays close to a single `runBaseline` call.
+ *
+ *  When `riggory === 0`, no fork can ever fire, so this delegates to
+ *  `runBaseline` and aliases the result as both branches. Aggregate
+ *  statistics agree with two separate `runBaseline` calls in expectation —
+ *  not byte-identical, since the dual driver consumes RNG differently. */
+export function runBaselineDual(
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, seed }: RunBaselineOptions,
+  onProgress?: (pct: number) => void,
+): BaselineDualResult {
+  if (riggory <= 0) {
+    const result = runBaseline({ season, numSimulations, noise, riggory: 0, seed }, onProgress);
+    return { rigged: result, r0: result };
+  }
+
+  const { queens, episodes } = season;
+  const numQueens = queens.length;
+  const numEpisodes = episodes.length;
+  const queenIds = queens.map((q) => q.id);
+  const stride = bytesPerRun(numQueens, numEpisodes);
+
+  const bufRig = new Uint8Array(numSimulations * stride);
+  const bufR0 = new Uint8Array(numSimulations * stride);
+  const rng = resolveRng(seed);
+
+  const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
+  for (let i = 0; i < numSimulations; i++) {
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, noise, riggory, rng);
+    writeRunToBuffer(bufRig, i, rigged, queenIds, numQueens, numEpisodes);
+    writeRunToBuffer(bufR0, i, r0, queenIds, numQueens, numEpisodes);
+    if (onProgress && i % progressInterval === 0) {
+      onProgress(Math.round((i / numSimulations) * 100));
+    }
+  }
+
+  return {
+    rigged: wrapAsBaselineResult(bufRig, season, numSimulations),
+    r0: wrapAsBaselineResult(bufR0, season, numSimulations),
+  };
 }
 
 /** Run baseline simulations and return only the compact buffer (no aggregation). */
