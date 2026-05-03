@@ -32,6 +32,7 @@ export default function App() {
   const setRiggory = useStore((s) => s.setRiggory);
   const riggoryScale = useStore((s) => s.riggoryScale);
   const setRiggoryScale = useStore((s) => s.setRiggoryScale);
+  const riggoryFormula = useStore((s) => s.riggoryFormula);
   const [riggoryScaleDraft, setRiggoryScaleDraft] = useState(() => String(riggoryScale));
   useEffect(() => { setRiggoryScaleDraft(String(riggoryScale)); }, [riggoryScale]);
   const commitRiggoryScale = useCallback(() => {
@@ -80,20 +81,20 @@ export default function App() {
     // One pass — the engine emits both the active (rigged) result and the r=0
     // counterfactual. Per-MC-run dual tracking only diverges when a lipsync
     // resolves to different winners, so cost stays close to a single sim.
-    runBaselineDual({ season: baselineSeason, numSimulations: n, riggory, riggoryScale })
+    runBaselineDual({ season: baselineSeason, numSimulations: n, riggory, riggoryScale, riggoryFormula })
       .then(({ rigged, r0 }) => {
         setBaselineResults(rigged);
         setBaselineR0Results(riggory > 0 ? r0 : null);
         setIsSimulating(false);
         setSimulationProgress(null);
       });
-  }, [baselineSeason, riggory, riggoryScale, runBaselineDual, setBaselineResults, setBaselineR0Results, setIsSimulating, setSimulationProgress]);
+  }, [baselineSeason, riggory, riggoryScale, riggoryFormula, runBaselineDual, setBaselineResults, setBaselineR0Results, setIsSimulating, setSimulationProgress]);
 
   // Run baseline on mount and when season changes — but only in simulation mode.
   useEffect(() => {
     if (appMode !== 'simulation') return;
     triggerSimulation(numSimulations);
-  }, [baselineSeason, appMode, numSimulations, riggory, riggoryScale, triggerSimulation]);
+  }, [baselineSeason, appMode, numSimulations, riggory, riggoryScale, riggoryFormula, triggerSimulation]);
 
   // Run filter when conditions change
   useEffect(() => {

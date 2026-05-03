@@ -260,6 +260,32 @@
     min-width: 3rem;
     text-align: center;
   }
+  .formula-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0.6rem;
+  }
+  .formula-actions button {
+    background: #1f1f2a;
+    color: #f59e0b;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.3rem 0.7rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .formula-actions button:hover { background: #2a2a3a; border-color: #f59e0b; }
+  .formula-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .formula-sync-status {
+    color: #6ee7b7;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 0.4s;
+  }
+  .formula-sync-status.warn { color: #fca5a5; }
 
   .ls-table {
     width: 100%;
@@ -477,6 +503,11 @@
       </thead>
       <tbody></tbody>
     </table>
+    <div class="formula-actions">
+      <button type="button" id="loadFromSim" title="Replace this formula with the values currently in the sim's store">Load from sim</button>
+      <button type="button" id="pushToSim" title="Save this formula to the sim's store; the next sim run will use it">Push to sim</button>
+      <span id="formulaSyncStatus" class="formula-sync-status"></span>
+    </div>
   </details>
 
   <h2>All Lip Syncs</h2>
@@ -906,6 +937,14 @@
         `<td class="num"><input class="fn" type="number" step="1" data-pl="${pl}" data-key="d2p" value="${f.d2p}" /></td>`;
       tbody.appendChild(tr);
     }
+    function applyFormulaChange() {
+      // Formula change ripples through everything: per-queen tracks, current
+      // matchup probs, the all-lip-syncs table (scoreA/scoreB recompute), and
+      // the heatmap (rendered inside recomputeProbs from allLipSyncRows).
+      rebuildAllLipSyncRows();
+      renderLipSyncTable();
+      renderAll();
+    }
     tbody.addEventListener('input', (e) => {
       const t = e.target;
       if (!(t instanceof HTMLInputElement) || !t.classList.contains('fn')) return;
@@ -914,12 +953,80 @@
       const v = parseFloat(t.value);
       if (!isFinite(v)) return;
       formula[pl][key] = v;
-      // Formula change ripples through everything: per-queen tracks, current
-      // matchup probs, the all-lip-syncs table (scoreA/scoreB recompute), and
-      // the heatmap (rendered inside recomputeProbs from allLipSyncRows).
-      rebuildAllLipSyncRows();
-      renderLipSyncTable();
-      renderAll();
+      applyFormulaChange();
+    });
+
+    // ── Load from sim / Push to sim ──
+    // The sim's source of truth is zustand-persist under `rpdr-sim-store` in
+    // localStorage. We read/write the `state.riggoryFormula` slot directly.
+    // Pushing only affects the next sim page load — zustand reads localStorage
+    // once at hydrate, so users need to reload the sim page to pick it up.
+    const STORE_KEY = 'rpdr-sim-store';
+    function isFormulaShape(x) {
+      if (!x || typeof x !== 'object') return false;
+      for (const pl of PLACEMENTS) {
+        const e = x[pl];
+        if (!e || typeof e !== 'object') return false;
+        for (const k of ['points', 'dp', 'd2p']) {
+          if (typeof e[k] !== 'number' || !isFinite(e[k])) return false;
+        }
+      }
+      return true;
+    }
+    function readSimFormula() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const f = parsed?.state?.riggoryFormula;
+        return isFormulaShape(f) ? f : null;
+      } catch { return null; }
+    }
+    function writeSimFormula(f) {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.state) return false;
+        parsed.state.riggoryFormula = JSON.parse(JSON.stringify(f));
+        localStorage.setItem(STORE_KEY, JSON.stringify(parsed));
+        return true;
+      } catch { return false; }
+    }
+    function syncInputsFromFormula() {
+      for (const pl of PLACEMENTS) {
+        for (const key of ['points', 'dp', 'd2p']) {
+          const inp = tbody.querySelector(`input.fn[data-pl="${pl}"][data-key="${key}"]`);
+          if (inp) inp.value = String(formula[pl][key]);
+        }
+      }
+    }
+    let statusTimer = null;
+    function showStatus(msg, warn) {
+      const el = $('formulaSyncStatus');
+      el.textContent = msg;
+      el.classList.toggle('warn', !!warn);
+      el.style.opacity = '1';
+      if (statusTimer) clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
+    }
+    $('loadFromSim').addEventListener('click', () => {
+      const fromStore = readSimFormula();
+      // If the store has no formula yet (fresh user, or a sim version that
+      // pre-dates this field), fall back to the engine defaults — which match
+      // the sim's actual runtime behavior at hydrate-time.
+      const src = fromStore ?? FORMULA_DEFAULTS;
+      for (const pl of PLACEMENTS) Object.assign(formula[pl], src[pl]);
+      syncInputsFromFormula();
+      applyFormulaChange();
+      showStatus(fromStore ? 'Loaded from sim' : 'Loaded sim defaults (store had none)');
+    });
+    $('pushToSim').addEventListener('click', () => {
+      const ok = writeSimFormula(formula);
+      showStatus(
+        ok ? 'Pushed — reload the sim page to apply' : 'Could not write to storage',
+        !ok,
+      );
     });
   })();
 
