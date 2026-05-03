@@ -117,7 +117,9 @@ describe('[oracle] divergence at a single lipsync', () => {
     // ep1 lipsync u=0.3 → q5 (A) wins, q6 eliminated. No divergence (pBlend=pStat=0.5
     // due to tied rig scores). Then ep2 lipsync u=0.7 → divergence.
     const rng = fixedRng([0.3, 0.7, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, rng);
+    // Use scale=1 (very steep logistic) so the +6 rig gap pushes pRig ≈ 1,
+    // letting these tests express the saturation behavior of the new model.
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, 1, rng);
 
     // ep1: identical (no divergence possible)
     expect(rigged.episodeResults[0].eliminated).toBe('q6');
@@ -132,7 +134,7 @@ describe('[oracle] divergence at a single lipsync', () => {
   test('riggory=1 with non-divergent u (u=0.3 < pStat=0.5): no fork; both eliminate q5', () => {
     const { queens, episodes } = divergenceFixture();
     const rng = fixedRng([0.3, 0.3, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, rng);
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, 1, rng);
 
     expect(rigged.episodeResults[1].eliminated).toBe('q5');
     expect(r0.episodeResults[1].eliminated).toBe('q5');
@@ -144,7 +146,7 @@ describe('[oracle] divergence at a single lipsync', () => {
   test('riggory=0 input: pBlend=pStat for all lipsyncs → no fork ever; identity', () => {
     const { queens, episodes } = divergenceFixture();
     const rng = fixedRng([0.3, 0.7, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 0, rng);
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 0, 13, rng);
     expect(rigged.episodeResults).toBe(r0.episodeResults);
   });
 });
@@ -235,7 +237,7 @@ describe('[post-fork] handlers behave correctly on each forked ctx', () => {
       finaleEp(4),
     ];
     const rng = fixedRng([0.3, 0.7, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, rng);
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, 1, rng);
 
     // Pass episode is recorded as an empty placements map in both forks.
     expect(rigged.episodeResults[2].placements.size).toBe(0);
@@ -255,7 +257,7 @@ describe('[post-fork] handlers behave correctly on each forked ctx', () => {
       finaleEp(3),
     ];
     const rng = fixedRng([0.3, 0.7, 0.4, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, rng);
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, 0, 1, 1, rng);
 
     // Both forks must produce 4 finalists with ranks 1..4 plus the eliminated
     // queens at ranks 5..6, totaling all 6 queens with distinct 1-based ranks.

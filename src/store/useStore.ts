@@ -64,6 +64,9 @@ export interface AppState {
   /** 0..1 — biases lip syncs toward the season's frontrunner. See
    *  RunBaselineOptions.riggory. */
   riggory: number;
+  /** Logistic scale for the rig-gap → pRig curve. See
+   *  RunBaselineOptions.riggoryScale. */
+  riggoryScale: number;
 
   // UI preferences
   appMode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs';
@@ -102,6 +105,7 @@ export interface AppState {
   setTrajectoryPaths: (paths: TrajectoryPath[] | null, totalRuns: number | null) => void;
   setNumSimulations: (n: number) => void;
   setRiggory: (r: number) => void;
+  setRiggoryScale: (scale: number) => void;
 
   // UI
   setAppMode: (mode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs') => void;
@@ -199,6 +203,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
 
     numSimulations: 100_000,
     riggory: 0,
+    riggoryScale: 13,
 
     appMode: 'simulation',
     enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
@@ -497,6 +502,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
 
     setNumSimulations: (n) => set({ numSimulations: n }),
     setRiggory: (r) => set({ riggory: Math.max(0, Math.min(1, r)) }),
+    setRiggoryScale: (scale) => set({ riggoryScale: Math.max(0.1, scale), ...RESULT_INVALIDATIONS }),
 
     setAppMode: (mode) => set({ appMode: mode }),
 
@@ -567,6 +573,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     enabledCalibrateSeasons: s.enabledCalibrateSeasons,
     numSimulations: s.numSimulations,
     riggory: s.riggory,
+    riggoryScale: s.riggoryScale,
   }),
 }));
 

@@ -715,22 +715,25 @@ describe('[simulator] Riggory dial', () => {
     (season.episodes[0] as { placements: Record<string, Placement> }).placements = {
       q1: 'WIN', q2: 'HIGH', q3: 'SAFE', q4: 'LOW', q5: 'LOW', q6: 'BTM2',
     };
-    // (Assigning two LOWs is fine — outcomeToEpisodeResult just feeds the placements
-    // verbatim into applyRigDeltas.) Now: q5 score = -2 (LOW), q6 score = -4 (BTM2).
-    // q5 is the relative frontrunner. At riggory=1, q6 (BTM2 history) loses every time.
+    // Now: q5 score = -2 (LOW), q6 score = -4 (BTM2). Ep1 (free sim) puts q5
+    // in the 1st BTM2 (-4) and q6 in the 2nd BTM2 (-8) before the lipsync, so
+    // the lipsync sees gap = q5(-6) − q6(-12) = +6. With scale=1 that's a
+    // near-saturated pRig — q6's lipSync advantage gets overwhelmed.
     const rigged = runFromState({
-      season, fromEpisode: 1, numSimulations: 500, noise: 0, riggory: 1, seed: 13,
+      season, fromEpisode: 1, numSimulations: 500, noise: 0,
+      riggory: 1, riggoryScale: 1, seed: 13,
     });
-    // q6 always eliminated despite her lipSync=10 advantage.
-    expect(rigged.results.elimProbByEpisode[1].q6).toBe(1);
-    expect(rigged.results.elimProbByEpisode[1].q5).toBe(0);
+    // pRig = 1/(1+exp(-6)) ≈ 0.9975, w ≈ 0.995, pStat = 1/11 ≈ 0.091.
+    // pBlend ≈ 0.992 → q5 wins ~99% of LSes → q6 elim ≈ 0.99.
+    expect(rigged.results.elimProbByEpisode[1].q6).toBeGreaterThan(0.95);
+    expect(rigged.results.elimProbByEpisode[1].q5).toBeLessThan(0.05);
   });
 
   test('riggory partially blends: 0.5 produces an outcome between 0 and 1', () => {
-    // Same setup as the previous test, with q5 LOW / q6 BTM2 in ep0 so q5 is
-    // the frontrunner. At riggory=0, q6 wins ~91% of LSes (lipSync 10 vs 1).
-    // At riggory=1, q6 loses 100%. At riggory=0.5: pFinal = 0.5*0.09 + 0.5*0 = 0.045.
-    // So q6 should win ~4.5% of the time → q6 elim ~95.5%.
+    // Same setup as the previous test (q5 LOW / q6 BTM2 in ep0, so q5 is the
+    // relative frontrunner). At riggory=0 the lipSync-10 q6 wins ~91% of LSes.
+    // At riggory=1 with scale=1, q6 loses ~69%. At riggory=0.5 the blend should
+    // sit strictly between those two regimes.
     const queens = [
       mkQueen('q1', 10, 5), mkQueen('q2', 8, 5), mkQueen('q3', 7, 5),
       mkQueen('q4', 5, 5), mkQueen('q5', 3, 1), mkQueen('q6', 1, 10),
@@ -746,17 +749,17 @@ describe('[simulator] Riggory dial', () => {
       ],
     };
     const blended = runFromState({
-      season, fromEpisode: 1, numSimulations: 2000, noise: 0, riggory: 0.5, seed: 99,
+      season, fromEpisode: 1, numSimulations: 2000, noise: 0,
+      riggory: 0.5, riggoryScale: 1, seed: 99,
     });
-    // bottom2[0] is the higher-skill BTM2 queen (assignPlacements inserts in
-    // descending-score order), so queenA = q5 here. pA = 0.5*(1/11) + 0.5*1 ≈ 0.545
-    // → q5 wins ~54.5% of LSes → q6 elim ≈ 0.545. ±0.04 tolerance covers ~3.5σ
-    // on Bernoulli(0.545) at N=2000.
+    // Same fixture as the riggory=1 test → gap=+6 going into the lipsync.
+    // pStat ≈ 0.0909, pRig ≈ 0.9975, w = 0.5·|0.9975-0.5|·2 ≈ 0.4975.
+    // pBlend ≈ (1-0.4975)·0.0909 + 0.4975·0.9975 ≈ 0.542 → q6 elim ≈ 0.54.
+    // ±0.04 tolerance covers ~3.5σ on Bernoulli(0.54) at N=2000.
     expect(blended.results.elimProbByEpisode[1].q6).toBeGreaterThan(0.50);
     expect(blended.results.elimProbByEpisode[1].q6).toBeLessThan(0.59);
-    // And it must be strictly *between* the riggory=0 and riggory=1 outcomes.
-    // (riggory=0 gave q6 elim ~0.09; riggory=1 gives 1.0 — see prior tests.)
+    // Strictly between the riggory=0 outcome (~0.09) and riggory=1 (~0.99).
     expect(blended.results.elimProbByEpisode[1].q6).toBeGreaterThan(0.15);
-    expect(blended.results.elimProbByEpisode[1].q6).toBeLessThan(1);
+    expect(blended.results.elimProbByEpisode[1].q6).toBeLessThan(0.95);
   });
 });

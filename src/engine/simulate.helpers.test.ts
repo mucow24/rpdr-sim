@@ -630,42 +630,45 @@ describe('btm2Penalty — exponential curve f(n) = 2^(n+1)', () => {
   });
 });
 
-describe('lipSyncWinProbA — riggory blend', () => {
-  test('riggory=0 reduces to the pure stat ratio (legacy behavior)', () => {
-    // 6/(6+4) = 0.6 regardless of rig scores.
+describe('lipSyncWinProbA — riggory blend (logistic + |pRig-0.5| weighting)', () => {
+  test('riggory=0 reduces to the pure stat ratio', () => {
+    // 6/(6+4) = 0.6 regardless of rig scores or scale.
     expect(lipSyncWinProbA(6, 4, -100, +100, 0)).toBeCloseTo(0.6, 12);
     expect(lipSyncWinProbA(6, 4, +100, -100, 0)).toBeCloseTo(0.6, 12);
     expect(lipSyncWinProbA(5, 5, +100, -100, 0)).toBeCloseTo(0.5, 12);
   });
 
-  test('riggory=1 picks the frontrunner outright when scores differ', () => {
-    expect(lipSyncWinProbA(1, 9, +5, -5, 1)).toBe(1); // weak A wins anyway
-    expect(lipSyncWinProbA(9, 1, -5, +5, 1)).toBe(0); // strong A loses anyway
+  test('riggory>0 with large gap (steep scale) saturates toward pRig (~1 or ~0)', () => {
+    // scale=1, gap=±100: pRig ≈ 1 (or 0), w ≈ riggory, so pBlend ≈ pRig at r=1.
+    expect(lipSyncWinProbA(1, 9, +100, -100, 1, 1)).toBeGreaterThan(0.99);
+    expect(lipSyncWinProbA(9, 1, -100, +100, 1, 1)).toBeLessThan(0.01);
   });
 
-  test('riggory=1 with tied scores falls back to p_stat (lipSync still matters)', () => {
+  test('tied rig scores → pRig=0.5, w=0, pBlend=pStat regardless of riggory', () => {
+    // |pRig - 0.5|*2 = 0 when scores tie, so the rig branch contributes nothing.
     expect(lipSyncWinProbA(6, 4, 0, 0, 1)).toBeCloseTo(0.6, 12);
     expect(lipSyncWinProbA(2, 8, 0, 0, 1)).toBeCloseTo(0.2, 12);
     expect(lipSyncWinProbA(5, 5, 7, 7, 1)).toBeCloseTo(0.5, 12);
   });
 
-  test('partial riggory linearly interpolates between p_stat and the indicator', () => {
-    // p_stat = 0.5, p_rig = 1 (A frontrunner). At r=0.5: 0.5*0.5 + 0.5*1 = 0.75
-    expect(lipSyncWinProbA(5, 5, 10, 0, 0.5)).toBeCloseTo(0.75, 12);
-    // p_stat = 0.5, p_rig = 0 (B frontrunner). At r=0.5: 0.5*0.5 + 0.5*0 = 0.25
-    expect(lipSyncWinProbA(5, 5, 0, 10, 0.5)).toBeCloseTo(0.25, 12);
-    // p_stat = 0.6, p_rig = 1, r=0.25: 0.75*0.6 + 0.25*1 = 0.7
-    expect(lipSyncWinProbA(6, 4, 1, 0, 0.25)).toBeCloseTo(0.7, 12);
+  test('matches the closed-form blend (1−w)·pStat + w·pRig at known points', () => {
+    // pStat=0.5, gap=10, scale=10 → pRig = 1/(1+exp(-1)) ≈ 0.7311.
+    // w = 1 · |0.7311-0.5| · 2 ≈ 0.4621. pBlend = (1-0.4621)·0.5 + 0.4621·0.7311 ≈ 0.6068.
+    expect(lipSyncWinProbA(5, 5, 10, 0, 1, 10)).toBeCloseTo(0.6068, 3);
+    // Same gap, partial riggory r=0.5 → w halves to ≈0.2311; pBlend ≈ 0.5534.
+    expect(lipSyncWinProbA(5, 5, 10, 0, 0.5, 10)).toBeCloseTo(0.5534, 3);
+    // Mirror across gap=0: negative gap pushes pRig below 0.5; symmetric pBlend.
+    expect(lipSyncWinProbA(5, 5, 0, 10, 1, 10)).toBeCloseTo(1 - 0.6068, 3);
   });
 
-  test('result stays in [0, 1] for every (r, scores, stats) combination', () => {
-    const samples: [number, number, number, number, number][] = [
-      [10, 1, 100, -100, 0.0], [10, 1, 100, -100, 0.5], [10, 1, 100, -100, 1.0],
-      [1, 10, -100, 100, 0.0], [1, 10, -100, 100, 0.5], [1, 10, -100, 100, 1.0],
-      [5, 5, 0, 0, 0.7], [3, 7, 4, 4, 0.3],
+  test('result stays in [0, 1] for every (r, scores, stats, scale) combination', () => {
+    const samples: [number, number, number, number, number, number][] = [
+      [10, 1, 100, -100, 0.0, 13], [10, 1, 100, -100, 0.5, 13], [10, 1, 100, -100, 1.0, 13],
+      [1, 10, -100, 100, 0.0, 1],  [1, 10, -100, 100, 0.5, 1],  [1, 10, -100, 100, 1.0, 1],
+      [5, 5, 0, 0, 0.7, 13], [3, 7, 4, 4, 0.3, 5], [9, 1, 50, -50, 1.0, 100],
     ];
-    for (const [a, b, sa, sb, r] of samples) {
-      const p = lipSyncWinProbA(a, b, sa, sb, r);
+    for (const [a, b, sa, sb, r, scale] of samples) {
+      const p = lipSyncWinProbA(a, b, sa, sb, r, scale);
       expect(p).toBeGreaterThanOrEqual(0);
       expect(p).toBeLessThanOrEqual(1);
     }
@@ -678,14 +681,14 @@ describe('lipSyncWinProbA — riggory blend', () => {
 // compare both per lipsync without recomputing the blend twice. The legacy
 // `lipSyncWinProbA` is now a thin wrapper around this.
 describe('lipSyncWinProbs — both probs from one call', () => {
-  test('pBlend matches lipSyncWinProbA across the slider range', () => {
-    const samples: [number, number, number, number, number][] = [
-      [6, 4, +5, -5, 0.0], [6, 4, +5, -5, 0.25], [6, 4, +5, -5, 1.0],
-      [5, 5, +5, -5, 0.5], [3, 7, -5, +5, 0.7], [9, 1, 0, 0, 1.0],
+  test('pBlend matches lipSyncWinProbA across the slider range and scales', () => {
+    const samples: [number, number, number, number, number, number][] = [
+      [6, 4, +5, -5, 0.0, 13], [6, 4, +5, -5, 0.25, 13], [6, 4, +5, -5, 1.0, 13],
+      [5, 5, +5, -5, 0.5, 5],  [3, 7, -5, +5, 0.7, 1],   [9, 1, 0, 0, 1.0, 100],
     ];
-    for (const [a, b, sa, sb, r] of samples) {
-      const { pBlend } = lipSyncWinProbs(a, b, sa, sb, r);
-      expect(pBlend).toBeCloseTo(lipSyncWinProbA(a, b, sa, sb, r), 12);
+    for (const [a, b, sa, sb, r, scale] of samples) {
+      const { pBlend } = lipSyncWinProbs(a, b, sa, sb, r, scale);
+      expect(pBlend).toBeCloseTo(lipSyncWinProbA(a, b, sa, sb, r, scale), 12);
     }
   });
 

@@ -30,6 +30,15 @@ export default function App() {
   const setNumSimulations = useStore((s) => s.setNumSimulations);
   const riggory = useStore((s) => s.riggory);
   const setRiggory = useStore((s) => s.setRiggory);
+  const riggoryScale = useStore((s) => s.riggoryScale);
+  const setRiggoryScale = useStore((s) => s.setRiggoryScale);
+  const [riggoryScaleDraft, setRiggoryScaleDraft] = useState(() => String(riggoryScale));
+  useEffect(() => { setRiggoryScaleDraft(String(riggoryScale)); }, [riggoryScale]);
+  const commitRiggoryScale = useCallback(() => {
+    const next = parseFloat(riggoryScaleDraft);
+    if (Number.isFinite(next) && next > 0 && next !== riggoryScale) setRiggoryScale(next);
+    else setRiggoryScaleDraft(String(riggoryScale));
+  }, [riggoryScaleDraft, riggoryScale, setRiggoryScale]);
   // Visual-only state for the slider mid-drag. We commit to the store on
   // mouseup/touchend/keyup so the sim doesn't re-run every pixel of drag.
   const [riggoryDraft, setRiggoryDraft] = useState(() => Math.round(riggory * 100));
@@ -71,20 +80,20 @@ export default function App() {
     // One pass — the engine emits both the active (rigged) result and the r=0
     // counterfactual. Per-MC-run dual tracking only diverges when a lipsync
     // resolves to different winners, so cost stays close to a single sim.
-    runBaselineDual({ season: baselineSeason, numSimulations: n, riggory })
+    runBaselineDual({ season: baselineSeason, numSimulations: n, riggory, riggoryScale })
       .then(({ rigged, r0 }) => {
         setBaselineResults(rigged);
         setBaselineR0Results(riggory > 0 ? r0 : null);
         setIsSimulating(false);
         setSimulationProgress(null);
       });
-  }, [baselineSeason, riggory, runBaselineDual, setBaselineResults, setBaselineR0Results, setIsSimulating, setSimulationProgress]);
+  }, [baselineSeason, riggory, riggoryScale, runBaselineDual, setBaselineResults, setBaselineR0Results, setIsSimulating, setSimulationProgress]);
 
   // Run baseline on mount and when season changes — but only in simulation mode.
   useEffect(() => {
     if (appMode !== 'simulation') return;
     triggerSimulation(numSimulations);
-  }, [baselineSeason, appMode, numSimulations, riggory, triggerSimulation]);
+  }, [baselineSeason, appMode, numSimulations, riggory, riggoryScale, triggerSimulation]);
 
   // Run filter when conditions change
   useEffect(() => {
@@ -239,6 +248,24 @@ export default function App() {
               />
               Debug
             </label>
+            {debug && (
+              <label
+                className="flex items-center gap-1.5 text-sm text-[#888] select-none"
+                title="Logistic scale (rig-score units) for the rig-gap → pRig curve. Larger = flatter."
+              >
+                Scale
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={riggoryScaleDraft}
+                  onChange={(e) => setRiggoryScaleDraft(e.target.value)}
+                  onBlur={commitRiggoryScale}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitRiggoryScale(); }}
+                  disabled={isSimulating}
+                  className="w-14 px-2 py-1 bg-[#0a0a10] border border-[#3a3a4a] rounded text-sm text-[#ccc] text-right focus:outline-none focus:border-amber-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                />
+              </label>
+            )}
             <input
               type="text"
               value={simInput}
