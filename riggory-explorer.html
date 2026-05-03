@@ -444,36 +444,40 @@
     </div>
   </details>
 
-  <h2>pBlend Heatmap</h2>
-  <div class="heatmap-grid">
-    <div class="y-axis">
-      <span>+7</span>
-      <span>0</span>
-      <span>−7</span>
+<details class="results-wrap" id="heatmapDetails" open>
+    <summary>pBlend Heatmap</summary>
+    <div class="heatmap-grid">
+      <div class="y-axis">
+        <span>+7</span>
+        <span>0</span>
+        <span>−7</span>
+      </div>
+      <div>
+        <canvas id="heatmap" width="800" height="320"></canvas>
+        <div class="x-axis"><span>−80</span><span>0</span><span>+80</span></div>
+      </div>
     </div>
-    <div>
-      <canvas id="heatmap" width="800" height="320"></canvas>
-      <div class="x-axis"><span>−80</span><span>0</span><span>+80</span></div>
-    </div>
-  </div>
-  <div class="heatmap-axis-label">x: Δ rig score (A − B) &nbsp;·&nbsp; y: Δ lipSync (A − B) &nbsp;·&nbsp; assumes lipSync avg = 5.5</div>
+    <div class="heatmap-axis-label">x: Δ rig score (A − B) &nbsp;·&nbsp; y: Δ lipSync (A − B) &nbsp;·&nbsp; assumes lipSync avg = 5.5</div>
+  </details>
   <div id="heatmapTooltip" class="hm-tooltip"></div>
 
-  <h2>Rig Score Formula</h2>
-  <div style="color:#888; font-size:0.75rem; margin: 0.25rem 0 0.5rem;">
-    Per placement, n-th occurrence adds <code>p</code> to the queen's rig score; then <code>p += dp</code>, then <code>dp += d2p</code>.
-  </div>
-  <table id="formulaTable" class="formula-table">
-    <thead>
-      <tr>
-        <th>Placement</th>
-        <th class="num">points</th>
-        <th class="num">dp</th>
-        <th class="num">d2p</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <details class="results-wrap" id="formulaDetails" open>
+    <summary>Rig Score Formula</summary>
+    <div style="color:#888; font-size:0.75rem; margin: 0.25rem 0 0.5rem;">
+      Per placement, n-th occurrence adds <code>p</code> to the queen's rig score; then <code>p += dp</code>, then <code>dp += d2p</code>.
+    </div>
+    <table id="formulaTable" class="formula-table">
+      <thead>
+        <tr>
+          <th>Placement</th>
+          <th class="num">points</th>
+          <th class="num">dp</th>
+          <th class="num">d2p</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </details>
 
   <h2>All Lip Syncs</h2>
   <table id="lipsyncTable" class="ls-table">
@@ -487,6 +491,8 @@
         <th data-col="lipB"   class="num">B LS<span class="arrow"></span></th>
         <th data-col="lipDelta" class="num">Δ LS<span class="arrow"></span></th>
         <th data-col="deltaP" class="num">Δ p<span class="arrow"></span></th>
+        <th data-col="pO" class="num">p<sub>o</sub><span class="arrow"></span></th>
+        <th data-col="pR" class="num">p<sub>r</sub><span class="arrow"></span></th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -865,13 +871,24 @@
 
   renderAll();
 
-  // Persist the breakdown panel's open/closed state across reloads.
-  (function wireResultsDetails() {
-    const det = $('resultsDetails');
-    if (localStorage.getItem('riggoryExplorer.resultsOpen') === '1') det.open = true;
-    det.addEventListener('toggle', () => {
-      localStorage.setItem('riggoryExplorer.resultsOpen', det.open ? '1' : '0');
-    });
+  // Persist each collapsable panel's open/closed state across reloads.
+  // The default in markup wins on first visit; localStorage takes over after.
+  (function wireDetailsPersistence() {
+    const panels = [
+      ['resultsDetails', 'riggoryExplorer.resultsOpen'],
+      ['heatmapDetails', 'riggoryExplorer.heatmapOpen'],
+      ['formulaDetails', 'riggoryExplorer.formulaOpen'],
+    ];
+    for (const [id, key] of panels) {
+      const det = $(id);
+      if (!det) continue;
+      const stored = localStorage.getItem(key);
+      if (stored === '1') det.open = true;
+      else if (stored === '0') det.open = false;
+      det.addEventListener('toggle', () => {
+        localStorage.setItem(key, det.open ? '1' : '0');
+      });
+    }
   })();
 
   // ─── Rig-score formula editor ─────────────────────────────────────────────
@@ -1095,6 +1112,8 @@
       const sortKey = (r) => {
         if (sortState.col === 'name') return r.orderKey;
         if (sortState.col === 'deltaP') return computeDeltaP(r).delta;
+        if (sortState.col === 'pO') return computeDeltaP(r).pStat;
+        if (sortState.col === 'pR') return computeDeltaP(r).pBlend;
         return r[sortState.col];
       };
       const sorted = [...allLipSyncRows].sort((a, b) => (sortKey(a) - sortKey(b)) * sortState.dir);
@@ -1111,7 +1130,8 @@
         // Same bin/color scheme as the heatmap dots, but as text color so the
         // row matches the rest of the table's dark-on-dark style.
         const dpStyle = `color:${deltaDotColor(dp.pBlend, dp.pStat)}; font-weight:600;`;
-        tr.innerHTML = `<td>${r.name}</td><td class="num">${r.scoreA}</td><td class="num">${r.scoreB}</td><td class="num ${deltaClass}">${deltaStr}</td><td class="num ${statClass(r.lipA)}">${r.lipA}</td><td class="num ${statClass(r.lipB)}">${r.lipB}</td><td class="num ${lipDeltaClass}">${lipDeltaStr}</td><td class="num" style="${dpStyle}">${dpStr}</td>`;
+        const pStr = (p) => (p * 100).toFixed(1) + '%';
+        tr.innerHTML = `<td>${r.name}</td><td class="num">${r.scoreA}</td><td class="num">${r.scoreB}</td><td class="num ${deltaClass}">${deltaStr}</td><td class="num ${statClass(r.lipA)}">${r.lipA}</td><td class="num ${statClass(r.lipB)}">${r.lipB}</td><td class="num ${lipDeltaClass}">${lipDeltaStr}</td><td class="num" style="${dpStyle}">${dpStr}</td><td class="num">${pStr(dp.pStat)}</td><td class="num">${pStr(dp.pBlend)}</td>`;
         tr.addEventListener('click', () => {
           select.value = r.id;
           select.dispatchEvent(new Event('change'));
