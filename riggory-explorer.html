@@ -486,6 +486,7 @@
         <th data-col="lipA"   class="num">A LS<span class="arrow"></span></th>
         <th data-col="lipB"   class="num">B LS<span class="arrow"></span></th>
         <th data-col="lipDelta" class="num">Δ LS<span class="arrow"></span></th>
+        <th data-col="deltaP" class="num">Δ p<span class="arrow"></span></th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -659,6 +660,8 @@
     $('pAWins').textContent = fmt(pBlend);
     $('pAWinsSummary').textContent = fmt(pBlend);
     renderHeatmap(riggory, scale);
+    // Δp column reads riggory/scale at render time → refresh on every input.
+    renderLipSyncTable();
   }
 
   // ─── Heatmap ───────────────────────────────────────────────────────────────
@@ -1078,7 +1081,22 @@
     function renderTable() {
       const tbody = document.querySelector('#lipsyncTable tbody');
       tbody.innerHTML = '';
-      const sortKey = (r) => sortState.col === 'name' ? r.orderKey : r[sortState.col];
+      // Read live riggory/scale at render time so the Δp column tracks the
+      // sliders. recomputeProbs calls renderLipSyncTable on every input event.
+      const riggory = parseInt($('riggory').value, 10) / 100;
+      const scale = parseInt($('scale').value, 10);
+      const computeDeltaP = (r) => {
+        const pStat = r.lipA / (r.lipA + r.lipB);
+        const pRig = logistic(r.scoreA - r.scoreB, scale);
+        const w = riggory * Math.abs(pRig - 0.5) * 2;
+        const pBlend = (1 - w) * pStat + w * pRig;
+        return { pStat, pBlend, delta: pBlend - pStat };
+      };
+      const sortKey = (r) => {
+        if (sortState.col === 'name') return r.orderKey;
+        if (sortState.col === 'deltaP') return computeDeltaP(r).delta;
+        return r[sortState.col];
+      };
       const sorted = [...allLipSyncRows].sort((a, b) => (sortKey(a) - sortKey(b)) * sortState.dir);
       for (const r of sorted) {
         const tr = document.createElement('tr');
@@ -1087,7 +1105,13 @@
         const deltaStr = (r.delta > 0 ? '+' : '') + r.delta;
         const lipDeltaClass = r.lipDelta > 0 ? 'delta-pos' : r.lipDelta < 0 ? 'delta-neg' : '';
         const lipDeltaStr = (r.lipDelta > 0 ? '+' : '') + r.lipDelta;
-        tr.innerHTML = `<td>${r.name}</td><td class="num">${r.scoreA}</td><td class="num">${r.scoreB}</td><td class="num ${deltaClass}">${deltaStr}</td><td class="num ${statClass(r.lipA)}">${r.lipA}</td><td class="num ${statClass(r.lipB)}">${r.lipB}</td><td class="num ${lipDeltaClass}">${lipDeltaStr}</td>`;
+        const dp = computeDeltaP(r);
+        const dpPp = dp.delta * 100;
+        const dpStr = (dpPp >= 0 ? '+' : '') + dpPp.toFixed(1) + '%';
+        // Same bin/color scheme as the heatmap dots, but as text color so the
+        // row matches the rest of the table's dark-on-dark style.
+        const dpStyle = `color:${deltaDotColor(dp.pBlend, dp.pStat)}; font-weight:600;`;
+        tr.innerHTML = `<td>${r.name}</td><td class="num">${r.scoreA}</td><td class="num">${r.scoreB}</td><td class="num ${deltaClass}">${deltaStr}</td><td class="num ${statClass(r.lipA)}">${r.lipA}</td><td class="num ${statClass(r.lipB)}">${r.lipB}</td><td class="num ${lipDeltaClass}">${lipDeltaStr}</td><td class="num" style="${dpStyle}">${dpStr}</td>`;
         tr.addEventListener('click', () => {
           select.value = r.id;
           select.dispatchEvent(new Event('change'));
