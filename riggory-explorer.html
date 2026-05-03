@@ -222,6 +222,45 @@
     line-height: 1.35;
   }
 
+  .formula-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+  }
+  .formula-table th, .formula-table td {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid #2a2a2a;
+    text-align: left;
+  }
+  .formula-table th {
+    color: #f59e0b;
+    font-weight: 600;
+    background: #1a1a1a;
+  }
+  .formula-table th.num, .formula-table td.num { text-align: right; }
+  .formula-table input.fn {
+    background: #2a2a2a;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.15rem 0.35rem;
+    width: 4.5rem;
+    font-weight: 600;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .formula-table .pl-cell {
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    color: #1a1a1a;
+    display: inline-block;
+    min-width: 3rem;
+    text-align: center;
+  }
+
   .ls-table {
     width: 100%;
     border-collapse: collapse;
@@ -263,6 +302,37 @@
   .results .value { font-weight: 600; }
   .highlight { color: #f59e0b; }
   .formula { color: #888; font-size: 0.85rem; font-family: ui-monospace, monospace; margin-top: 0.25rem; }
+
+  details.results-wrap > summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #f59e0b;
+    border-bottom: 1px solid #333;
+    padding-bottom: 0.35rem;
+    margin: 1.75rem 0 0.5rem;
+    user-select: none;
+  }
+  details.results-wrap > summary::-webkit-details-marker { display: none; }
+  details.results-wrap > summary::before {
+    content: '▸';
+    display: inline-block;
+    width: 1em;
+    color: #888;
+    transition: transform 0.1s;
+  }
+  details.results-wrap[open] > summary::before { content: '▾'; }
+  details.results-wrap > summary > .summary-current {
+    color: #fcd34d;
+    font-weight: 700;
+    margin-left: 0.5rem;
+    font-variant-numeric: tabular-nums;
+    text-transform: none;
+    letter-spacing: 0;
+  }
 </style>
 </head>
 <body>
@@ -340,38 +410,39 @@
     <div class="curve-caption">pRig vs (scoreA − scoreB) — current gap marked</div>
   </div>
 
-  <hr />
+  <details class="results-wrap" id="resultsDetails">
+    <summary>Win probability breakdown<span class="summary-current" id="pAWinsSummary">—</span></summary>
+    <div class="results">
+      <div class="row">
+        <span class="label">pStat (Queen A)</span>
+        <span class="value" id="pStat">—</span>
+      </div>
+      <div class="formula">lipSyncA / (lipSyncA + lipSyncB)</div>
 
-  <div class="results">
-    <div class="row">
-      <span class="label">pStat (Queen A)</span>
-      <span class="value" id="pStat">—</span>
-    </div>
-    <div class="formula">lipSyncA / (lipSyncA + lipSyncB)</div>
+      <div class="row" style="margin-top: 1rem;">
+        <span class="label">pRig</span>
+        <span class="value" id="pRig">—</span>
+      </div>
+      <div class="formula">1 / (1 + exp(−(scoreA − scoreB) / scale))</div>
 
-    <div class="row" style="margin-top: 1rem;">
-      <span class="label">pRig</span>
-      <span class="value" id="pRig">—</span>
-    </div>
-    <div class="formula">1 / (1 + exp(−(scoreA − scoreB) / scale))</div>
+      <div class="row" style="margin-top: 1rem;">
+        <span class="label">w (rig weight)</span>
+        <span class="value" id="rigWeight">—</span>
+      </div>
+      <div class="formula">riggory · |pRig − 0.5| · 2</div>
 
-    <div class="row" style="margin-top: 1rem;">
-      <span class="label">w (rig weight)</span>
-      <span class="value" id="rigWeight">—</span>
-    </div>
-    <div class="formula">riggory · |pRig − 0.5| · 2</div>
+      <div class="row" style="margin-top: 1rem;">
+        <span class="label">pBlend</span>
+        <span class="value" id="pBlend">—</span>
+      </div>
+      <div class="formula">(1 − w) · pStat + w · pRig</div>
 
-    <div class="row" style="margin-top: 1rem;">
-      <span class="label">pBlend</span>
-      <span class="value" id="pBlend">—</span>
+      <div class="row" style="margin-top: 1rem;">
+        <span class="label">P(Queen A wins)</span>
+        <span class="value highlight" id="pAWins">—</span>
+      </div>
     </div>
-    <div class="formula">(1 − w) · pStat + w · pRig</div>
-
-    <div class="row" style="margin-top: 1rem;">
-      <span class="label">P(Queen A wins)</span>
-      <span class="value highlight" id="pAWins">—</span>
-    </div>
-  </div>
+  </details>
 
   <h2>pBlend Heatmap</h2>
   <div class="heatmap-grid">
@@ -387,6 +458,22 @@
   </div>
   <div class="heatmap-axis-label">x: Δ rig score (A − B) &nbsp;·&nbsp; y: Δ lipSync (A − B) &nbsp;·&nbsp; assumes lipSync avg = 5.5</div>
   <div id="heatmapTooltip" class="hm-tooltip"></div>
+
+  <h2>Rig Score Formula</h2>
+  <div style="color:#888; font-size:0.75rem; margin: 0.25rem 0 0.5rem;">
+    Per placement, n-th occurrence adds <code>p</code> to the queen's rig score; then <code>p += dp</code>, then <code>dp += d2p</code>.
+  </div>
+  <table id="formulaTable" class="formula-table">
+    <thead>
+      <tr>
+        <th>Placement</th>
+        <th class="num">points</th>
+        <th class="num">dp</th>
+        <th class="num">d2p</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <h2>All Lip Syncs</h2>
   <table id="lipsyncTable" class="ls-table">
@@ -411,6 +498,23 @@
 
   const tracks = { A: [], B: [] };
   let allLipSyncRows = [];
+  let rebuildAllLipSyncRows = () => {};
+  let renderLipSyncTable = () => {};
+
+  // Editable rig-scoring formula. Per placement, the n-th incident contributes
+  // `p` to the rig score, then p += dp, then dp += d2p.
+  // Defaults reproduce the engine's current curves exactly:
+  //   WIN:  4, 6, 10, 16, 24, 34 (winPoints quadratic)
+  //   BTM2: −4, −12, −20, −28, …  (LINEAR per the spec; engine still uses 2^(n+1) exponential)
+  const PLACEMENTS = ['WIN', 'HIGH', 'SAFE', 'LOW', 'BTM2'];
+  const FORMULA_DEFAULTS = {
+    WIN:  { points:  4, dp:  2, d2p: 2 },
+    HIGH: { points:  2, dp:  0, d2p: 0 },
+    SAFE: { points:  1, dp:  0, d2p: 0 },
+    LOW:  { points: -2, dp:  0, d2p: 0 },
+    BTM2: { points: -4, dp: -8, d2p: 0 },
+  };
+  const formula = JSON.parse(JSON.stringify(FORMULA_DEFAULTS));
 
   function statClass(v) {
     if (v >= 10) return 'stat-10';
@@ -427,19 +531,22 @@
     if (isFinite(v)) inputEl.classList.add(statClass(v));
   }
 
-  // Mirrors src/engine/simulate.ts: winPoints(n) = n^2 - n + 4, btm2Penalty(n) = 2^(n+1).
-  // n is 1-indexed count of prior incidents of that type (after increment).
+  // Apply the formula table to a placement track. For each placement P, keep
+  // running (p, dp); on each occurrence emit p, then p += dp, then dp += d2p.
+  // Counters are per-placement (so HIGH and WIN don't share state).
   function rigStepDeltas(track) {
+    const counters = {};
+    for (const pl of PLACEMENTS) {
+      counters[pl] = { p: formula[pl].points, dp: formula[pl].dp };
+    }
     const deltas = [];
-    let wins = 0;
-    let btm2s = 0;
     for (const p of track) {
-      if (p === 'WIN')      { wins++;  deltas.push(wins * wins - wins + 4); }
-      else if (p === 'BTM2') { btm2s++; deltas.push(-(1 << (btm2s + 1))); }
-      else if (p === 'HIGH') deltas.push(2);
-      else if (p === 'SAFE') deltas.push(1);
-      else if (p === 'LOW')  deltas.push(-2);
-      else                   deltas.push(0);
+      const c = counters[p];
+      if (!c) { deltas.push(0); continue; }
+      const d2p = formula[p].d2p;
+      deltas.push(c.p);
+      c.p  += c.dp;
+      c.dp += d2p;
     }
     return deltas;
   }
@@ -536,6 +643,7 @@
       $('rigWeight').textContent = '—';
       $('pBlend').textContent = '—';
       $('pAWins').textContent = '—';
+      $('pAWinsSummary').textContent = '—';
       return;
     }
 
@@ -549,6 +657,7 @@
     $('rigWeight').textContent = w.toFixed(3);
     $('pBlend').textContent = fmt(pBlend);
     $('pAWins').textContent = fmt(pBlend);
+    $('pAWinsSummary').textContent = fmt(pBlend);
     renderHeatmap(riggory, scale);
   }
 
@@ -593,10 +702,19 @@
     return ((HEATMAP.lMax - lipDelta) / (HEATMAP.lMax - HEATMAP.lMin)) * H;
   }
 
-  function dotColor(pBlend) {
-    if (pBlend > 0.60) return '#22c55e';
-    if (pBlend < 0.40) return '#ef4444';
-    return '#aaa';
+  // Diverging palette keyed to (pBlend − pStat) in percentage points, with
+  // hard 5-point bins. Each bin uses a different HUE in addition to changing
+  // lightness so adjacent bands are always sharply distinguishable. Negative
+  // delta (rig hurts the winner) walks orange → red → maroon; positive delta
+  // (rig helps the winner) walks lime → green → teal → blue → indigo.
+  const DELTA_NEG_COLORS = ['#fed7aa', '#fb923c', '#ef4444', '#b91c1c', '#7f1d1d', '#450a0a']; // 5–10, …, ≥30
+  const DELTA_POS_COLORS = ['#bef264', '#22c55e', '#14b8a6', '#0ea5e9', '#2563eb', '#4338ca'];
+  const DELTA_ZERO_COLOR = '#9ca3af';
+  function deltaDotColor(pBlend, pStat) {
+    const pp = (pBlend - pStat) * 100;
+    const bucket = Math.min(6, Math.floor(Math.abs(pp) / 5));
+    if (bucket === 0) return DELTA_ZERO_COLOR;
+    return (pp > 0 ? DELTA_POS_COLORS : DELTA_NEG_COLORS)[bucket - 1];
   }
 
   function renderHeatmap(riggory, scale) {
@@ -636,8 +754,15 @@
       if (lipDelta < HEATMAP.lMin || lipDelta > HEATMAP.lMax) continue;
       const px = gapToPx(gap, W);
       const py = lipToPy(lipDelta, H);
-      const pBlend = pBlendAt(gap, lipDelta, riggory, scale);
-      ctx.fillStyle = dotColor(pBlend);
+      // Derive pBlend from the matchup's REAL pStat (not the lipDelta-only
+      // approximation `pBlendAt` uses for the heatmap background) so the dot's
+      // color matches what the tooltip reports. Otherwise off-center matchups
+      // (e.g. lipSync 8 vs 1) get a small synthetic delta even at riggory=0.
+      const pStat = r.lipA / (r.lipA + r.lipB);
+      const pRig = logistic(gap, scale);
+      const w = riggory * Math.abs(pRig - 0.5) * 2;
+      const pBlend = (1 - w) * pStat + w * pRig;
+      ctx.fillStyle = deltaDotColor(pBlend, pStat);
       ctx.beginPath();
       ctx.arc(px, py, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -675,23 +800,33 @@
       tt.style.top = (e.clientY + 12) + 'px';
       tt.style.display = 'block';
 
+      const pct = (p) => `${(p * 100).toFixed(1)}%`;
+      const signed = (p) => (p >= 0 ? '+' : '') + (p * 100).toFixed(1) + '%';
+      const blendLine = (pStat, gap) => {
+        const pRig = logistic(gap, scale);
+        const w = riggory * Math.abs(pRig - 0.5) * 2;
+        const pBlend = (1 - w) * pStat + w * pRig;
+        return `${pct(pStat)} → <b>${pct(pBlend)}</b> (${signed(pBlend - pStat)})`;
+      };
+
       const HIT = 8 * xScale;
       if (nearest && nearestDist <= HIT) {
         const { row, gap, lipDelta } = nearest;
-        const pBlend = pBlendAt(gap, lipDelta, riggory, scale);
         const pStat = row.lipA / (row.lipA + row.lipB);
         const sg = (gap >= 0 ? '+' : '') + gap;
         const sl = (lipDelta >= 0 ? '+' : '') + lipDelta;
-        tt.innerHTML = `<b>${row.name}</b><br>Δ rig: <b>${sg}</b> &nbsp; Δ LS: <b>${sl}</b><br>pStat: <b>${(pStat * 100).toFixed(1)}%</b><br>pBlend: <b>${(pBlend * 100).toFixed(1)}%</b>`;
+        tt.innerHTML = `<b>${row.name}</b><br>Δ rig: <b>${sg}</b> &nbsp; Δ LS: <b>${sl}</b><br>${blendLine(pStat, gap)}`;
       } else {
         const xFrac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         const yFrac = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
         const gap = HEATMAP.gMin + xFrac * (HEATMAP.gMax - HEATMAP.gMin);
         const lipDelta = HEATMAP.lMax - yFrac * (HEATMAP.lMax - HEATMAP.lMin);
-        const pBlend = pBlendAt(gap, lipDelta, riggory, scale);
+        const a = 5.5 + lipDelta / 2;
+        const b = 5.5 - lipDelta / 2;
+        const pStat = a / (a + b);
         const sg = (gap >= 0 ? '+' : '') + gap.toFixed(0);
         const sl = (lipDelta >= 0 ? '+' : '') + lipDelta.toFixed(1);
-        tt.innerHTML = `Δ rig: <b>${sg}</b><br>Δ LS: <b>${sl}</b><br>pBlend: <b>${(pBlend * 100).toFixed(1)}%</b>`;
+        tt.innerHTML = `Δ rig: <b>${sg}</b><br>Δ LS: <b>${sl}</b><br>${blendLine(pStat, gap)}`;
       }
     });
     canvas.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
@@ -727,6 +862,47 @@
 
   renderAll();
 
+  // Persist the breakdown panel's open/closed state across reloads.
+  (function wireResultsDetails() {
+    const det = $('resultsDetails');
+    if (localStorage.getItem('riggoryExplorer.resultsOpen') === '1') det.open = true;
+    det.addEventListener('toggle', () => {
+      localStorage.setItem('riggoryExplorer.resultsOpen', det.open ? '1' : '0');
+    });
+  })();
+
+  // ─── Rig-score formula editor ─────────────────────────────────────────────
+
+  (function wireFormulaTable() {
+    const tbody = document.querySelector('#formulaTable tbody');
+    const plClass = { WIN: 'pl-WIN', HIGH: 'pl-HIGH', SAFE: 'pl-SAFE', LOW: 'pl-LOW', BTM2: 'pl-BTM2' };
+    for (const pl of PLACEMENTS) {
+      const tr = document.createElement('tr');
+      const f = formula[pl];
+      tr.innerHTML =
+        `<td><span class="pl-cell ${plClass[pl]}">${pl}</span></td>` +
+        `<td class="num"><input class="fn" type="number" step="1" data-pl="${pl}" data-key="points" value="${f.points}" /></td>` +
+        `<td class="num"><input class="fn" type="number" step="1" data-pl="${pl}" data-key="dp" value="${f.dp}" /></td>` +
+        `<td class="num"><input class="fn" type="number" step="1" data-pl="${pl}" data-key="d2p" value="${f.d2p}" /></td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.addEventListener('input', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement) || !t.classList.contains('fn')) return;
+      const pl = t.dataset.pl;
+      const key = t.dataset.key;
+      const v = parseFloat(t.value);
+      if (!isFinite(v)) return;
+      formula[pl][key] = v;
+      // Formula change ripples through everything: per-queen tracks, current
+      // matchup probs, the all-lip-syncs table (scoreA/scoreB recompute), and
+      // the heatmap (rendered inside recomputeProbs from allLipSyncRows).
+      rebuildAllLipSyncRows();
+      renderLipSyncTable();
+      renderAll();
+    });
+  })();
+
   // ─── Lip-sync dropdown wiring ──────────────────────────────────────────────
 
   const seasonsById = {};      // 'season1' → SeasonData
@@ -747,19 +923,83 @@
     return record;
   }
 
-  async function initLipSyncSelector() {
+  // Load season + queen data from the app's local datastore (zustand persist
+  // key in localStorage). This makes the explorer reflect any lip-sync stat
+  // edits the user has made on the Calibrate tab. Queens are deep-copied at
+  // read time, and the explorer never writes back — local edits in this page
+  // stay local. Falls back to the canonical /src/data/season*.ts modules when
+  // the store is empty (first-load / private window / cleared storage).
+  async function loadDatastore() {
+    let queensById = null;
+    let casts = null;
+    let episodeLists = null;
+    let seasonsMeta = null;
+    try {
+      const raw = localStorage.getItem('rpdr-sim-store');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const s = parsed?.state;
+        if (s?.queensById && s.casts && s.episodeLists) {
+          // Deep-copy: any local edits in this page must not mutate the store.
+          queensById = JSON.parse(JSON.stringify(s.queensById));
+          casts = JSON.parse(JSON.stringify(s.casts));
+          episodeLists = JSON.parse(JSON.stringify(s.episodeLists));
+          seasonsMeta = s.seasonsMeta ?? {};
+        }
+      }
+    } catch (err) {
+      console.warn('riggory-explorer: failed to read store from localStorage; falling back to season modules', err);
+    }
+    if (queensById) return { queensById, casts, episodeLists, seasonsMeta };
+
+    queensById = {};
+    casts = {};
+    episodeLists = {};
+    seasonsMeta = {};
     const seasonModules = import.meta.glob('/src/data/season*.ts');
     await Promise.all(
-      Object.entries(seasonModules).map(async ([path, loader]) => {
+      Object.entries(seasonModules).map(async ([, loader]) => {
         const mod = await loader();
         const s = mod.default;
         if (!s) return;
-        seasonsById[s.id] = s;
-        const m = path.match(/season(\d+)\.ts$/);
-        if (m) seasonsBySId['s' + m[1].padStart(2, '0')] = s;
-        for (const q of s.queens) queenById[q.id] = q;
+        casts[s.id] = s.queens.map((q) => `${s.id}:${q.id}`);
+        episodeLists[s.id] = s.episodes.map((ep) => JSON.parse(JSON.stringify(ep)));
+        seasonsMeta[s.id] = { name: s.name };
+        for (const q of s.queens) {
+          queensById[`${s.id}:${q.id}`] = JSON.parse(JSON.stringify(q));
+        }
       }),
     );
+    return { queensById, casts, episodeLists, seasonsMeta };
+  }
+
+  async function initLipSyncSelector() {
+    const { queensById, casts, episodeLists, seasonsMeta } = await loadDatastore();
+
+    // Bridge store-shaped data into the explorer's existing lookup tables.
+    // - seasonsBySId: keyed by lip-sync canonical short id ('s01'..'s18'); the
+    //   datastore has no all-stars, so AS lip syncs are filtered out below
+    //   when their queens aren't found.
+    // - queenById: keyed by bare queen.id (unprefixed) so lip-sync entries can
+    //   resolve their queens. Cross-season collisions (Shangela, etc.) just
+    //   overwrite — same behavior as before.
+    for (const seasonStoreId of Object.keys(casts)) {
+      const m = seasonStoreId.match(/^season(\d+)$/);
+      if (!m) continue;
+      const sShortId = 's' + m[1].padStart(2, '0');
+      const queens = casts[seasonStoreId]
+        .map((uid) => queensById[uid])
+        .filter(Boolean);
+      const seasonObj = {
+        id: seasonStoreId,
+        name: seasonsMeta?.[seasonStoreId]?.name ?? seasonStoreId,
+        queens,
+        episodes: episodeLists[seasonStoreId] ?? [],
+      };
+      seasonsById[seasonStoreId] = seasonObj;
+      seasonsBySId[sShortId] = seasonObj;
+      for (const q of queens) queenById[q.id] = q;
+    }
 
     // Filter to clean 1v1 single-winner lip syncs.
     const lipSyncs = LIP_SYNCS_CANONICAL.filter((ls) =>
@@ -806,29 +1046,33 @@
       optgroup.appendChild(opt);
     }
 
-    // Build the all-lip-syncs table.
-    allLipSyncRows = lipSyncs.map((ls) => {
-      const aId = ls.winners[0].queens[0];
-      const bId = ls.eliminated[0].queens[0];
-      const qa = queenById[aId];
-      const qb = queenById[bId];
-      const season = seasonsBySId[ls.seasonId];
-      const scoreA = rigScore(buildTrackRecord(season, aId, ls.episode));
-      const scoreB = rigScore(buildTrackRecord(season, bId, ls.episode));
-      const seasonNum = parseInt(ls.seasonId.replace(/^[a-z]+/, ''), 10);
-      const seasonPrefix = ls.seasonId.startsWith('as') ? 'AS' : 'S';
-      return {
-        id: ls.id,
-        name: `${seasonPrefix}${seasonNum} E${ls.episode}: ${qa.name} def. ${qb.name}`,
-        orderKey: (ls.seasonId.startsWith('as') ? 100 : 0) + seasonNum * 1000 + ls.episode * 10 + (ls.sequence || 0),
-        scoreA,
-        scoreB,
-        delta: scoreA - scoreB,
-        lipA: qa.lipSync,
-        lipB: qb.lipSync,
-        lipDelta: qa.lipSync - qb.lipSync,
-      };
-    });
+    // Build the all-lip-syncs table. Hoisted so the formula-table editor can
+    // recompute scoreA/scoreB on every keystroke without re-fetching lipSyncs.
+    rebuildAllLipSyncRows = () => {
+      allLipSyncRows = lipSyncs.map((ls) => {
+        const aId = ls.winners[0].queens[0];
+        const bId = ls.eliminated[0].queens[0];
+        const qa = queenById[aId];
+        const qb = queenById[bId];
+        const season = seasonsBySId[ls.seasonId];
+        const scoreA = rigScore(buildTrackRecord(season, aId, ls.episode));
+        const scoreB = rigScore(buildTrackRecord(season, bId, ls.episode));
+        const seasonNum = parseInt(ls.seasonId.replace(/^[a-z]+/, ''), 10);
+        const seasonPrefix = ls.seasonId.startsWith('as') ? 'AS' : 'S';
+        return {
+          id: ls.id,
+          name: `${seasonPrefix}${seasonNum} E${ls.episode}: ${qa.name} def. ${qb.name}`,
+          orderKey: (ls.seasonId.startsWith('as') ? 100 : 0) + seasonNum * 1000 + ls.episode * 10 + (ls.sequence || 0),
+          scoreA,
+          scoreB,
+          delta: scoreA - scoreB,
+          lipA: qa.lipSync,
+          lipB: qb.lipSync,
+          lipDelta: qa.lipSync - qb.lipSync,
+        };
+      });
+    };
+    rebuildAllLipSyncRows();
     const sortState = { col: 'name', dir: 1 };
 
     function renderTable() {
@@ -865,6 +1109,7 @@
         renderTable();
       });
     });
+    renderLipSyncTable = renderTable;
     renderTable();
     recomputeProbs(); // Redraw heatmap now that allLipSyncRows is populated.
 
