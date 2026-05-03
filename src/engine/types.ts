@@ -201,6 +201,10 @@ export interface RunFromStateOptions {
   /** Logistic scale for the rig-gap → pRig curve. Defaults to
    *  {@link DEFAULT_RIGGORY_SCALE}. */
   riggoryScale?: number;
+  /** Per-placement rig-score schedule. Defaults to
+   *  {@link DEFAULT_RIGGORY_FORMULA}. Engine type lives in `simulate.ts`
+   *  to keep the formula model in one place; callers pass-through. */
+  riggoryFormula?: import('./simulate').RiggoryFormula;
   /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
   seed?: number;
 }

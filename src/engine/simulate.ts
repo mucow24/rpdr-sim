@@ -151,53 +151,60 @@ function resolveLipSync(
   return rng() < pA ? queenA.id : queenB.id;
 }
 
-/** Per-incident WIN bonus: f(n) = n² − n + 4 for the n-th WIN (1-indexed).
- *  Sequence: 4, 6, 10, 16, 24, 34, … — quadratic so repeat winners pull away
- *  from the rest of the field. @internal */
-export function winPoints(nthIncident: number): number {
-  return nthIncident * nthIncident - nthIncident + 4;
-}
+/** Per-placement rig-score schedule. For each placement P the n-th incident
+ *  contributes `p` to the queen's rig score; then `p += dp`, then `dp += d2p`.
+ *  d2p=0 yields a linear schedule, d2p≠0 yields a quadratic one. The same
+ *  shape backs the riggory-explorer's editable formula table.
+ *
+ *  ELIM has no entry — it's a post-lipsync marker; the BTM2 entry already
+ *  fired when the band was assigned. */
+export type RiggoryFormula = Record<Placement, { points: number; dp: number; d2p: number }>;
 
-/** Per-incident BTM2 penalty: f(n) = 2^(n+1) for the n-th BTM2 (1-indexed).
- *  Sequence: 4, 8, 16, 32, 64, … — exponential so a queen who keeps showing
- *  up in the bottom rapidly tanks her rig score. @internal */
-export function btm2Penalty(nthIncident: number): number {
-  return 1 << (nthIncident + 1);
-}
-
-const BAND_RIG_DELTA: Record<EpisodeOutcome, number> = {
-  WIN: 0, // Handled separately via escalating winPoints.
-  HIGH: 2,
-  SAFE: 1,
-  LOW: -2,
-  BTM2: 0, // Handled separately via escalating btm2Penalty.
-  ELIM: 0, // Encoded after the fact in the lip-sync handler; no rig delta here.
+/** Default formula. WIN reproduces the historical quadratic schedule
+ *  (4, 6, 10, 16, 24, 34); HIGH/SAFE/LOW are flat (+2/+1/−2); BTM2 is now a
+ *  linear (−4, −12, −20, −28, …) instead of the prior 2^(n+1) exponential —
+ *  the explorer-side formula model has no exponential knob, and a linear ramp
+ *  is what calibration converged on. */
+export const DEFAULT_RIGGORY_FORMULA: RiggoryFormula = {
+  WIN:  { points:  4, dp:  2, d2p: 2 },
+  HIGH: { points:  2, dp:  0, d2p: 0 },
+  SAFE: { points:  1, dp:  0, d2p: 0 },
+  LOW:  { points: -2, dp:  0, d2p: 0 },
+  BTM2: { points: -4, dp: -8, d2p: 0 },
 };
 
+/** Per-queen, per-placement running (p, dp). Seeded from the formula on first
+ *  encounter; mutated in place by `applyRigDeltas`. Independent across both
+ *  queens (so two queens' WIN ramps don't share state) and placements (so a
+ *  queen's HIGH ramp doesn't bleed into her WIN ramp). */
+export type RiggoryPlacementState = Map<string, Map<Placement, { p: number; dp: number }>>;
+
 /** Update each queen's rig-score in place after a regular episode's bands
- *  have been finalized. WIN and BTM2 each escalate per-queen via their own
- *  incident counter; HIGH/SAFE/LOW apply a fixed delta. ELIM placements are
- *  post-lip-sync and don't contribute (the BTM2 penalty already fired when
- *  the band was assigned). @internal — exported for direct testing */
+ *  have been finalized. ELIM placements are post-lip-sync and don't
+ *  contribute (the BTM2 entry already fired when the band was assigned).
+ *  @internal — exported for direct testing */
 export function applyRigDeltas(
   placements: Map<string, EpisodeOutcome>,
   rigScores: Map<string, number>,
-  winCounts: Map<string, number>,
-  btm2Counts: Map<string, number>,
+  placementState: RiggoryPlacementState,
+  formula: RiggoryFormula,
 ): void {
   for (const [qid, band] of placements) {
-    if (band === 'WIN') {
-      const next = (winCounts.get(qid) ?? 0) + 1;
-      winCounts.set(qid, next);
-      rigScores.set(qid, (rigScores.get(qid) ?? 0) + winPoints(next));
-    } else if (band === 'BTM2') {
-      const next = (btm2Counts.get(qid) ?? 0) + 1;
-      btm2Counts.set(qid, next);
-      rigScores.set(qid, (rigScores.get(qid) ?? 0) - btm2Penalty(next));
-    } else if (band !== 'ELIM') {
-      const delta = BAND_RIG_DELTA[band];
-      if (delta !== 0) rigScores.set(qid, (rigScores.get(qid) ?? 0) + delta);
+    if (band === 'ELIM') continue;
+    const entry = formula[band];
+    let perQueen = placementState.get(qid);
+    if (!perQueen) {
+      perQueen = new Map();
+      placementState.set(qid, perQueen);
     }
+    let s = perQueen.get(band);
+    if (!s) {
+      s = { p: entry.points, dp: entry.dp };
+      perQueen.set(band, s);
+    }
+    rigScores.set(qid, (rigScores.get(qid) ?? 0) + s.p);
+    s.p += s.dp;
+    s.dp += entry.d2p;
   }
 }
 
@@ -269,16 +276,15 @@ interface SimCtx {
   riggory: number;
   /** Logistic scale for the rig-score gap; see `lipSyncWinProbs`. */
   riggoryScale: number;
+  /** Per-placement rig-score schedule. See {@link RiggoryFormula}. */
+  riggoryFormula: RiggoryFormula;
   /** queenId -> cumulative rig-score (running tally of band deltas). Used by
    *  the lip-sync handler to bias the coin flip toward the season's
    *  frontrunner when riggory > 0. */
   rigScores: Map<string, number>;
-  /** queenId -> count of WIN incidents so far this run. Drives the escalating
-   *  WIN bonus in `applyRigDeltas`. */
-  winCounts: Map<string, number>;
-  /** queenId -> count of BTM2 incidents so far this run. Drives the
-   *  escalating BTM2 penalty in `applyRigDeltas`. */
-  btm2Counts: Map<string, number>;
+  /** Per-(queen, placement) running (p, dp). Drives the escalating bonuses
+   *  / penalties in `applyRigDeltas`. */
+  placementState: RiggoryPlacementState;
   /** Order in which queens were sashayed away — drives final-rank derivation. */
   eliminationOrder: string[];
   /** queenId -> 1-based rank. Winner = 1. Populated by the finale handler;
@@ -305,6 +311,12 @@ interface EpisodeHandler<E extends EpisodeData> {
  *  immutable after push, so sharing them across forks is safe.
  *  @internal */
 function cloneSimCtx(ctx: SimCtx): SimCtx {
+  const placementState: RiggoryPlacementState = new Map();
+  for (const [qid, perQueen] of ctx.placementState) {
+    const copy = new Map<Placement, { p: number; dp: number }>();
+    for (const [pl, st] of perQueen) copy.set(pl, { p: st.p, dp: st.dp });
+    placementState.set(qid, copy);
+  }
   return {
     queens: ctx.queens,
     remaining: new Map(ctx.remaining),
@@ -312,9 +324,9 @@ function cloneSimCtx(ctx: SimCtx): SimCtx {
     noise: ctx.noise,
     riggory: ctx.riggory,
     riggoryScale: ctx.riggoryScale,
+    riggoryFormula: ctx.riggoryFormula,
     rigScores: new Map(ctx.rigScores),
-    winCounts: new Map(ctx.winCounts),
-    btm2Counts: new Map(ctx.btm2Counts),
+    placementState,
     eliminationOrder: [...ctx.eliminationOrder],
     finalRanks: new Map(ctx.finalRanks),
     episodeResults: [...ctx.episodeResults],
@@ -340,7 +352,7 @@ export function runChallengeAndBands(
   }));
   const placements = assignPlacements(scores);
   applyPriorWinnerImmunity(placements, scores, ctx.episodes, ctx.episodeResults, ctx.remaining);
-  applyRigDeltas(placements, ctx.rigScores, ctx.winCounts, ctx.btm2Counts);
+  applyRigDeltas(placements, ctx.rigScores, ctx.placementState, ctx.riggoryFormula);
   return placements;
 }
 
@@ -533,6 +545,7 @@ function simulateOneSeason(
   noise: number,
   riggory: number,
   riggoryScale: number,
+  riggoryFormula: RiggoryFormula,
   rng: Rng,
   midSeason?: MidSeasonState,
 ): SimulationRun {
@@ -554,11 +567,10 @@ function simulateOneSeason(
   // outcomeToEpisodeResult), so applyRigDeltas naturally skips their final
   // BTM2 — but their earlier-episode bands still feed the running tally.
   const rigScores = new Map<string, number>();
-  const winCounts = new Map<string, number>();
-  const btm2Counts = new Map<string, number>();
+  const placementState: RiggoryPlacementState = new Map();
   if (midSeason) {
     for (const pr of midSeason.priorResults) {
-      applyRigDeltas(pr.placements, rigScores, winCounts, btm2Counts);
+      applyRigDeltas(pr.placements, rigScores, placementState, riggoryFormula);
     }
   }
 
@@ -569,9 +581,9 @@ function simulateOneSeason(
     noise,
     riggory,
     riggoryScale,
+    riggoryFormula,
     rigScores,
-    winCounts,
-    btm2Counts,
+    placementState,
     eliminationOrder,
     finalRanks: new Map(),
     episodeResults,
@@ -629,6 +641,7 @@ export function simulateOneSeasonDual(
   noise: number,
   riggory: number,
   riggoryScale: number,
+  riggoryFormula: RiggoryFormula,
   rng: Rng,
 ): { rigged: SimulationRun; r0: SimulationRun } {
   const queenMap = new Map(queens.map((q) => [q.id, q]));
@@ -639,9 +652,9 @@ export function simulateOneSeasonDual(
     noise,
     riggory,
     riggoryScale,
+    riggoryFormula,
     rigScores: new Map(),
-    winCounts: new Map(),
-    btm2Counts: new Map(),
+    placementState: new Map(),
     eliminationOrder: [],
     finalRanks: new Map(),
     episodeResults: [],
@@ -803,6 +816,9 @@ export interface RunBaselineOptions {
   /** Logistic scale (in rig-score units) for the rig-gap → pRig curve.
    *  Defaults to {@link DEFAULT_RIGGORY_SCALE}. Larger = flatter curve. */
   riggoryScale?: number;
+  /** Per-placement rig-score schedule. Defaults to
+   *  {@link DEFAULT_RIGGORY_FORMULA}. Mirrors the riggory-explorer formula. */
+  riggoryFormula?: RiggoryFormula;
   /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
   seed?: number;
 }
@@ -848,6 +864,7 @@ function runToBuffer(
   noise: number,
   riggory: number,
   riggoryScale: number,
+  riggoryFormula: RiggoryFormula,
   rng: Rng,
   midSeason: MidSeasonState | undefined,
   onProgress: ((pct: number) => void) | undefined,
@@ -861,7 +878,7 @@ function runToBuffer(
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, riggory, riggoryScale, rng, midSeason);
+    const run = simulateOneSeason(queens, episodes, noise, riggory, riggoryScale, riggoryFormula, rng, midSeason);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
       onProgress(Math.round((i / numSimulations) * 100));
@@ -882,10 +899,10 @@ function wrapAsBaselineResult(buffer: Uint8Array, season: SeasonData, numSimulat
 }
 
 export function runBaseline(
-  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, riggoryFormula = DEFAULT_RIGGORY_FORMULA, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): BaselineResult {
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), undefined, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, riggoryFormula, resolveRng(seed), undefined, onProgress);
   return wrapAsBaselineResult(buffer, season, numSimulations);
 }
 
@@ -905,11 +922,11 @@ export interface BaselineDualResult {
  *  statistics agree with two separate `runBaseline` calls in expectation —
  *  not byte-identical, since the dual driver consumes RNG differently. */
 export function runBaselineDual(
-  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, riggoryFormula = DEFAULT_RIGGORY_FORMULA, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): BaselineDualResult {
   if (riggory <= 0) {
-    const result = runBaseline({ season, numSimulations, noise, riggory: 0, riggoryScale, seed }, onProgress);
+    const result = runBaseline({ season, numSimulations, noise, riggory: 0, riggoryScale, riggoryFormula, seed }, onProgress);
     return { rigged: result, r0: result };
   }
 
@@ -925,7 +942,7 @@ export function runBaselineDual(
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, noise, riggory, riggoryScale, rng);
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, noise, riggory, riggoryScale, riggoryFormula, rng);
     writeRunToBuffer(bufRig, i, rigged, queenIds, numQueens, numEpisodes);
     writeRunToBuffer(bufR0, i, r0, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
@@ -941,20 +958,20 @@ export function runBaselineDual(
 
 /** Run baseline simulations and return only the compact buffer (no aggregation). */
 export function runBaselinePartial(
-  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, riggoryFormula = DEFAULT_RIGGORY_FORMULA, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): { buffer: Uint8Array } {
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), undefined, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, riggoryFormula, resolveRng(seed), undefined, onProgress);
   return { buffer };
 }
 
 /** Run from mid-season state and return only the compact buffer (no aggregation). */
 export function runFromStatePartial(
-  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunFromStateOptions,
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, riggoryFormula = DEFAULT_RIGGORY_FORMULA, seed }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): { buffer: Uint8Array } {
   const midSeason = buildMidSeason(season, fromEpisode);
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), midSeason, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, riggoryFormula, resolveRng(seed), midSeason, onProgress);
   return { buffer };
 }
 
@@ -1275,10 +1292,10 @@ export function outcomeToEpisodeResult(ep: EpisodeData): EpisodeResult {
 // ── Forward simulation from season state ──────────────────
 
 export function runFromState(
-  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunFromStateOptions,
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, riggoryFormula = DEFAULT_RIGGORY_FORMULA, seed }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): BaselineResult {
   const midSeason = buildMidSeason(season, fromEpisode);
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), midSeason, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, riggoryFormula, resolveRng(seed), midSeason, onProgress);
   return wrapAsBaselineResult(buffer, season, numSimulations);
 }

@@ -5,6 +5,7 @@ import type {
   FilterCondition, TrajectoryPath, BaseStat,
 } from '../engine/types';
 import { isFinale, isPass, queenUid } from '../engine/types';
+import { DEFAULT_RIGGORY_FORMULA, type RiggoryFormula } from '../engine/simulate';
 import { type ArchetypeId } from '../data/archetypes';
 import { SEASON_PRESETS } from '../data/presets';
 import { migrateToV2, migrateToV3, migrateToV4 } from './migrate';
@@ -67,6 +68,8 @@ export interface AppState {
   /** Logistic scale for the rig-gap → pRig curve. See
    *  RunBaselineOptions.riggoryScale. */
   riggoryScale: number;
+  /** Per-placement rig-score schedule. See RunBaselineOptions.riggoryFormula. */
+  riggoryFormula: RiggoryFormula;
 
   // UI preferences
   appMode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs';
@@ -106,6 +109,7 @@ export interface AppState {
   setNumSimulations: (n: number) => void;
   setRiggory: (r: number) => void;
   setRiggoryScale: (scale: number) => void;
+  setRiggoryFormula: (formula: RiggoryFormula) => void;
 
   // UI
   setAppMode: (mode: 'simulation' | 'calibrate' | 'data' | 'lip-syncs') => void;
@@ -204,6 +208,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     numSimulations: 100_000,
     riggory: 0,
     riggoryScale: 13,
+    riggoryFormula: DEFAULT_RIGGORY_FORMULA,
 
     appMode: 'simulation',
     enabledCalibrateSeasons: SEASON_PRESETS.map((p) => p.id),
@@ -503,6 +508,19 @@ export const useStore = create<AppState>()(persist((set, get) => {
     setNumSimulations: (n) => set({ numSimulations: n }),
     setRiggory: (r) => set({ riggory: Math.max(0, Math.min(1, r)) }),
     setRiggoryScale: (scale) => set({ riggoryScale: Math.max(0.1, scale), ...RESULT_INVALIDATIONS }),
+    setRiggoryFormula: (formula) =>
+      set({
+        // Deep-clone so future explorer-side edits to the same object can't
+        // mutate sim state silently.
+        riggoryFormula: {
+          WIN:  { ...formula.WIN },
+          HIGH: { ...formula.HIGH },
+          SAFE: { ...formula.SAFE },
+          LOW:  { ...formula.LOW },
+          BTM2: { ...formula.BTM2 },
+        },
+        ...RESULT_INVALIDATIONS,
+      }),
 
     setAppMode: (mode) => set({ appMode: mode }),
 
@@ -574,6 +592,7 @@ export const useStore = create<AppState>()(persist((set, get) => {
     numSimulations: s.numSimulations,
     riggory: s.riggory,
     riggoryScale: s.riggoryScale,
+    riggoryFormula: s.riggoryFormula,
   }),
 }));
 
