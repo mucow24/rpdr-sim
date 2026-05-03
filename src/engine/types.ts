@@ -195,9 +195,12 @@ export interface RunFromStateOptions {
   numSimulations?: number;
   noise?: number;
   /** 0..1. Bias the lip-sync coin flip toward the queen with the higher
-   *  cumulative rig-score. 0 = pure lipSync stat (default). 1 = always
-   *  picks the frontrunner; ties fall back to the lipSync stat. */
+   *  cumulative rig-score via a logistic on the score gap. 0 = pure lipSync
+   *  stat (default). See `lipSyncWinProbs`. */
   riggory?: number;
+  /** Logistic scale for the rig-gap → pRig curve. Defaults to
+   *  {@link DEFAULT_RIGGORY_SCALE}. */
+  riggoryScale?: number;
   /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
   seed?: number;
 }

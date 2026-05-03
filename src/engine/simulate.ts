@@ -93,14 +93,23 @@ export function assignPlacements(
   return placements;
 }
 
+/** Default rig-score scale used by the logistic curve in `lipSyncWinProbs`.
+ *  Larger = flatter curve (rig gap matters less); smaller = steeper. Picked
+ *  to roughly fit observed lip-sync outcomes; see `riggory-explorer.html`. */
+export const DEFAULT_RIGGORY_SCALE = 13;
+
 /** Both lipsync win probabilities for queenA from one call:
  *   - `pStat`: pure stat ratio = the r=0 (no-riggory) probability
- *   - `pBlend`: stat ⨯ rig-frontrunner blend at the active riggory
+ *   - `pBlend`: stat ⨯ rig-logistic blend at the active riggory
  *  The dual-timeline driver compares both per lipsync; `lipSyncWinProbA`
  *  is a thin wrapper for the single-timeline path and tests.
  *
- *  r=0 → pBlend === pStat. r=1 → pBlend picks the frontrunner outright;
- *  score ties fall back to pStat so lipSync still matters at the extreme.
+ *  Model (mirrors `riggory-explorer.html`):
+ *    pRig   = 1 / (1 + exp(−(scoreA − scoreB) / scale))
+ *    w      = riggory · |pRig − 0.5| · 2     // 0 at tied scores, → riggory at large gaps
+ *    pBlend = (1 − w) · pStat + w · pRig
+ *  Properties: r=0 → pBlend === pStat; tied scores → pRig=0.5, w=0, pBlend=pStat;
+ *  large positive gap → pRig→1, w→r, pBlend = (1−r)·pStat + r·1.
  *  @internal — exported for direct testing */
 export function lipSyncWinProbs(
   lipSyncA: number,
@@ -108,11 +117,13 @@ export function lipSyncWinProbs(
   scoreA: number,
   scoreB: number,
   riggory: number,
+  scale: number = DEFAULT_RIGGORY_SCALE,
 ): { pStat: number; pBlend: number } {
   const pStat = lipSyncA / (lipSyncA + lipSyncB);
   if (riggory <= 0) return { pStat, pBlend: pStat };
-  const pRig = scoreA > scoreB ? 1 : scoreA < scoreB ? 0 : pStat;
-  return { pStat, pBlend: (1 - riggory) * pStat + riggory * pRig };
+  const pRig = 1 / (1 + Math.exp(-(scoreA - scoreB) / scale));
+  const w = riggory * Math.abs(pRig - 0.5) * 2;
+  return { pStat, pBlend: (1 - w) * pStat + w * pRig };
 }
 
 /** @internal — exported for direct testing */
@@ -122,8 +133,9 @@ export function lipSyncWinProbA(
   scoreA: number,
   scoreB: number,
   riggory: number,
+  scale: number = DEFAULT_RIGGORY_SCALE,
 ): number {
-  return lipSyncWinProbs(lipSyncA, lipSyncB, scoreA, scoreB, riggory).pBlend;
+  return lipSyncWinProbs(lipSyncA, lipSyncB, scoreA, scoreB, riggory, scale).pBlend;
 }
 
 function resolveLipSync(
@@ -132,9 +144,10 @@ function resolveLipSync(
   scoreA: number,
   scoreB: number,
   riggory: number,
+  scale: number,
   rng: Rng,
 ): string {
-  const pA = lipSyncWinProbA(queenA.lipSync, queenB.lipSync, scoreA, scoreB, riggory);
+  const pA = lipSyncWinProbA(queenA.lipSync, queenB.lipSync, scoreA, scoreB, riggory, scale);
   return rng() < pA ? queenA.id : queenB.id;
 }
 
@@ -254,6 +267,8 @@ interface SimCtx {
   noise: number;
   /** 0..1 — see RunBaselineOptions.riggory. */
   riggory: number;
+  /** Logistic scale for the rig-score gap; see `lipSyncWinProbs`. */
+  riggoryScale: number;
   /** queenId -> cumulative rig-score (running tally of band deltas). Used by
    *  the lip-sync handler to bias the coin flip toward the season's
    *  frontrunner when riggory > 0. */
@@ -296,6 +311,7 @@ function cloneSimCtx(ctx: SimCtx): SimCtx {
     rng: ctx.rng,
     noise: ctx.noise,
     riggory: ctx.riggory,
+    riggoryScale: ctx.riggoryScale,
     rigScores: new Map(ctx.rigScores),
     winCounts: new Map(ctx.winCounts),
     btm2Counts: new Map(ctx.btm2Counts),
@@ -442,7 +458,7 @@ const regularHandler: EpisodeHandler<RegularEpisode> = {
     const queenB = ctx.remaining.get(bottom2[1])!;
     const scoreA = ctx.rigScores.get(queenA.id) ?? 0;
     const scoreB = ctx.rigScores.get(queenB.id) ?? 0;
-    const lipSyncWinner = resolveLipSync(queenA, queenB, scoreA, scoreB, ctx.riggory, ctx.rng);
+    const lipSyncWinner = resolveLipSync(queenA, queenB, scoreA, scoreB, ctx.riggory, ctx.riggoryScale, ctx.rng);
     applyLipSyncOutcome(ctx, episode, placements, bottom2, lipSyncWinner);
   },
 };
@@ -516,6 +532,7 @@ function simulateOneSeason(
   episodes: EpisodeData[],
   noise: number,
   riggory: number,
+  riggoryScale: number,
   rng: Rng,
   midSeason?: MidSeasonState,
 ): SimulationRun {
@@ -551,6 +568,7 @@ function simulateOneSeason(
     rng,
     noise,
     riggory,
+    riggoryScale,
     rigScores,
     winCounts,
     btm2Counts,
@@ -610,6 +628,7 @@ export function simulateOneSeasonDual(
   episodes: EpisodeData[],
   noise: number,
   riggory: number,
+  riggoryScale: number,
   rng: Rng,
 ): { rigged: SimulationRun; r0: SimulationRun } {
   const queenMap = new Map(queens.map((q) => [q.id, q]));
@@ -619,6 +638,7 @@ export function simulateOneSeasonDual(
     rng,
     noise,
     riggory,
+    riggoryScale,
     rigScores: new Map(),
     winCounts: new Map(),
     btm2Counts: new Map(),
@@ -670,7 +690,7 @@ export function simulateOneSeasonDual(
     const scoreA = ctxRig.rigScores.get(queenA.id) ?? 0;
     const scoreB = ctxRig.rigScores.get(queenB.id) ?? 0;
     const { pStat, pBlend } = lipSyncWinProbs(
-      queenA.lipSync, queenB.lipSync, scoreA, scoreB, ctxRig.riggory,
+      queenA.lipSync, queenB.lipSync, scoreA, scoreB, ctxRig.riggory, ctxRig.riggoryScale,
     );
     const u = rng();
     const winnerRig = u < pBlend ? queenA.id : queenB.id;
@@ -776,9 +796,13 @@ export interface RunBaselineOptions {
   numSimulations?: number;
   noise?: number;
   /** 0..1. Bias the lip-sync coin flip toward the queen with the higher
-   *  cumulative rig-score. 0 = pure lipSync stat (default). 1 = always
-   *  picks the frontrunner; ties fall back to the lipSync stat. */
+   *  cumulative rig-score via a logistic on the score gap. 0 = pure lipSync
+   *  stat (default). 1 = full rig weight at large gaps; tied scores still
+   *  reduce to pStat. See `lipSyncWinProbs`. */
   riggory?: number;
+  /** Logistic scale (in rig-score units) for the rig-gap → pRig curve.
+   *  Defaults to {@link DEFAULT_RIGGORY_SCALE}. Larger = flatter curve. */
+  riggoryScale?: number;
   /** Optional deterministic seed. When provided, the run is reproducible byte-for-byte. */
   seed?: number;
 }
@@ -823,6 +847,7 @@ function runToBuffer(
   numSimulations: number,
   noise: number,
   riggory: number,
+  riggoryScale: number,
   rng: Rng,
   midSeason: MidSeasonState | undefined,
   onProgress: ((pct: number) => void) | undefined,
@@ -836,7 +861,7 @@ function runToBuffer(
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
-    const run = simulateOneSeason(queens, episodes, noise, riggory, rng, midSeason);
+    const run = simulateOneSeason(queens, episodes, noise, riggory, riggoryScale, rng, midSeason);
     writeRunToBuffer(buffer, i, run, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
       onProgress(Math.round((i / numSimulations) * 100));
@@ -857,10 +882,10 @@ function wrapAsBaselineResult(buffer: Uint8Array, season: SeasonData, numSimulat
 }
 
 export function runBaseline(
-  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, seed }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): BaselineResult {
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, resolveRng(seed), undefined, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), undefined, onProgress);
   return wrapAsBaselineResult(buffer, season, numSimulations);
 }
 
@@ -880,11 +905,11 @@ export interface BaselineDualResult {
  *  statistics agree with two separate `runBaseline` calls in expectation —
  *  not byte-identical, since the dual driver consumes RNG differently. */
 export function runBaselineDual(
-  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, seed }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): BaselineDualResult {
   if (riggory <= 0) {
-    const result = runBaseline({ season, numSimulations, noise, riggory: 0, seed }, onProgress);
+    const result = runBaseline({ season, numSimulations, noise, riggory: 0, riggoryScale, seed }, onProgress);
     return { rigged: result, r0: result };
   }
 
@@ -900,7 +925,7 @@ export function runBaselineDual(
 
   const progressInterval = Math.max(1, Math.floor(numSimulations / 100));
   for (let i = 0; i < numSimulations; i++) {
-    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, noise, riggory, rng);
+    const { rigged, r0 } = simulateOneSeasonDual(queens, episodes, noise, riggory, riggoryScale, rng);
     writeRunToBuffer(bufRig, i, rigged, queenIds, numQueens, numEpisodes);
     writeRunToBuffer(bufR0, i, r0, queenIds, numQueens, numEpisodes);
     if (onProgress && i % progressInterval === 0) {
@@ -916,20 +941,20 @@ export function runBaselineDual(
 
 /** Run baseline simulations and return only the compact buffer (no aggregation). */
 export function runBaselinePartial(
-  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, seed }: RunBaselineOptions,
+  { season, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunBaselineOptions,
   onProgress?: (pct: number) => void,
 ): { buffer: Uint8Array } {
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, resolveRng(seed), undefined, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), undefined, onProgress);
   return { buffer };
 }
 
 /** Run from mid-season state and return only the compact buffer (no aggregation). */
 export function runFromStatePartial(
-  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, seed }: RunFromStateOptions,
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): { buffer: Uint8Array } {
   const midSeason = buildMidSeason(season, fromEpisode);
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, resolveRng(seed), midSeason, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), midSeason, onProgress);
   return { buffer };
 }
 
@@ -1250,10 +1275,10 @@ export function outcomeToEpisodeResult(ep: EpisodeData): EpisodeResult {
 // ── Forward simulation from season state ──────────────────
 
 export function runFromState(
-  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, seed }: RunFromStateOptions,
+  { season, fromEpisode, numSimulations = 100_000, noise = 1.8, riggory = 0, riggoryScale = DEFAULT_RIGGORY_SCALE, seed }: RunFromStateOptions,
   onProgress?: (pct: number) => void,
 ): BaselineResult {
   const midSeason = buildMidSeason(season, fromEpisode);
-  const buffer = runToBuffer(season, numSimulations, noise, riggory, resolveRng(seed), midSeason, onProgress);
+  const buffer = runToBuffer(season, numSimulations, noise, riggory, riggoryScale, resolveRng(seed), midSeason, onProgress);
   return wrapAsBaselineResult(buffer, season, numSimulations);
 }
